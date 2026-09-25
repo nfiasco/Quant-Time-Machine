@@ -1,0 +1,2 @@
+# Store text files with LF line endings so diffs stay clean across macOS, Linux, and Windows.
+* text=auto eol=lf

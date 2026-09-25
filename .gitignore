@@ -1,0 +1,25 @@
+# Rules shared by the whole repository.
+# App-specific rules live in frontend/.gitignore and backend/.gitignore.
+
+# Environment variables and secrets: never commit real values.
+# To document required variables, commit a .env.example with placeholder values.
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editors and IDEs
+.idea/
+*.swp
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+# Logs
+*.log
