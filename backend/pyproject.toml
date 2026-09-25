@@ -1,0 +1,28 @@
+[project]
+name = "quant-time-machine-backend"
+version = "0.1.0"
+description = "Backend API for Quant Time Machine: point-in-time data and backtesting."
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi[standard]>=0.141.1",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.13.1",
+    "pytest>=9.1.1",
+    "ruff>=0.16.9",
+]
+
+# Lets `uv run fastapi dev` find the app without extra arguments.
+[tool.fastapi]
+entrypoint = "app.main:app"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# The backend is not installed as a package, so put this folder on the import path for tests.
+pythonpath = ["."]
+
+[tool.ruff.lint]
+# Ruff's defaults plus import sorting (I) and modern-syntax upgrades (UP); both are auto-fixable.
+extend-select = ["I", "UP"]

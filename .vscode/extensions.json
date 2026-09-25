@@ -1,0 +1,9 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "bradlc.vscode-tailwindcss",
+    "ms-python.python",
+    "charliermarsh.ruff",
+    "editorconfig.editorconfig"
+  ]
+}
