@@ -25,6 +25,7 @@ The goal is not an AI that predicts stocks. It's a research environment where yo
 | [`frontend/`](frontend/)                   | Next.js web app (TypeScript, React, Tailwind CSS), deployed on Vercel         |
 | [`backend/`](backend/)                     | Python API (FastAPI), home of the point-in-time data layer and the backtester |
 | [`.github/workflows/`](.github/workflows/) | CI: lints, builds, and tests both apps on every pull request                  |
+| [`doc/`](doc/)                             | Project docs, starting with the [roadmap and backlog](doc/roadmap.md)         |
 
 Each app has its own README with more details.
 
@@ -86,6 +87,8 @@ The frontend is deployed on [Vercel](https://vercel.com):
 Backend hosting isn't set up yet. Vercel can run the FastAPI app with no configuration, as a second Vercel project with Root Directory `backend`. Render, Railway, or Fly.io are also options if long-running backtests need them.
 
 ## Roadmap (draft)
+
+The full plan, with requirements, milestones, sprints, and the epics, stories, and tasks for our GitHub Project board, is in [`doc/roadmap.md`](doc/roadmap.md). In short:
 
 **CISC 498**
 
