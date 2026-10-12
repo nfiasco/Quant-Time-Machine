@@ -13,6 +13,20 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). Pages auto-update as you edit files.
 
+## Configuration
+
+Copy [`.env.example`](.env.example) to `.env.local` (git-ignored):
+
+| Variable              | Default                 | What it is                                   |
+| --------------------- | ----------------------- | -------------------------------------------- |
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Base URL of the backend API (see `backend/`) |
+
+Read it only through [`lib/api.ts`](lib/api.ts) (`API_URL`, `apiUrl("/health")`). Next.js copies `NEXT_PUBLIC_` values into the JavaScript sent to browsers when the app is built, so:
+
+- never put a secret in one;
+- restart `npm run dev` after changing one;
+- in Vercel, set it per environment (Production, Preview), because the value is frozen into each deployment when it's built.
+
 ## Scripts
 
 | Command         | What it does                                          |
@@ -30,6 +44,8 @@ app/
 ├── page.tsx      # Homepage (/)
 ├── globals.css   # Global styles and Tailwind CSS import
 └── favicon.ico
+lib/
+└── api.ts        # Backend base URL from NEXT_PUBLIC_API_URL; apiUrl(path) builds full URLs
 ```
 
 New routes are folders inside `app/` with a `page.tsx` (for example, `app/backtests/page.tsx` → `/backtests`). Static files like images go in a `public/` folder (create it when needed).

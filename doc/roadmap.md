@@ -1,6 +1,6 @@
 # Quant Time Machine: Roadmap and Product Backlog
 
-> **Draft v0.1, last updated 2026-09-25.** This is a living plan for CISC 498 (Fall 2026) and CISC 499 (Spring 2027), not a commitment. Scope will change as interviews and data exploration teach us more.
+> **Draft v0.2, last updated 2026-10-11 (end of Sprint 1, milestone M1).** This is a living plan for CISC 498 (Fall 2026) and CISC 499 (Spring 2027), not a commitment. Scope will change as interviews and data exploration teach us more.
 >
 > **How to use it:** every epic, story, and task below is written to become a GitHub Project item (see [§6](#6-running-the-project-board)). Once the issues exist, the board is the source of truth. Update this file at each milestone so it stays a readable summary, and if you change a story's metadata here, update its row in the [backlog overview](#7-backlog-overview) too.
 
@@ -10,7 +10,7 @@
 - **CISC 498 (Fall 2026):** point-in-time data layer, deterministic backtester, research API, and web interface. The demo opens the time machine at June 5, 2020, 9:30 AM ET and runs the revenue-growth-plus-momentum backtest from the browser.
 - **CISC 499 (Spring 2027):** MCP tools and an AI research assistant that turns questions into structured experiments, plus look-ahead-bias detection, experiment tracking, strategy comparison, and robustness testing.
 - **Ground rule:** the AI translates; deterministic code calculates. Every number comes from tested code, and every input carries the time it became public.
-- **Size:** 15 epics and 98 stories, 70 of them P0 (needed for a semester demo). Sprints are two weeks long; Sprint 1 starts Monday, September 28, 2026.
+- **Size:** 16 epics and 104 stories, 70 of them P0 (needed for a semester demo). Sprints are two weeks long; Sprint 1 starts Monday, September 28, 2026.
 
 ## Contents
 
@@ -75,16 +75,19 @@ From the team's Problem Exploration:
 | Less research effort | Users finish a point-in-time-correct experiment faster than with their current approach | Usability sessions (S15.3, S15.8) compared with interview baselines (S2.1) |
 | AI translation quality | Set after a baseline, for example at least 85% of eval questions produce the correct spec | Eval suite (S11.7) |
 
-### 1.6 Where we are today (September 25, 2026)
+### 1.6 Where we are today (October 11, 2026)
 
 | Area | State |
 | --- | --- |
-| Repository | Monorepo with `frontend/` (Next.js 16, React 19, TypeScript, Tailwind CSS 4) and `backend/` (Python 3.14, FastAPI, uv, pytest, Ruff) |
-| Backend | `GET /health` only; `app/data/` and `app/backtest/` are placeholders |
-| Frontend | Starter homepage, set up for Vercel |
+| Repository | Monorepo with `frontend/` (Next.js 16, React 19, TypeScript, Tailwind CSS 4) and `backend/` (Python 3.14, FastAPI, uv, pytest, Ruff). MIT license, pull request and issue templates, and a data policy in the README. |
+| Backend | `GET /health`; typed settings in `app/config.py` with `.env.example`; `app/data/` and `app/backtest/` are still placeholders. Sprint 1 spikes live in `backend/spikes/`. |
+| Frontend | Starter homepage, set up for Vercel; `lib/api.ts` reads `NEXT_PUBLIC_API_URL` |
 | CI | GitHub Actions lints, builds, and tests both apps on every pull request |
+| Decisions | Time model written ([`doc/time-model.md`](time-model.md)). Storage: Parquet files queried with DuckDB (D1, [`doc/storage.md`](storage.md)). Prices: Tiingo (D2), confirmed by a test pull. Timing: 09:30 ET decision with a same-day close fill (D5). License: MIT (D11). Sources and terms are in [`doc/data-sources.md`](data-sources.md). All pending team review. |
+| Accounts | Planned: Supabase sign-in, with each user's saved experiments and runs kept in Supabase (E16, owned by the database lead). Market data stays in Parquet + DuckDB (D1). |
+| Open from M1 | The board (S1.2); going public with Vercel previews and branch protection (S1.3, S1.4); the WRDS question (S2.3); team review of the docs; interviews (S2.1) |
+| Security | A FRED API key was committed in `doc/apiDoc.ipynb` on October 9. It's removed from the working tree but still in git history, so it must be revoked before the repo goes public (R14). |
 | Hosting | Vercel's free plan won't deploy teammates' commits from a private repo, so the repo needs to go public (S1.3). Backend hosting is undecided (S1.6). |
-| Discovery | Problem Exploration written; interviews not started |
 
 ## 2. How point-in-time works
 
@@ -163,19 +166,23 @@ flowchart TB
     subgraph sources["Public data sources"]
         alfred["ALFRED / FRED<br/>macro vintages"]
         edgar["SEC EDGAR<br/>filings and XBRL facts"]
-        prices["Daily price source<br/>(decision D2)"]
+        prices["Daily prices<br/>Tiingo (D2)"]
+    end
+
+    subgraph supabase["Supabase (E16): accounts and user data"]
+        auth["Supabase Auth<br/>sign-in"]
+        runs[("Saved experiments and runs<br/>per user, row-level security (D10)")]
     end
 
     subgraph backend["backend/ (Python, FastAPI)"]
         ingest["Ingestion jobs<br/>raw cache + normalizers"]
-        store[("Point-in-time store<br/>append-only, available_at on every row")]
+        store[("Point-in-time store<br/>Parquet + DuckDB (D1), available_at on every row")]
         pit["PointInTimeView<br/>the only way to read data"]
         engine["Deterministic backtest engine"]
-        runs[("Run registry<br/>specs, versions, results, audit")]
         api["Research API /v1"]
         mcp["MCP server (499)"]
         ingest --> store --> pit
-        pit --> engine --> runs
+        pit --> engine
         pit --> api
         engine --> api
         pit --> mcp
@@ -185,7 +192,9 @@ flowchart TB
     alfred --> ingest
     edgar --> ingest
     prices --> ingest
+    api -->|"save runs by user and data version"| runs
     web["frontend/ (Next.js)<br/>time machine, builder, results, chat"] --> api
+    web -->|"sign in"| auth
     web --> assistant["AI research assistant (499)<br/>turns questions into specs"]
     assistant -->|"tool calls"| mcp
 ```
@@ -205,17 +214,18 @@ Folder names are suggestions. Keep the existing rule that API handlers stay thin
 | MCP server | `backend/app/mcp/` | 499 | E10 |
 | AI assistant: agent loop, prompts, evals | `backend/app/assistant/` | 499 | E11 |
 | Bias checks | `backend/app/backtest/checks/` | 499 | E12 |
-| Run registry | `backend/app/runs/` | files in 498, database in 499 | E7, E13 |
+| Run registry | `backend/app/runs/`, with per-user records in Supabase (D10) | Files at first; Supabase once accounts exist (E16) | E7, E13, E16 |
+| Accounts and user data | Supabase (migrations in `supabase/`), sign-in pages in `frontend/app/`, token check in `backend/app/api/` | 498 | E16 |
 
 ### 3.3 Data sources
 
 | Data | Source | Point-in-time field | Access | Watch out for |
 | --- | --- | --- | --- | --- |
-| Economic series and their revisions | ALFRED / FRED API | `realtime_start` and `realtime_end` of each vintage (dates only) | Free API key | Release time of day isn't in the API; vintage history for some series starts later than the data; some series carry third-party copyright |
-| Filing history | SEC EDGAR submissions API (`data.sec.gov/submissions/`) | `acceptanceDateTime` of each filing | Free, no key; send a User-Agent with contact details and stay under 10 requests per second | Older filings are paginated; confirm the timezone of acceptance times (S5.1) |
+| Economic series and their revisions | ALFRED / FRED API | `realtime_start` and `realtime_end` of each vintage (dates only) | Free API key | Real-time parameters default to *today*, which returns revised data; release time of day isn't in the API; vintage history for some series starts later than the data; some series carry third-party copyright |
+| Filing history | SEC EDGAR submissions API (`data.sec.gov/submissions/`) | `acceptanceDateTime` of each filing, corrected: the JSON runs ahead of the true time by the Eastern UTC offset (S5.1) | Free, no key; send a User-Agent with contact details and stay under 10 requests per second | Older filings are paginated; never use `filingDate` or `reportDate` as the availability time |
 | Reported financials | SEC XBRL company facts API (`data.sec.gov/api/xbrl/companyfacts/`) | `filed` date and accession number, joined to the filing's acceptance time | Same as above | XBRL starts in 2009–2011 depending on filer size; tags vary by company and year; the frames API returns last-filed values, so it isn't point-in-time |
 | Bulk backfill (optional) | SEC nightly bulk archives or Financial Statement Data Sets | Acceptance time of each submission | Free downloads | Large files; only needed beyond the starter universe |
-| Daily prices, splits, dividends | Chosen in S6.1. Candidates: Tiingo, Stooq, yfinance, Alpha Vantage, or WRDS (CRSP) if the university provides access | Bar date and session close | Varies | Delisted coverage (survivorship), raw vs. adjusted prices, terms for display and redistribution |
+| Daily prices, splits, dividends | Tiingo end-of-day API (D2; see [`doc/data-sources.md`](data-sources.md#daily-prices-decision-d2)). WRDS (CRSP) through UD's Lerner College, for internal validation only | Bar date and session close | Free key: 50 requests per hour, 1,000 per day, 500 symbols per month | Free and Power plans are internal use only, so displaying prices needs permission or a license; delisted coverage is partial (recent delistings yes, few before 2010) |
 | Universe membership | Chosen in S6.5 | Effective date of each change | Varies | Official index membership is proprietary; public reconstructions are incomplete |
 | Trading calendar | `exchange_calendars` (or `pandas_market_calendars`) | Not applicable | Open-source library | Early closes and unscheduled closures |
 
@@ -355,6 +365,14 @@ Signals come from a fixed, documented library, not free-form code. When a spec a
 | FR-R4 | Statistical robustness: bootstrap confidence intervals, placebo tests, and a deflated Sharpe ratio | Could | S14.4 |
 | FR-R5 | A one-click robustness report, also available through the assistant | Should | S14.5 |
 
+#### Accounts and user data (FR-U)
+
+| ID | Requirement | Priority | Stories |
+| --- | --- | --- | --- |
+| FR-U1 | Users can sign up, sign in, and sign out, and the backend verifies who is calling | Should | S16.1, S16.3, S16.4 |
+| FR-U2 | Saved experiments and runs belong to one user and are private by default (row-level security). They point to market data by data version instead of copying it. | Should | S16.2, S16.5, S13.1 |
+| FR-U3 | A privacy page explains what is stored, and users can delete their account and data | Should | S16.6 |
+
 ### 4.2 Non-functional requirements
 
 | ID | Quality | Requirement | Priority | Stories |
@@ -416,18 +434,35 @@ Spring dates are placeholders until the Spring 2027 calendar is confirmed. Move 
 | M9 | Comparison and robustness | May 2, 2027 | Comparison, parameter sweeps, and stress tests work from the UI and the assistant; security review and second usability test done |
 | M10 | Final release and CISC 499 showcase | May 16, 2027, per the course calendar | `v1.0` tagged; docs complete; showcase and final report delivered |
 
+**M1 status (October 11, 2026).** The repository work is in review:
+
+- the LICENSE, templates, configuration, and data policy;
+- the time model, D1, D2, and D5;
+- the data-sources memo;
+- all four spikes (ALFRED, EDGAR, prices, storage).
+
+Still open:
+
+- the board, going public, and branch protection;
+- the WRDS question;
+- revoking the leaked FRED key;
+- team review of the new docs;
+- interviews.
+
+See §7 for each story.
+
 ### 5.3 Sprint plan
 
-Stories that span several sprints appear in each one. **Load** is the sum of size midpoints (S ≈ 3 h, M ≈ 6 h, L ≈ 12 h), split evenly across a story's sprints. Five people at 8–10 hours a week give roughly 80–100 hours per sprint, so Sprints 2 and 3 are full: protect them from new work. Spring sprints are deliberately lighter, because carry-over, bug fixes, and learning the AI stack will take real time.
+Stories that span several sprints appear in each one. **Load** is the sum of size midpoints (S ≈ 3 h, M ≈ 6 h, L ≈ 12 h), split evenly across a story's sprints. Five people at 8–10 hours a week give roughly 80–100 hours per sprint, so Sprints 2 and 3 are full: protect them from new work. Accounts (E16) have a dedicated owner, the database lead, so their hours come from that person, not from the other workstreams. Spring sprints are deliberately lighter, because carry-over, bug fixes, and learning the AI stack will take real time.
 
 | Sprint | Dates | Milestone | Focus | Stories | Load |
 | --- | --- | --- | --- | --- | --- |
 | 0 | Sep 21–27, 2026 | M0 | Repository and CI setup (done) | S1.1 | ~6 h |
 | 1 | Sep 28 – Oct 11 | M1 | Board, public repo, configuration, data spikes, time model, storage decision; interviews start | S1.2, S1.3, S1.4, S1.5, S2.1, S2.2, S2.3, S3.1, S3.2, S4.1, S5.1, S6.1 | ~40 h |
-| 2 | Oct 12 – Oct 25 | M2 | Walking skeleton: point-in-time core, calendar, first ingestion of macro, filings, and prices; as-of functions; API conventions; app shell | S1.6, S2.1, S2.2, S2.4, S3.3, S3.4, S3.5, S3.6, S4.2, S4.3, S4.4, S5.2, S5.3, S5.4, S6.2, S6.3, S6.5, S8.1, S8.2, S9.1 | ~82 h |
-| 3 | Oct 26 – Nov 8 | M3 | Fundamentals (XBRL, tags, Q4, restatements), total returns, universe v1, spec v1, snapshot and explorer | S2.1, S3.6, S3.7, S4.5, S5.5, S5.6, S5.7, S6.4, S6.5, S7.1, S7.2, S8.2, S8.3, S8.5, S9.2 | ~79 h |
-| 4 | Nov 9 – Nov 22 | M4 | Engine loop, signals, portfolio, metrics, audit, canonical run, backtest API | S6.7, S7.3, S7.4, S7.5, S7.6, S7.7, S7.8, S8.4, S9.3 | ~57 h |
-| 5 | Nov 23 – Dec 6 | M5 | Builder, results, methodology, backend deploy. Thanksgiving is Nov 26, so plan for about 60% capacity. | S8.6, S9.4, S9.5, S9.6, S9.7, S15.1, S15.2 | ~45 h |
+| 2 | Oct 12 – Oct 25 | M2 | Walking skeleton: point-in-time core, calendar, first ingestion of macro, filings, and prices; as-of functions; API conventions; app shell | S1.6, S2.1, S2.2, S2.4, S3.3, S3.4, S3.5, S3.6, S4.2, S4.3, S4.4, S5.2, S5.3, S5.4, S6.2, S6.3, S6.5, S8.1, S8.2, S9.1, S16.1 | ~85 h |
+| 3 | Oct 26 – Nov 8 | M3 | Fundamentals (XBRL, tags, Q4, restatements), total returns, universe v1, spec v1, snapshot and explorer | S2.1, S3.6, S3.7, S4.5, S5.5, S5.6, S5.7, S6.4, S6.5, S7.1, S7.2, S8.2, S8.3, S8.5, S9.2, S16.2 | ~85 h |
+| 4 | Nov 9 – Nov 22 | M4 | Engine loop, signals, portfolio, metrics, audit, canonical run, backtest API | S6.7, S7.3, S7.4, S7.5, S7.6, S7.7, S7.8, S8.4, S9.3, S16.3, S16.4 | ~66 h |
+| 5 | Nov 23 – Dec 6 | M5 | Builder, results, methodology, backend deploy. Thanksgiving is Nov 26, so plan for about 60% capacity. | S8.6, S9.4, S9.5, S9.6, S9.7, S15.1, S15.2, S16.5, S16.6 | ~54 h |
 | 6 | Dec 7 – end of term | M5 | First usability test, demo, report, retro, winter plan | S15.3, S15.4 | ~12 h |
 | Winter | Dec 19 – Feb 7 | — | Optional: bug fixes, data expansion, universe v2 | Volunteer basis | — |
 | 7 | Feb 8 – Feb 21, 2027 | M6 | 498 feedback, data expansion, MCP and model spikes, hindsight research | S2.5, S4.6, S5.8, S6.6, S10.1, S10.2, S11.1, S15.5 | ~45 h |
@@ -449,6 +484,7 @@ Spring break will fall somewhere in Sprints 9–11; shift the dates once the cal
 | Fall | Prices, returns, and universe | E6 |
 | Fall | Backtest engine | E7 |
 | Fall | API and web | E8, E9 |
+| Fall | Accounts and user data: the database lead, working on it exclusively | E16 |
 | Spring | MCP and assistant (two people) | E10, E11 |
 | Spring | Bias detection | E12 |
 | Spring | Experiment tracking and robustness | E13, E14 |
@@ -481,6 +517,11 @@ flowchart TB
     E13 --> E14["E14 Comparison and robustness"]
     E9 --> E15["E15 Deployment and delivery"]
     E11 --> E15
+    E1 --> E16["E16 Accounts and user data"]
+    E8 --> E16
+    E9 --> E16
+    E16 --> E13
+    E16 --> E15
 ```
 
 ### 5.5 If we fall behind
@@ -587,35 +628,35 @@ gh api "repos/{owner}/{repo}/milestones" -f title="M1 Decisions and discovery" -
 
 ## 7. Backlog overview
 
-Every story in one table, like the Project's table view. Select an ID to jump to its details. Status is ✅ Done, Ready (scheduled for Sprint 1), or Backlog.
+Every story in one table, like the Project's table view. Select an ID to jump to its details. Status is ✅ Done (merged), In review (work finished, awaiting team review and merge), In progress, Ready (scheduled for the current sprint), or Backlog.
 
 | ID | Story | Epic | Priority | Size | Sprint | Milestone | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | [S1.1](#s11-monorepo-scaffold-with-ci) | Monorepo scaffold with CI | E1 | P0 | M | 0 | M0 | ✅ Done |
 | [S1.2](#s12-set-up-the-github-project-board) | Set up the GitHub Project board | E1 | P0 | S | 1 | M1 | Ready |
-| [S1.3](#s13-make-the-repository-public-safely) | Make the repository public safely | E1 | P0 | S | 1 | M1 | Ready |
-| [S1.4](#s14-contribution-templates-and-branch-protection) | Contribution templates and branch protection | E1 | P1 | S | 1 | M1 | Ready |
-| [S1.5](#s15-configuration-and-secrets) | Configuration and secrets | E1 | P0 | S | 1 | M1 | Ready |
+| [S1.3](#s13-make-the-repository-public-safely) | Make the repository public safely | E1 | P0 | S | 1 | M1 | In progress |
+| [S1.4](#s14-contribution-templates-and-branch-protection) | Contribution templates and branch protection | E1 | P1 | S | 1 | M1 | In progress |
+| [S1.5](#s15-configuration-and-secrets) | Configuration and secrets | E1 | P0 | S | 1 | M1 | In review |
 | [S1.6](#s16-spike-choose-backend-and-data-hosting) | Spike: choose backend and data hosting | E1 | P0 | S | 2 | M2 | Backlog |
 | [S2.1](#s21-interview-target-users) | Interview target users | E2 | P0 | L | 1–3 | M3 | Ready |
 | [S2.2](#s22-compare-existing-tools) | Compare existing tools | E2 | P1 | M | 1–2 | M2 | Ready |
-| [S2.3](#s23-data-sources-and-terms-memo) | Data sources and terms memo | E2 | P0 | M | 1 | M1 | Ready |
+| [S2.3](#s23-data-sources-and-terms-memo) | Data sources and terms memo | E2 | P0 | M | 1 | M1 | In review |
 | [S2.4](#s24-success-measures-and-evaluation-plan) | Success measures and evaluation plan | E2 | P1 | S | 2 | M2 | Backlog |
 | [S2.5](#s25-research-how-an-ai-assistant-could-introduce-hindsight) | Research: how an AI assistant could introduce hindsight | E2 | P1 | M | 7 | M6 | Backlog |
-| [S3.1](#s31-ratify-the-time-model) | Ratify the time model | E3 | P0 | S | 1 | M1 | Ready |
-| [S3.2](#s32-spike-choose-the-storage-engine) | Spike: choose the storage engine | E3 | P0 | S | 1 | M1 | Ready |
+| [S3.1](#s31-ratify-the-time-model) | Ratify the time model | E3 | P0 | S | 1 | M1 | In review |
+| [S3.2](#s32-spike-choose-the-storage-engine) | Spike: choose the storage engine | E3 | P0 | S | 1 | M1 | In review |
 | [S3.3](#s33-pointintimeview-the-only-way-to-read-data) | `PointInTimeView`: the only way to read data | E3 | P0 | M | 2 | M2 | Backlog |
 | [S3.4](#s34-raw-cache-provenance-and-ingestion-cli) | Raw cache, provenance, and ingestion CLI | E3 | P0 | M | 2 | M2 | Backlog |
 | [S3.5](#s35-trading-calendar) | Trading calendar | E3 | P0 | S | 2 | M2 | Backlog |
 | [S3.6](#s36-fixtures-and-golden-test-cases) | Fixtures and golden test cases | E3 | P0 | M | 2–3 | M3 | Backlog |
 | [S3.7](#s37-data-versions-for-reproducible-runs) | Data versions for reproducible runs | E3 | P0 | S | 3 | M3 | Backlog |
-| [S4.1](#s41-spike-explore-the-alfred-api) | Spike: explore the ALFRED API | E4 | P0 | S | 1 | M1 | Ready |
+| [S4.1](#s41-spike-explore-the-alfred-api) | Spike: explore the ALFRED API | E4 | P0 | S | 1 | M1 | In review |
 | [S4.2](#s42-ingest-vintage-history-for-the-starter-series) | Ingest vintage history for the starter series | E4 | P0 | M | 2 | M2 | Backlog |
 | [S4.3](#s43-model-release-times) | Model release times | E4 | P0 | S | 2 | M2 | Backlog |
 | [S4.4](#s44-get_macro_as_of) | `get_macro_as_of` | E4 | P0 | M | 2 | M2 | Backlog |
 | [S4.5](#s45-revision-history) | Revision history | E4 | P1 | S | 3 | M3 | Backlog |
 | [S4.6](#s46-expand-the-series-catalog) | Expand the series catalog | E4 | P2 | M | 7 | M6 | Backlog |
-| [S5.1](#s51-spike-explore-the-edgar-apis) | Spike: explore the EDGAR APIs | E5 | P0 | S | 1 | M1 | Ready |
+| [S5.1](#s51-spike-explore-the-edgar-apis) | Spike: explore the EDGAR APIs | E5 | P0 | S | 1 | M1 | In review |
 | [S5.2](#s52-company-identity-cik-tickers-share-classes) | Company identity: CIK, tickers, share classes | E5 | P0 | M | 2 | M2 | Backlog |
 | [S5.3](#s53-ingest-filing-histories) | Ingest filing histories | E5 | P0 | M | 2 | M2 | Backlog |
 | [S5.4](#s54-get_latest_filing_as_of) | `get_latest_filing_as_of` | E5 | P0 | S | 2 | M2 | Backlog |
@@ -623,7 +664,7 @@ Every story in one table, like the Project's table view. Select an ID to jump to
 | [S5.6](#s56-map-xbrl-tags-to-standard-metrics) | Map XBRL tags to standard metrics | E5 | P0 | M | 3 | M3 | Backlog |
 | [S5.7](#s57-quarterly-fundamentals-as-known-at-a-time) | Quarterly fundamentals as known at a time | E5 | P0 | L | 3 | M3 | Backlog |
 | [S5.8](#s58-bulk-backfill-from-sec-bulk-files) | Bulk backfill from SEC bulk files | E5 | P2 | M | 7 | M6 | Backlog |
-| [S6.1](#s61-spike-choose-a-daily-price-source) | Spike: choose a daily price source | E6 | P0 | S | 1 | M1 | Ready |
+| [S6.1](#s61-spike-choose-a-daily-price-source) | Spike: choose a daily price source | E6 | P0 | S | 1 | M1 | In review |
 | [S6.2](#s62-ingest-raw-prices-and-corporate-actions) | Ingest raw prices and corporate actions | E6 | P0 | M | 2 | M2 | Backlog |
 | [S6.3](#s63-get_price_as_of) | `get_price_as_of` | E6 | P0 | S | 2 | M2 | Backlog |
 | [S6.4](#s64-total-returns-without-look-ahead) | Total returns without look-ahead | E6 | P0 | M | 3 | M3 | Backlog |
@@ -689,6 +730,12 @@ Every story in one table, like the Project's table view. Select an ID to jump to
 | [S15.8](#s158-usability-test-round-2) | Usability test, round 2 | E15 | P1 | M | 12 | M9 | Backlog |
 | [S15.9](#s159-final-documentation) | Final documentation | E15 | P1 | M | 13 | M10 | Backlog |
 | [S15.10](#s1510-cisc-499-final-release-and-showcase) | CISC 499 final release and showcase | E15 | P0 | M | 13 | M10 | Backlog |
+| [S16.1](#s161-spike-set-up-supabase-migrations-and-sign-in) | Spike: set up Supabase, migrations, and sign-in | E16 | P1 | S | 2 | M2 | Ready |
+| [S16.2](#s162-user-data-schema-with-row-level-security) | User-data schema with row-level security | E16 | P1 | M | 3 | M3 | Backlog |
+| [S16.3](#s163-sign-up-sign-in-and-sign-out) | Sign-up, sign-in, and sign-out | E16 | P1 | M | 4 | M4 | Backlog |
+| [S16.4](#s164-the-backend-knows-who-is-calling) | The backend knows who is calling | E16 | P1 | S | 4 | M4 | Backlog |
+| [S16.5](#s165-save-and-reopen-experiments) | Save and reopen experiments | E16 | P1 | M | 5 | M5 | Backlog |
+| [S16.6](#s166-privacy-page-and-account-deletion) | Privacy page and account deletion | E16 | P1 | S | 5 | M5 | Backlog |
 
 ## 8. Epics, stories, and tasks
 
@@ -711,6 +758,7 @@ Each story starts with a metadata line: priority, size, sprint, milestone, area,
 | [E13. Experiment tracking and reproducibility](#e13-experiment-tracking-and-reproducibility) | Every experiment is saved, findable, and re-runnable with identical results | 499 | M7–M8 | 4 | 3 |
 | [E14. Strategy comparison and robustness testing](#e14-strategy-comparison-and-robustness-testing) | Help users tell a robust effect from a lucky backtest | 499 | M9 | 5 | 2 |
 | [E15. Deployment, quality, and delivery](#e15-deployment-quality-and-delivery) | A dependable, documented system and strong semester deliverables | 498 + 499 | M5–M10 | 10 | 4 |
+| [E16. Accounts and user data](#e16-accounts-and-user-data) | People sign in, and what they save stays with their account, private by default | 498 (499 builds on it) | M2–M5 | 6 | 0 |
 
 ### E1. Project foundation and team workflow
 
@@ -758,7 +806,7 @@ Each story starts with a metadata line: priority, size, sprint, milestone, area,
 
 #### S1.3 Make the repository public safely
 
-**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** infra · **Depends on:** — · **Reqs:** NFR-7, NFR-8
+**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** infra · **Depends on:** — · **Reqs:** NFR-7, NFR-8 · **Status:** In progress
 
 **Story:** As a team, we want the repository public, so that Vercel builds previews for everyone's pull requests on the free plan.
 
@@ -771,15 +819,16 @@ Each story starts with a metadata line: priority, size, sprint, milestone, area,
 
 **Tasks**
 
-- [ ] Check course and university expectations about code ownership before choosing a license
-- [ ] Add a LICENSE (for example, MIT or Apache-2.0)
-- [ ] Scan the history for secrets (for example, with gitleaks) and make sure `.gitignore` covers the data directory
-- [ ] Add a "Data policy" section to the README
+- [ ] Check course and university expectations about code ownership before choosing a license (MIT chosen on 2026-10-11, D11; confirm it fits the course policy)
+- [x] Add a LICENSE (MIT)
+- [x] Scan the history for secrets (for example, with gitleaks) and make sure `.gitignore` covers the data directory. A full-history scan on 2026-10-11 found one secret: a FRED API key in `doc/apiDoc.ipynb`, added in commit `bc27fb1` and also on the `Potential_API_Documentation` branch and in PR #43. gitleaks 8.30.1 missed it because a notebook's JSON escapes the quotes, so a regex scan of `git log -p --all` found it. No data files were ever committed. `DATA_DIR` (`backend/data/`), a root `data/`, and `*.duckdb` are now ignored.
+- [ ] Revoke the leaked FRED key (its owner does this at fredaccount.stlouisfed.org), then decide whether to rewrite history before going public. Rewriting alone doesn't help: the key stays visible in PR #43.
+- [x] Add a "Data policy" section to the README
 - [ ] Switch the repo to public and verify a teammate's preview deploy
 
 #### S1.4 Contribution templates and branch protection
 
-**Priority:** P1 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** infra · **Depends on:** S1.2 · **Reqs:** NFR-9
+**Priority:** P1 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** infra · **Depends on:** S1.2 · **Reqs:** NFR-9 · **Status:** In progress
 
 **Story:** As a reviewer, I want every pull request and issue to follow the same checklist, so that tests, docs, and issue links don't get skipped.
 
@@ -791,14 +840,14 @@ Each story starts with a metadata line: priority, size, sprint, milestone, area,
 
 **Tasks**
 
-- [ ] Add `.github/pull_request_template.md`
-- [ ] Add story, spike, and bug templates in `.github/ISSUE_TEMPLATE/`
+- [x] Add `.github/pull_request_template.md`
+- [x] Add story, spike, and bug templates in `.github/ISSUE_TEMPLATE/`
 - [ ] Protect `main` with a branch protection rule or ruleset
-- [ ] Point the README's Contributing section at [§6](#6-running-the-project-board)
+- [x] Point the README's Contributing section at [§6](#6-running-the-project-board)
 
 #### S1.5 Configuration and secrets
 
-**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** infra · **Depends on:** — · **Reqs:** NFR-8, NFR-11
+**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** infra · **Depends on:** — · **Reqs:** NFR-8, NFR-11 · **Status:** In review
 
 **Story:** As a developer, I want one documented place for settings and API keys, so that I can run everything locally without committing secrets.
 
@@ -810,10 +859,10 @@ Each story starts with a metadata line: priority, size, sprint, milestone, area,
 
 **Tasks**
 
-- [ ] Add a settings module (for example, pydantic-settings) at `backend/app/config.py`
-- [ ] Add the `.env.example` files
-- [ ] Document how to get a FRED API key and what the SEC User-Agent must contain
-- [ ] Read `NEXT_PUBLIC_API_URL` in one frontend helper
+- [x] Add a settings module (for example, pydantic-settings) at `backend/app/config.py`
+- [x] Add the `.env.example` files
+- [x] Document how to get a FRED API key and what the SEC User-Agent must contain
+- [x] Read `NEXT_PUBLIC_API_URL` in one frontend helper (`frontend/lib/api.ts`)
 
 #### S1.6 Spike: choose backend and data hosting
 
@@ -883,7 +932,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 #### S2.3 Data sources and terms memo
 
-**Priority:** P0 · **Size:** M · **Sprint:** 1 · **Milestone:** M1 · **Area:** research · **Depends on:** S4.1, S5.1, S6.1 · **Reqs:** NFR-6, NFR-7
+**Priority:** P0 · **Size:** M · **Sprint:** 1 · **Milestone:** M1 · **Area:** research · **Depends on:** S4.1, S5.1, S6.1 · **Reqs:** NFR-6, NFR-7 · **Status:** In review
 
 **Story:** As a team, we want one document describing every data source, so that we know what each covers, when its data became public, and what we're allowed to do with it.
 
@@ -895,9 +944,9 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Tasks**
 
-- [ ] Combine the findings from spikes S4.1, S5.1, and S6.1
-- [ ] Read and summarize each source's terms of use
-- [ ] Ask the library or business school about WRDS access
+- [x] Combine the findings from spikes S4.1, S5.1, and S6.1 in [`doc/data-sources.md`](data-sources.md)
+- [x] Read and summarize each source's terms of use
+- [ ] Ask the library or business school about WRDS access. What UD publishes is recorded: WRDS through the Lerner College, including CRSP. The questions to ask are listed in the memo.
 - [ ] Review the memo as a team
 
 #### S2.4 Success measures and evaluation plan
@@ -943,7 +992,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 #### S3.1 Ratify the time model
 
-**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** NFR-4, FR-B9
+**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** NFR-4, FR-B9 · **Status:** In review
 
 **Story:** As a developer, I want written rules for how time works in the system, so that every data source and the engine treat "known at time *T*" the same way.
 
@@ -955,13 +1004,14 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Tasks**
 
-- [ ] Walk through [§2.2](#22-conventions) as a team and settle open questions
-- [ ] Write `doc/time-model.md` with an example for each source
-- [ ] Turn each rule into a named test case for S3.6
+- [ ] Walk through [§2.2](#22-conventions) as a team and settle open questions. The open questions are listed at the end of [`doc/time-model.md`](time-model.md).
+- [x] Write `doc/time-model.md` with an example for each source
+- [x] Turn each rule into a named test case for S3.6
+- [x] Choose the default decision and fill timing: 09:30 ET decision, same-day close fill (D5)
 
 #### S3.2 Spike: choose the storage engine
 
-**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** NFR-5
+**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** NFR-5 · **Status:** In review
 
 **Story:** As a developer, I want to pick the database for point-in-time data from a quick test, so that as-of queries are simple and fast.
 
@@ -973,9 +1023,9 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Tasks**
 
-- [ ] Generate synthetic data
-- [ ] Write and time the as-of query in each candidate
-- [ ] Record the decision with a short example for the team
+- [x] Generate synthetic data
+- [x] Write and time the as-of query in each candidate ([`backend/spikes/storage_benchmark.py`](../backend/spikes/storage_benchmark.py))
+- [x] Record the decision with a short example for the team ([`doc/storage.md`](storage.md))
 
 #### S3.3 `PointInTimeView`: the only way to read data
 
@@ -1079,7 +1129,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 #### S4.1 Spike: explore the ALFRED API
 
-**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** FR-D3
+**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** FR-D3 · **Status:** In review
 
 **Story:** As a developer, I want to see how vintages work in practice, so that we model them correctly before writing ingestion.
 
@@ -1091,9 +1141,10 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Tasks**
 
-- [ ] Get an API key
-- [ ] Query observations with real-time parameters and list vintage dates
-- [ ] Write up the findings for the data-sources memo (S2.3)
+- [x] Get an API key. Setup is documented in the README and `backend/.env.example`; never reuse the key that was committed in the notebook.
+- [x] Query observations with real-time parameters and list vintage dates ([`backend/spikes/alfred.py`](../backend/spikes/alfred.py)). January 1990 was 5.3% from 1990-02-02 and 5.4% from 1996-03-08; May 2020's 13.3% appears exactly on June 5, 2020.
+- [x] Write up the findings for the data-sources memo (S2.3)
+- [x] Fix the research notebook's "vintage" query, which passed a parameter FRED ignores and returned revised data
 
 #### S4.2 Ingest vintage history for the starter series
 
@@ -1194,7 +1245,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 #### S5.1 Spike: explore the EDGAR APIs
 
-**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** FR-D4, FR-D5
+**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** FR-D4, FR-D5 · **Status:** In review
 
 **Story:** As a developer, I want to see real EDGAR responses and their timestamps, so that we pick the right "available at" field.
 
@@ -1206,9 +1257,9 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Tasks**
 
-- [ ] Write the exploration script
-- [ ] Check one filing's acceptance time against its EDGAR index page
-- [ ] Write up the findings for S2.3
+- [x] Write the exploration script ([`backend/spikes/edgar.py`](../backend/spikes/edgar.py))
+- [x] Check one filing's acceptance time against its EDGAR index page. Three were checked, plus every Apple filing against the 5:30 PM filing-date rule. Finding: the JSON's `acceptanceDateTime` runs ahead of the true time by the Eastern UTC offset, so ingestion must correct it.
+- [x] Write up the findings for S2.3
 
 #### S5.2 Company identity: CIK, tickers, share classes
 
@@ -1349,7 +1400,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 #### S6.1 Spike: choose a daily price source
 
-**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** FR-D6, NFR-7
+**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** FR-D6, NFR-7 · **Status:** In review
 
 **Story:** As a team, we want a price source we can trust and are allowed to use, so that returns are right and the app can display them.
 
@@ -1361,9 +1412,9 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Tasks**
 
-- [ ] Do test pulls from each candidate
-- [ ] Review each candidate's terms of use
-- [ ] Record the decision
+- [x] Do test pulls from each candidate ([`backend/spikes/prices.py`](../backend/spikes/prices.py)). Stooq blocks scripts, and WRDS needs UD access.
+- [x] Review each candidate's terms of use
+- [x] Record the decision: Tiingo (D2). The test pull confirmed raw prices, splits, and dividends; delisted coverage is partial (Twitter yes, Lehman no).
 
 #### S6.2 Ingest raw prices and corporate actions
 
@@ -2240,18 +2291,18 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 
 #### S13.1 Persistent run registry
 
-**Priority:** P0 · **Size:** M · **Sprint:** 9 · **Milestone:** M7 · **Area:** api · **Depends on:** S7.7 · **Reqs:** FR-X1
+**Priority:** P0 · **Size:** M · **Sprint:** 9 · **Milestone:** M7 · **Area:** api · **Depends on:** S7.7, S16.2 · **Reqs:** FR-X1, FR-U2
 
 **Story:** As a researcher, I want all my runs saved, so that I can come back to them and show them to others.
 
 **Acceptance criteria**
 
-- Runs are stored in a database (D10) with their ID, spec, spec hash, data version, engine version and git SHA, creation time, status, metric summary, tags, and the question or conversation that produced them.
+- Runs are stored in Supabase under their owner's account (D10, extending the tables from S16.2), with their ID, spec, spec hash, data version, engine version and git SHA, creation time, status, metric summary, tags, and the question or conversation that produced them.
 - Result files are stored alongside and survive redeploys.
 
 **Tasks**
 
-- [ ] Choose the storage (D10) and schema
+- [ ] Extend the S16.2 schema with these fields
 - [ ] Move the file-based run writer onto it
 - [ ] Write the store and load API
 
@@ -2491,19 +2542,19 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 
 #### S15.6 Protect the public deployment
 
-**Priority:** P0 · **Size:** M · **Sprint:** 8 · **Milestone:** M7 · **Area:** infra · **Depends on:** S15.1 · **Reqs:** NFR-6, NFR-8
+**Priority:** P0 · **Size:** M · **Sprint:** 8 · **Milestone:** M7 · **Area:** infra · **Depends on:** S15.1, S16.4 · **Reqs:** NFR-6, NFR-8
 
 **Story:** As a team, we want the AI features protected from abuse, so that a public link can't run up our bill.
 
 **Acceptance criteria**
 
-- AI endpoints require an access code or sign-in (D9).
+- AI endpoints require sign-in with an account (D9, E16).
 - Rate limits apply per user or IP, and spend alerts are set.
 - All keys stay on the server.
 
 **Tasks**
 
-- [ ] Decide D9 and implement it
+- [ ] Require sign-in on the AI endpoints (using S16.4)
 - [ ] Add rate limiting
 - [ ] Set up spend alerts
 
@@ -2575,18 +2626,146 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 - [ ] Write and rehearse the demo script
 - [ ] Prepare the final report and slides
 
+### E16. Accounts and user data
+
+- **Goal:** people can sign in, and everything they save (experiment specs, runs, settings) stays with their account, private by default.
+- **Done when:**
+  - sign-up, sign-in, and sign-out work in the web app;
+  - the backend knows who is calling;
+  - saved experiments and runs live in Supabase behind tested row-level security;
+  - a privacy page is published;
+  - no market data is stored in Supabase ([`doc/storage.md`](storage.md#two-stores-point-in-time-data-and-accounts)).
+- **Semester:** CISC 498; the full run registry (S13.1) builds on it in CISC 499 · **Milestones:** M2–M5
+- **Owner:** the database lead, the teammate who set up Supabase. They own the Supabase project, the schema, sign-in, and the security rules. Teammates pair on the web pages (S16.3, S16.5) and the API hook (S16.4).
+
+#### S16.1 Spike: set up Supabase, migrations, and sign-in
+
+**Priority:** P1 · **Size:** S · **Sprint:** 2 · **Milestone:** M2 · **Area:** infra · **Depends on:** — · **Reqs:** FR-U1, NFR-8
+
+**Story:** As a team, we want the Supabase project and its workflow in place before we build on it, so that every schema change is reviewed and reproducible and nobody edits the database by hand.
+
+**Acceptance criteria**
+
+- A hosted Supabase project (free plan) exists for development, and running Supabase locally (CLI plus Docker) is documented.
+- Schema changes are SQL migrations in `supabase/migrations/`, reviewed in pull requests like code. The `seed.sql` that `supabase/config.toml` points to exists, or the reference is removed.
+- The sign-in methods are chosen (for example, email and password, magic links, or GitHub), along with how the backend verifies Supabase's tokens. The decision is recorded (D9).
+- New settings are in the `.env.example` files: the project URL and public key for the frontend, and what the backend needs to verify tokens. The secret (service-role) key is used only on the server, if at all.
+- The free plan's limits are written down (500 MB, two active projects, paused after a week without activity), with a plan for demo days.
+
+**Tasks**
+
+- [ ] Create the hosted project and invite the team
+- [ ] Add the first migration and fix the `seed.sql` reference
+- [ ] Choose the sign-in methods and the token check (D9)
+- [ ] Add the settings to the `.env.example` files and `backend/app/config.py`
+- [ ] Write `supabase/README.md`: the migration workflow and local setup
+
+#### S16.2 User-data schema with row-level security
+
+**Priority:** P1 · **Size:** M · **Sprint:** 3 · **Milestone:** M3 · **Area:** data · **Depends on:** S16.1 · **Reqs:** FR-U2, NFR-8
+
+**Story:** As a user, I want my saved work visible only to me, so that my research stays private unless I choose to share it.
+
+**Acceptance criteria**
+
+- Migrations create tables for profiles, saved experiments (name, spec JSON, notes), and runs (spec hash, `data_version`, status, metric summary, timestamps). Each row has a `user_id` tied to the signed-in user.
+- Row-level security is on for every table, so users can read and write only their own rows. Tests prove that one user can't read or change another user's rows.
+- No market data is stored in Supabase. Runs point to it through `data_version` (S3.7).
+- Deleting an account deletes that user's rows.
+- The run-registry storage decision is recorded (D10).
+
+**Tasks**
+
+- [ ] Write the migrations
+- [ ] Write the row-level security policies
+- [ ] Test the policies with two test users against the local Supabase
+- [ ] Document the tables in `supabase/README.md`
+
+#### S16.3 Sign-up, sign-in, and sign-out
+
+**Priority:** P1 · **Size:** M · **Sprint:** 4 · **Milestone:** M4 · **Area:** web · **Depends on:** S16.1, S9.1 · **Reqs:** FR-U1
+
+**Story:** As a user, I want to create an account and sign in, so that my experiments are waiting for me next time.
+
+**Acceptance criteria**
+
+- Sign-up, sign-in, sign-out, and password reset (or magic links) work in the web app through Supabase Auth, with the methods chosen in S16.1.
+- The page header shows whether you're signed in, and pages that need an account send you to sign in.
+- The session survives a page reload. Only the public key is in the browser bundle.
+
+**Tasks**
+
+- [ ] Add the Supabase client to the frontend (read the Next.js guides in `node_modules/next/dist/docs/` first)
+- [ ] Build the sign-in and account pages
+- [ ] Protect the pages that need an account
+- [ ] Add a smoke test for the sign-in flow
+
+#### S16.4 The backend knows who is calling
+
+**Priority:** P1 · **Size:** S · **Sprint:** 4 · **Milestone:** M4 · **Area:** api · **Depends on:** S16.1, S8.1 · **Reqs:** FR-U1, NFR-8
+
+**Story:** As a developer, I want each API request tied to a verified user, so that results are saved to the right account and use can be limited per person.
+
+**Acceptance criteria**
+
+- A FastAPI dependency verifies the Supabase access token on each request and provides the user's ID. Missing, invalid, or expired tokens get HTTP 401.
+- Point-in-time data endpoints work without an account. Endpoints that save or list a user's data require one.
+- Tests use locally signed test tokens, so CI needs no Supabase project.
+
+**Tasks**
+
+- [ ] Write the token-check dependency
+- [ ] Mark which endpoints require sign-in
+- [ ] Write tests with test tokens
+
+#### S16.5 Save and reopen experiments
+
+**Priority:** P1 · **Size:** M · **Sprint:** 5 · **Milestone:** M5 · **Area:** web · **Depends on:** S16.2, S16.3, S16.4, S9.5 · **Reqs:** FR-U2, FR-X1
+
+**Story:** As a researcher, I want to save an experiment and its runs to my account, so that I can come back to them later.
+
+**Acceptance criteria**
+
+- From the backtest builder, a signed-in user can save a spec, run it again later, and find it on a "My experiments" page.
+- Each saved run records its spec, `data_version`, and metric summary, so it can be reproduced (S7.7). The full run registry and history (S13.1, S13.3) build on these tables in CISC 499.
+- Signed-out users can still run the canonical example; saving asks them to sign in.
+
+**Tasks**
+
+- [ ] Add save and list endpoints, or Supabase queries under row-level security
+- [ ] Add "Save" to the builder and results pages
+- [ ] Build the "My experiments" page
+
+#### S16.6 Privacy page and account deletion
+
+**Priority:** P1 · **Size:** S · **Sprint:** 5 · **Milestone:** M5 · **Area:** web · **Depends on:** S16.2 · **Reqs:** FR-U3, NFR-8
+
+**Story:** As a user, I want to know what the app stores about me and to be able to delete it, so that I can trust it with an account.
+
+**Acceptance criteria**
+
+- A privacy page says what is stored (email address, saved experiments, runs), why, where (Supabase), and how to delete it. FRED's terms require a privacy policy when an app collects user information.
+- A signed-in user can delete their account, which deletes their data.
+- The README and the site footer link to the privacy page.
+
+**Tasks**
+
+- [ ] Write the privacy page
+- [ ] Add "Delete my account"
+- [ ] Ask the course staff whether a student project needs anything more
+
 ## 9. Risks
 
 Review this table at every milestone.
 
 | ID | Risk | Likelihood | Impact | Mitigation | Related |
 | --- | --- | --- | --- | --- | --- |
-| R1 | Free price data leaves out delisted companies, creating survivorship bias | High | High | Test delisted coverage (S6.1); ask about WRDS (S2.3); report coverage gaps in every run (S6.7); state the limitation on the methodology page | S6.1, S6.7 |
+| R1 | Free price data leaves out delisted companies, creating survivorship bias | High | High | Test delisted coverage (S6.1); ask about WRDS (S2.3); report coverage gaps in every run (S6.7); state the limitation on the methodology page. *Oct 12:* Yahoo has none (LEH, LEHMQ, and TWTR return nothing). Tiingo covers recent delistings (Twitter) but few before 2010 (no Lehman), so check each universe member's coverage. UD's WRDS includes CRSP, but for internal use only. | S6.1, S6.7 |
 | R2 | Historical index membership is proprietary or incomplete | High | Medium | Start with a small, documented universe (S6.5); add a rules-based universe later (S6.6) | S6.5, S6.6 |
 | R3 | XBRL fundamentals start in 2009–2011, and tags vary by company and year | High | Medium | Tag mapping with a coverage report (S5.6); coverage-aware specs and assistant (S11.2); expect thin data in 2010–2011 | S5.6, S7.8 |
-| R4 | Timestamps are ambiguous: the timezone of acceptance times, ALFRED's date-only vintages, and missing early vintages | Medium | High | Verify against source pages (S5.1); use conservative defaults (S4.3); lock behavior in with golden tests (S3.6) | S3.6, S4.3, S5.1 |
+| R4 | Timestamps are ambiguous: the timezone of acceptance times, ALFRED's date-only vintages, and missing early vintages | Medium | High | Verify against source pages (S5.1); use conservative defaults (S4.3); lock behavior in with golden tests (S3.6). *Oct 11:* confirmed. EDGAR's JSON acceptance times run ahead by the Eastern UTC offset, and FRED's real-time parameters default to today. Both are now rules in [`doc/time-model.md`](time-model.md) with named tests. | S3.6, S4.3, S5.1 |
 | R5 | API rate limits or outages slow ingestion | Medium | Medium | Raw cache and idempotent ingestion (S3.4); bulk files (S5.8); ingest once and reuse | S3.4, S5.8 |
-| R6 | A source's terms don't allow display in a public app | Medium | High | Review terms before choosing sources (S2.3); keep data out of git; show only what the terms allow | S2.3, S6.1 |
+| R6 | A source's terms don't allow display in a public app | Medium | High | Review terms before choosing sources (S2.3); keep data out of git; show only what the terms allow. *Oct 11:* this has happened for prices. Tiingo's free and Power plans are internal use only, so settle display rights before M5 (D2), and show FRED's required notice. | S2.3, S6.1 |
 | R7 | The assistant mistranslates questions or states wrong numbers | High | High | Schema-validated specs, user confirmation, numbers only from the engine, and an eval suite | S11.2, S11.3, S11.4, S11.7 |
 | R8 | The model's training data leaks hindsight into experiments | Medium | Medium | The AI translates rather than picks; time-locked tools; variant logging; research memo | S2.5, S10.3, S11.8 |
 | R9 | The scope is too big for two semesters | High | High | Walking skeleton by October 25; a P0-only demo path; the cut order in [§5.5](#55-if-we-fall-behind); re-plan at every milestone | All epics |
@@ -2594,6 +2773,8 @@ Review this table at every milestone.
 | R11 | AI costs grow with public use | Medium | Medium | Access control, rate limits, spend caps, and prompt caching | S11.6, S15.6 |
 | R12 | Team capacity dips around midterms, Thanksgiving, and finals | High | Medium | Lighter sprints where expected, small pull requests, pairing on critical stories, and a current board | S1.2 |
 | R13 | Knowledge silos: one person is the only one who understands XBRL or the engine | Medium | Medium | Rotate reviewers, write module docs, and pair on L-sized stories | S1.4 |
+| R14 | Secrets get committed. It happened on Oct 9: a FRED key in a notebook, which gitleaks didn't catch because notebook JSON escapes quotes. | High | High | Revoke the key now; keys only in git-ignored `.env` files; review notebooks for keys and outputs before merging; scan before going public | S1.3, S1.5 |
+| R15 | Accounts bring personal data and new security work. A missing row-level security rule or a leaked secret key would expose users' data, and the free Supabase project pauses after a week without activity. | Medium | High | Row-level security tests (S16.2); keep the secret key on the server (NFR-8); a privacy page (S16.6); security review (S15.7); use the project before demos, or upgrade for the demo month | E16, S15.7 |
 
 ## 10. Decision log
 
@@ -2601,17 +2782,17 @@ Open decisions, each owned by a story. When one is made, record the outcome and 
 
 | ID | Decision | Options | Current leaning | Decide by | Story | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| D1 | Point-in-time storage | DuckDB + Parquet, PostgreSQL, SQLite | DuckDB + Parquet: embedded, no server to run, fast analytics, built-in `ASOF JOIN` | Sprint 1 | S3.2 | Open |
-| D2 | Daily price source | Tiingo, Stooq, yfinance, Alpha Vantage, WRDS/CRSP | Decide after testing delisted coverage and terms | Sprint 1 | S6.1 | Open |
+| D1 | Point-in-time storage | DuckDB + Parquet, PostgreSQL, SQLite | **Parquet files queried with DuckDB, in-process.** On 1M rows it was about 10× faster than PostgreSQL for snapshots and about 18× for backtest-style as-of joins, with no server to run. Accounts and user data are a separate store in Supabase (PostgreSQL and Auth; D9, D10). See [`doc/storage.md`](storage.md). | Sprint 1 | S3.2 | Decided 2026-10-11 (pending team review) |
+| D2 | Daily price source | Tiingo, Stooq, yfinance, Alpha Vantage, WRDS/CRSP | **Tiingo end-of-day API**: raw closes plus split and dividend fields on every bar (confirmed: AAPL's raw $702.10 close on 2012-09-19). Delisted coverage is partial. Yahoo returns split-adjusted closes and no delisted tickers; Stooq blocks scripts; Alpha Vantage's free tier has no history. CRSP through UD is for internal validation only. Display rights need settling before M5. See [`doc/data-sources.md`](data-sources.md#daily-prices-decision-d2). | Sprint 1 | S6.1 | Decided 2026-10-11; the test pull on 2026-10-12 confirmed it (pending team review) |
 | D3 | Universe v1 | Curated list with history, Dow 30 history, reconstructed S&P 500, top N by market cap | A small curated list with documented history, including companies that left | Early Sprint 2 | S6.5 | Open |
 | D4 | Backend and data hosting | Vercel, Render, Railway, Fly.io, object storage for data | Whatever fits the data size and long backtests | Sprint 2 | S1.6 | Open |
-| D5 | Default decision and fill timing | 09:30 ET decision with same-day close fill, or next-day open fill | 09:30 ET decision, same-day close fill | Sprint 1 | S3.1 | Open |
+| D5 | Default decision and fill timing | 09:30 ET decision with same-day close fill, or next-day open fill | **09:30 ET decision, same-day close fill**, configurable per spec; next-day open is a robustness check (S14.3). See [`doc/time-model.md`](time-model.md#10-fills-strictly-after-the-decision-by-default-the-decision-days-close-d5). | Sprint 1 | S3.1 | Decided 2026-10-11 (pending team review) |
 | D6 | Model, API, and where the agent loop runs | Claude through the Anthropic API (default candidate) or alternatives; backend or frontend | Claude through the Anthropic API, with the loop in the Python backend | Sprint 7 | S11.1 | Open |
 | D7 | How the assistant reaches the tools | Same-process calls, MCP over Streamable HTTP, or both | The same functions behind both; decide in the spike | Sprint 7 | S10.1 | Open |
 | D8 | Charting library | Recharts, Chart.js, lightweight-charts, others | One library for every chart | Sprint 4 | S9.3, S9.6 | Open |
-| D9 | Access control for the public demo | Access code, GitHub sign-in, none | The simplest option that caps AI cost | Sprint 8 | S15.6 | Open |
-| D10 | Run registry storage | Files, SQLite, PostgreSQL | Files in 498, a database in 499 | Sprint 9 | S13.1 | Open |
-| D11 | License | MIT, Apache-2.0, other | Check course and university policy first | Sprint 1 | S1.3 | Open |
+| D9 | Access control and sign-in | Access code, GitHub sign-in, Supabase Auth accounts, none | Supabase Auth accounts (E16): the team plans sign-in so each user's data stays with their account, which also caps AI cost (S15.6). S16.1 picks the sign-in methods. | Sprint 2 | S16.1 | Open |
+| D10 | Run registry storage | Files, SQLite, PostgreSQL | Supabase PostgreSQL with row-level security, alongside accounts (D9), in the tables from S16.2; files until accounts exist. Runs point to market data by `data_version` and never copy it ([`doc/storage.md`](storage.md#two-stores-point-in-time-data-and-accounts)). | Sprint 3 | S16.2 | Open |
+| D11 | License | MIT, Apache-2.0, other | **MIT** ([`LICENSE`](../LICENSE)); still confirm it fits the course's code-ownership expectations | Sprint 1 | S1.3 | Decided 2026-10-11 |
 
 ## 11. Glossary
 
@@ -2644,7 +2825,11 @@ Open decisions, each owned by a story. When one is made, record the outcome and 
 ## 12. References
 
 - The team's Problem Exploration (CISC 498 course deliverable, Fall 2026).
+- Sprint 1 write-ups: [time model](time-model.md), [data sources and terms](data-sources.md), and [storage decision](storage.md); the evidence is in [`backend/spikes/`](../backend/spikes/).
 - ALFRED API documentation: <https://fred.stlouisfed.org/docs/api/fred/alfred.html>
+- FRED API Terms of Use: <https://fred.stlouisfed.org/docs/api/terms_of_use.html>
+- SEC, accessing EDGAR data (fair access and User-Agent): <https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data>
+- Tiingo end-of-day API: <https://www.tiingo.com/documentation/end-of-day>
 - FRED API documentation: <https://fred.stlouisfed.org/docs/api/fred/>
 - SEC EDGAR APIs: <https://www.sec.gov/search-filings/edgar-application-programming-interfaces>
 - QuantConnect research guide, on sources of bias: <https://www.quantconnect.com/docs/v2/writing-algorithms/key-concepts/research-guide>
