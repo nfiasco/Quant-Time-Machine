@@ -7,6 +7,12 @@
 .env.*
 !.env.example
 
+# Data: raw downloads and local databases are never committed (see "Data policy" in README.md).
+# backend/.gitignore ignores the default DATA_DIR (backend/data/); this covers a data/ folder at the root.
+/data/
+*.duckdb
+*.duckdb.wal
+
 # OS files
 .DS_Store
 Thumbs.db
