@@ -2,7 +2,7 @@
 
 AI-assisted quantitative research platform for point-in-time backtesting. Reconstructs what market data, SEC filings, fundamentals, and economic data were actually known at a historical date, helping researchers test strategies without look-ahead bias and produce reproducible results.
 
-> **Status:** Early setup (CISC 498, Fall 2026). The scope is still being defined, and the roadmap below is a draft, not a commitment.
+> **Status:** Decisions and discovery (CISC 498, Fall 2026, milestone M1). The time model, data sources, and storage engine are written up in [`doc/`](doc/); the point-in-time data layer comes next. The roadmap is a draft, not a commitment.
 
 ## The problem
 
@@ -20,23 +20,33 @@ The goal is not an AI that predicts stocks. It's a research environment where yo
 
 ## Repository structure
 
-| Path                                       | What's there                                                                  |
-| ------------------------------------------ | ----------------------------------------------------------------------------- |
-| [`frontend/`](frontend/)                   | Next.js web app (TypeScript, React, Tailwind CSS), deployed on Vercel         |
-| [`backend/`](backend/)                     | Python API (FastAPI), home of the point-in-time data layer and the backtester |
-| [`.github/workflows/`](.github/workflows/) | CI: lints, builds, and tests both apps on every pull request                  |
-| [`doc/`](doc/)                             | Project docs, starting with the [roadmap and backlog](doc/roadmap.md)         |
+| Path                                       | What's there                                                                                         |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
+| [`frontend/`](frontend/)                   | Next.js web app (TypeScript, React, Tailwind CSS), deployed on Vercel                                |
+| [`backend/`](backend/)                     | Python API (FastAPI), home of the point-in-time data layer and the backtester                        |
+| [`backend/spikes/`](backend/spikes/)       | Sprint 1 experiments behind our data and storage decisions                                           |
+| [`doc/`](doc/)                             | Project docs (see below)                                                                             |
+| [`.github/`](.github/)                     | CI workflow, pull request template, and issue templates                                              |
+| [`supabase/`](supabase/)                   | Supabase (PostgreSQL and Auth) config for user accounts and each user's saved data; no schema yet ([how it fits](doc/storage.md#two-stores-point-in-time-data-and-accounts)) |
 
-Each app has its own README with more details.
+Each app has its own README with more details. The main docs:
+
+| Doc                                          | What it covers                                                                                          |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| [Roadmap and backlog](doc/roadmap.md)        | Requirements, milestones, sprints, every epic and story, risks, and the decision log                    |
+| [Time model](doc/time-model.md)              | How "known at time *T*" works for every kind of data, with worked examples                              |
+| [Data sources](doc/data-sources.md)          | Each data source's coverage, timestamps, limits, cost, and terms of use; known gaps; price-source choice |
+| [Storage](doc/storage.md)                    | Why point-in-time data lives in Parquet files queried by DuckDB, with the benchmark                     |
 
 ## Tech stack
 
-| Area     | Tools                                                                     |
-| -------- | ------------------------------------------------------------------------- |
-| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, ESLint     |
-| Backend  | Python 3.14, FastAPI, uv (dependencies), pytest, Ruff (lint and format)   |
-| Hosting  | Vercel (frontend); backend hosting not decided yet                        |
-| CI       | GitHub Actions                                                            |
+| Area     | Tools                                                                                    |
+| -------- | ---------------------------------------------------------------------------------------- |
+| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, ESLint                    |
+| Backend  | Python 3.14, FastAPI, uv (dependencies), pytest, Ruff (lint and format)                  |
+| Data     | Point-in-time data: Parquet files queried with DuckDB, in-process ([decision D1](doc/storage.md)). Accounts and user data: Supabase (PostgreSQL and Auth) |
+| Hosting  | Vercel (frontend); backend hosting not decided yet                                       |
+| CI       | GitHub Actions                                                                           |
 
 ## Getting started
 
@@ -65,6 +75,19 @@ uv run fastapi dev
 ```
 
 Open http://localhost:8000/health, or the interactive API docs at http://localhost:8000/docs.
+
+### Configuration and API keys
+
+Running the apps and the tests needs no keys: tests use small fixtures, never live APIs. You need keys only to download data.
+
+- **Backend:** copy [`backend/.env.example`](backend/.env.example) to `backend/.env` and fill it in. All settings load through one module, [`backend/app/config.py`](backend/app/config.py).
+  - `FRED_API_KEY`: a free key from [FRED](https://fredaccount.stlouisfed.org/apikeys). Create a FRED account, then request a key; it's 32 lowercase letters and digits.
+  - `SEC_USER_AGENT`: the SEC refuses automated requests that don't identify who's asking. Use your name or the project's name plus a contact email, for example `"Quant Time Machine (UD CISC 498) jdoe@udel.edu"`.
+  - `TIINGO_API_KEY`: the token for daily prices (our price source, [decision D2](doc/data-sources.md#daily-prices-decision-d2)). Create a free [Tiingo](https://www.tiingo.com) account and copy the token from its [API token page](https://www.tiingo.com/account/api/token).
+  - `DATA_DIR`: where downloaded data goes (default `backend/data/`, which git ignores).
+- **Frontend:** copy [`frontend/.env.example`](frontend/.env.example) to `frontend/.env.local`. `NEXT_PUBLIC_API_URL` is the backend's address (default `http://localhost:8000`). Anything starting with `NEXT_PUBLIC_` is visible in the browser, so never put a secret there.
+
+Both `.env` files are git-ignored. Real environment variables override them, which is how a hosting provider supplies values.
 
 ### Run the same checks as CI
 
@@ -96,6 +119,7 @@ The full plan, with requirements, milestones, sprints, and the epics, stories, a
 - Basic, deterministic backtesting engine
 - Research API
 - Web interface
+- Accounts: sign in and keep your saved experiments and runs (Supabase)
 
 **CISC 499**
 
@@ -105,13 +129,29 @@ The full plan, with requirements, milestones, sprints, and the epics, stories, a
 
 **Maybe later:** a desktop app. A mobile app is unlikely.
 
+## Data policy
+
+- **Raw datasets are never committed.** Everything downloaded from a data source goes under `DATA_DIR` (default `backend/data/`), which git ignores, along with local database files (`*.duckdb`). The only data in the repository is tiny test fixtures under `backend/tests/fixtures/`: synthetic values plus a few published figures, small enough to review.
+- **Secrets are never committed.** Keys live in git-ignored `.env` files or in the hosting provider's settings, never in code, notebooks, or the browser bundle. If a key is ever committed, revoke it immediately: deleting it from a later commit doesn't remove it from history.
+- **Each source's terms are followed.** That means the SEC's fair-access rules (at most 10 requests per second, with a declared User-Agent), FRED's API terms, and the license of whichever price source we use. We don't redistribute data the terms don't allow. Details are in [`doc/data-sources.md`](doc/data-sources.md).
+- **Every stored fact records where it came from and when it became public.** Downloads keep their source URL and fetch time, so any number can be traced back. See the [time model](doc/time-model.md).
+
+This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis. By using it, you agree to the [FRED® API Terms of Use](https://fred.stlouisfed.org/docs/api/terms_of_use.html).
+
 ## Contributing
 
-1. Create a branch from `main` (for example, `feature/price-loader`).
-2. Commit your changes and open a pull request.
-3. Make sure CI passes and get a teammate's review before merging.
+How we work is described in [roadmap §6](doc/roadmap.md#6-running-the-project-board): the board, the working agreement, and the Definition of Ready and Done.
 
-Never commit secrets. Put API keys in a local `.env` file, which git ignores.
+1. Pick up an issue from the board. New issues use the story, spike, or bug template in [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/).
+2. Create a branch from `main`, one story per branch (for example, `feature/s4-4-macro-as-of`).
+3. Open a pull request that says `Closes #<issue>`. The [pull request template](.github/pull_request_template.md) includes the Definition of Done checklist; keep pull requests under about 400 changed lines.
+4. Make sure CI passes and get a teammate's review before merging.
+
+Never commit secrets or raw data (see the [data policy](#data-policy)).
+
+## License
+
+[MIT](LICENSE). Data from third-party sources keeps its own terms; see [`doc/data-sources.md`](doc/data-sources.md).
 
 ## Team
 

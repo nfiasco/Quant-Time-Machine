@@ -14,3 +14,9 @@ wheels/
 .ruff_cache/
 .coverage
 htmlcov/
+
+# Downloaded data and the local point-in-time store (DATA_DIR, default backend/data/).
+# Anchored so the app/data/ code package stays tracked. Raw datasets are never committed.
+/data/
+*.duckdb
+*.duckdb.wal
