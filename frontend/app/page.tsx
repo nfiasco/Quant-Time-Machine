@@ -10,7 +10,7 @@ export default function Home() {
       </p>
       <Link
         href="/time-machine"
-        className="mt-8 inline-block rounded-lg bg-black px-6 py-3 font-medium text-white"
+        className="mt-8 inline-block rounded-lg bg-white px-6 py-3 font-medium text-black hover:bg-gray-200"
       >
         Get started
       </Link>
