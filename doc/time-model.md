@@ -30,7 +30,7 @@ Every stored fact has:
 | --- | --- | --- |
 | 1 | Storage | Timestamps are timezone-aware and stored in UTC |
 | 2 | Market clock | `America/New_York` and the NYSE calendar, including holidays, early closes, and unscheduled closures |
-| 3 | Knowledge-time input | A bare date means 09:30 ET on that date; every response echoes the exact timestamp it used |
+| 3 | Knowledge-time input | A bare date means 09:30 ET on that date, and a time without an offset is New York time; every response echoes the exact timestamp it used |
 | 4 | Daily price bar | Known at that session's close: 16:00 ET, or 13:00 ET on early-close days |
 | 5 | SEC filing | Known at its EDGAR acceptance time, not the period end and not the filing date |
 | 6 | XBRL fact | Known at the acceptance time of the filing that reported it; a value re-reported or restated later is a new version from that filing's time |
@@ -44,7 +44,7 @@ Every stored fact has:
 
 ### 1. Timestamps are timezone-aware and stored in UTC
 
-Store and compare instants in UTC, and convert to Eastern time only for market dates and display. A naive timestamp (one without a zone) is a bug. Eastern time is UTC−4 in daylight time (EDT, which in 2020 ran from March 8 to November 1) and UTC−5 in standard time (EST).
+Store and compare instants in UTC, and convert to Eastern time only for market dates and display. Inside the system, a naive timestamp (one without a zone) is a bug. Input without an offset gets its zone at the edge, when it's parsed (rule 3). Eastern time is UTC−4 in daylight time (EDT, which in 2020 ran from March 8 to November 1) and UTC−5 in standard time (EST).
 
 | Eastern time | UTC | Why it matters |
 | --- | --- | --- |
@@ -63,13 +63,30 @@ Trading days, sessions, and closes come from an established calendar library (`e
 - national days of mourning (December 5, 2018, and January 9, 2025)
 - regular holidays such as Good Friday
 
-### 3. A bare date means 09:30 ET on that date
+### 3. A bare date means 09:30 ET, and a time without an offset is New York time
 
-A knowledge time such as `2020-06-05` means `2020-06-05T09:30:00-04:00` (13:30Z). `2020-01-15` means `2020-01-15T09:30:00-05:00` (14:30Z).
+A knowledge time, such as the API's `as_of` parameter, can take three forms:
 
-- **Echo the exact instant.** Every API response includes the knowledge time it actually used, so nobody has to guess.
+| Input | Means | UTC |
+| --- | --- | --- |
+| `2020-06-05` (a bare date) | 09:30 EDT that day | `2020-06-05T13:30Z` |
+| `2020-01-15` (a bare date in winter) | 09:30 EST that day | `2020-01-15T14:30Z` |
+| `2020-06-05T08:00` (no offset) | 08:00 New York time | `2020-06-05T12:00Z` |
+| `2020-06-05T13:30:00Z` or `2020-06-05T09:30:00-04:00` (with an offset) | Used as given | `2020-06-05T13:30Z` |
+
+- **A time without an offset is New York wall-clock time.**
+  - The market clock is always New York (rule 2), and that's how people write market times.
+  - It's also the form the web app sends (`frontend/lib/time.ts`).
+  - Seconds and fractions of a second are optional.
+- **A local time that never happened, or happened twice, is rejected.**
+  - When clocks spring forward, 02:00–02:59 is skipped, so `2020-03-08T02:30` never happened.
+  - When they fall back, 01:00–01:59 happens twice, so `2020-11-01T01:30` is ambiguous.
+  - The API returns a 422 error instead of guessing. Add an offset to pick one of the two.
+  - These hours are far from market hours, so no real decision is affected.
+- **Echo the exact instant.** Every API response includes the knowledge time it actually used, as `knowledge_time`, written in New York time with its offset (`2020-06-05T09:30:00-04:00`). Nobody has to guess. The response format is in [api-v1.md](api-v1.md).
 - **No snapping to trading days.** A bare date on a weekend or holiday still means 09:30 ET that day. Knowledge time is just a moment, and data published by then is visible. Trading days matter only for the decision schedule (rule 9).
-- **Timestamps without a zone are rejected.** A timestamp with an offset is used as given. One without an offset (such as `2020-06-05T09:30`) is ambiguous, so the API returns an error instead of guessing. *This clarifies the roadmap's rule.*
+
+**D12, decided 2026-10-19.** An earlier draft rejected every timestamp without an offset as ambiguous. Reading it as New York time keeps a single meaning (the market clock) and matches what the web app already sends. Only the two daylight-saving hours are truly ambiguous, and those are still rejected.
 
 ### 4. A daily price bar is known at its session's close
 
@@ -200,7 +217,8 @@ Each rule becomes at least one golden test, built on small committed fixtures (n
 | `test_timestamps_are_timezone_aware_utc` | 1 | Load any fixture row | Every `available_at` and `ingested_at` is aware and in UTC |
 | `test_calendar_closures_and_early_closes` | 2 | Calendar for 2012-10-29/30, 2018-12-05, 2020-11-27 | Closed, closed, early close at 13:00 ET |
 | `test_bare_date_means_0930_eastern` | 3 | Parse `2020-06-05` and `2020-01-15` | `13:30Z` and `14:30Z`, echoed in the response |
-| `test_naive_timestamp_is_rejected` | 3 | Parse `2020-06-05T09:30` | Validation error |
+| `test_time_without_offset_is_new_york_time` | 3 | Parse `2020-06-05T08:00`, `2020-01-15T16:00`, and `2020-06-05T13:30:00Z` | `12:00Z`, `21:00Z`, and `13:30Z` |
+| `test_nonexistent_or_ambiguous_local_time_is_rejected` | 3 | Parse `2020-03-08T02:30` and `2020-11-01T01:30` | Validation errors (422 from the API) |
 | `test_bar_known_only_after_close` | 4 | AAPL bars, *T* = 2020-06-05 09:30 ET | Latest bar is June 4; June 5 raises `LookAheadError` |
 | `test_early_close_bar_known_at_1300` | 4 | Bar for 2020-11-27 | `available_at` = 18:00Z |
 | `test_filing_known_from_acceptance_time` | 5 | Apple filings, *T* = 2020-06-05 09:30 ET | Latest 10-Q is 0000320193-20-000052; -20-000062 is invisible |
