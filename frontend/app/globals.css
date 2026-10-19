@@ -1,26 +1,193 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * Design tokens. Components use these through Tailwind (bg-card, text-muted-foreground,
+ * text-future, bg-known/10, ...), never raw palette classes or hex values.
+ * The token names match shadcn/ui, so components added with `npx shadcn add` pick up
+ * our theme. See GUIDELINES.md for what each token is for.
+ *
+ * Dark mode follows a `.dark` class on <html>, set before first paint by
+ * components/layout/theme-script.tsx.
+ */
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-heading: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Domain colors: known at time T vs. not yet known, and gains vs. losses. */
+  --color-known: var(--known);
+  --color-future: var(--future);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* Light theme: cool ink neutrals, indigo-blue brand. Every text pair meets WCAG AA. */
+:root {
+  color-scheme: light;
+  --radius: 0.625rem;
+
+  --background: oklch(0.985 0.003 264);
+  --foreground: oklch(0.21 0.03 266);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.03 266);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.03 266);
+  --primary: oklch(0.51 0.2 268);
+  --primary-foreground: oklch(0.985 0.005 264);
+  --secondary: oklch(0.955 0.009 264);
+  --secondary-foreground: oklch(0.25 0.03 266);
+  --muted: oklch(0.955 0.008 264);
+  --muted-foreground: oklch(0.5 0.025 264);
+  --accent: oklch(0.95 0.02 266);
+  --accent-foreground: oklch(0.3 0.08 268);
+  --destructive: oklch(0.55 0.2 22);
+  --border: oklch(0.915 0.008 264);
+  --input: oklch(0.88 0.01 264);
+  --ring: oklch(0.6 0.17 268);
+
+  /* Series colors for charts (library still to be chosen, decision D8). */
+  --chart-1: oklch(0.51 0.2 268);
+  --chart-2: oklch(0.6 0.02 264);
+  --chart-3: oklch(0.6 0.11 190);
+  --chart-4: oklch(0.72 0.15 70);
+  --chart-5: oklch(0.6 0.19 15);
+
+  --sidebar: oklch(0.975 0.005 264);
+  --sidebar-foreground: oklch(0.3 0.03 266);
+  --sidebar-primary: oklch(0.51 0.2 268);
+  --sidebar-primary-foreground: oklch(0.985 0.005 264);
+  --sidebar-accent: oklch(0.935 0.012 264);
+  --sidebar-accent-foreground: oklch(0.21 0.03 266);
+  --sidebar-border: oklch(0.915 0.008 264);
+  --sidebar-ring: oklch(0.6 0.17 268);
+
+  --known: oklch(0.51 0.2 268);
+  --future: oklch(0.52 0.125 58);
+  --positive: oklch(0.5 0.125 155);
+  --negative: oklch(0.55 0.2 18);
+}
+
+/* Dark theme: deep ink navy, lighter brand and domain colors for contrast. */
+.dark {
+  color-scheme: dark;
+
+  --background: oklch(0.16 0.02 268);
+  --foreground: oklch(0.96 0.006 264);
+  --card: oklch(0.2 0.022 268);
+  --card-foreground: oklch(0.96 0.006 264);
+  --popover: oklch(0.21 0.022 268);
+  --popover-foreground: oklch(0.96 0.006 264);
+  --primary: oklch(0.7 0.15 268);
+  --primary-foreground: oklch(0.17 0.03 268);
+  --secondary: oklch(0.26 0.022 268);
+  --secondary-foreground: oklch(0.96 0.006 264);
+  --muted: oklch(0.25 0.02 268);
+  --muted-foreground: oklch(0.72 0.02 264);
+  --accent: oklch(0.28 0.04 268);
+  --accent-foreground: oklch(0.96 0.006 264);
+  --destructive: oklch(0.7 0.17 22);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.62 0.14 268);
+
+  --chart-1: oklch(0.7 0.15 268);
+  --chart-2: oklch(0.65 0.02 264);
+  --chart-3: oklch(0.72 0.11 190);
+  --chart-4: oklch(0.8 0.14 78);
+  --chart-5: oklch(0.7 0.16 15);
+
+  --sidebar: oklch(0.18 0.021 268);
+  --sidebar-foreground: oklch(0.88 0.01 264);
+  --sidebar-primary: oklch(0.7 0.15 268);
+  --sidebar-primary-foreground: oklch(0.17 0.03 268);
+  --sidebar-accent: oklch(0.25 0.024 268);
+  --sidebar-accent-foreground: oklch(0.96 0.006 264);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.62 0.14 268);
+
+  --known: oklch(0.72 0.15 268);
+  --future: oklch(0.8 0.14 78);
+  --positive: oklch(0.76 0.15 158);
+  --negative: oklch(0.72 0.16 15);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    /* Keeps anchored content clear of the sticky app header. */
+    scroll-padding-top: 4rem;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* "Fog" over what wasn't known yet at the knowledge time. */
+@utility bg-hatch-future {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    color-mix(in oklch, var(--future) 14%, transparent) 0 6px,
+    transparent 6px 12px
+  );
 }
