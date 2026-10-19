@@ -39,12 +39,13 @@ Each app has its own README with more details. The main docs:
 | [Time model](doc/time-model.md)              | How "known at time *T*" works for every kind of data, with worked examples                              |
 | [Data sources](doc/data-sources.md)          | Each data source's coverage, timestamps, limits, cost, and terms of use; known gaps; price-source choice |
 | [Storage](doc/storage.md)                    | Why point-in-time data lives in Parquet files queried by DuckDB, with the benchmark                     |
+| [Frontend guidelines](frontend/GUIDELINES.md) | The web app's design system, file structure, coding conventions, and rules for new pages                |
 
 ## Tech stack
 
 | Area     | Tools                                                                                    |
 | -------- | ---------------------------------------------------------------------------------------- |
-| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, ESLint                    |
+| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, shadcn/ui (Radix UI), Lucide icons, ESLint |
 | Backend  | Python 3.14, FastAPI, uv (dependencies), pytest, Ruff (lint and format)                  |
 | Data     | Point-in-time data: Parquet files queried with DuckDB, in-process ([decision D1](doc/storage.md)). Accounts and user data: Supabase (PostgreSQL and Auth) |
 | Hosting  | Vercel (frontend); backend hosting not decided yet                                       |
