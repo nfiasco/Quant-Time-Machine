@@ -117,7 +117,7 @@ A decision at time *T* may use only rows with `available_at ≤ T`. A saved run 
 | --- | --- |
 | Storage | Timestamps are timezone-aware and stored in UTC |
 | Market clock | `America/New_York` and the NYSE calendar, including holidays, early closes, and unscheduled closures |
-| Knowledge-time input | A bare date means 09:30 ET on that date; every response echoes the exact timestamp it used |
+| Knowledge-time input | A bare date means 09:30 ET on that date, and a time without an offset is New York time (D12); every response echoes the exact timestamp it used |
 | Daily price bar | Known at that session's close (16:00 ET, or 13:00 ET on early-close days) |
 | SEC filing | Known at its EDGAR acceptance time, not the period end and not the filing date |
 | XBRL fact | Known at the acceptance time of the filing that reported it; a value re-reported or restated later is a new version from that later filing's time |
@@ -1480,7 +1480,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 **Acceptance criteria**
 
 - Universe membership is stored as (security, added, removed, source).
-- v1 is small and documented (D3, decided early in Sprint 2 so ingestion knows which companies to load): for example, a curated set of 50–100 large companies with membership history, deliberately including companies that later left or were delisted.
+- v1 is small and documented (D3, decided in Sprint 3; until then, Sprint 2 ingestion uses the [M2 ticker set](data-sources.md#m2-ticker-set)): for example, a curated set of 50–100 large companies with membership history, deliberately including companies that later left or were delisted.
 - `universe_as_of(name, knowledge_time)` returns the members at that time.
 - Tests: a company removed in year X is a member before X and not after.
 
@@ -1696,9 +1696,10 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 **Acceptance criteria**
 
 - Routes live under `/v1`.
-- `as_of` accepts a date or an ISO timestamp (a bare date means 09:30 ET), and every response echoes `knowledge_time` and `data_version`.
-- Errors: 404 for an unknown ticker or series, 422 for invalid input, and 200 with `value: null` plus a reason when nothing was known yet.
+- `as_of` accepts a date or an ISO timestamp (a bare date means 09:30 ET, and a time without an offset is New York time; D12), and every response echoes `knowledge_time` and `data_version`.
+- Errors: 404 for an unknown ticker or series, 422 for invalid input (including a local time that never happened or happened twice), and 200 with `data: null` plus a reason when nothing was known yet.
 - CORS allows the frontend origins (local and Vercel).
+- The response and error formats follow the contract in [`doc/api-v1.md`](api-v1.md), written for S9.1's demo page and reviewed by the frontend.
 
 **Tasks**
 
@@ -2784,7 +2785,7 @@ Open decisions, each owned by a story. When one is made, record the outcome and 
 | --- | --- | --- | --- | --- | --- | --- |
 | D1 | Point-in-time storage | DuckDB + Parquet, PostgreSQL, SQLite | **Parquet files queried with DuckDB, in-process.** On 1M rows it was about 10× faster than PostgreSQL for snapshots and about 18× for backtest-style as-of joins, with no server to run. Accounts and user data are a separate store in Supabase (PostgreSQL and Auth; D9, D10). See [`doc/storage.md`](storage.md). | Sprint 1 | S3.2 | Decided 2026-10-11 (pending team review) |
 | D2 | Daily price source | Tiingo, Stooq, yfinance, Alpha Vantage, WRDS/CRSP | **Tiingo end-of-day API**: raw closes plus split and dividend fields on every bar (confirmed: AAPL's raw $702.10 close on 2012-09-19). Delisted coverage is partial. Yahoo returns split-adjusted closes and no delisted tickers; Stooq blocks scripts; Alpha Vantage's free tier has no history. CRSP through UD is for internal validation only. Display rights need settling before M5. See [`doc/data-sources.md`](data-sources.md#daily-prices-decision-d2). | Sprint 1 | S6.1 | Decided 2026-10-11; the test pull on 2026-10-12 confirmed it (pending team review) |
-| D3 | Universe v1 | Curated list with history, Dow 30 history, reconstructed S&P 500, top N by market cap | A small curated list with documented history, including companies that left | Early Sprint 2 | S6.5 | Open |
+| D3 | Universe v1 | Curated list with history, Dow 30 history, reconstructed S&P 500, top N by market cap | A small curated list with documented history, including companies that left. *Interim for M2 (2026-10-19):* AAPL, MSFT, JPM, META, and TWTR, plus SPY as the benchmark; see [`doc/data-sources.md`](data-sources.md#m2-ticker-set). | Sprint 3 (moved from early Sprint 2; the M2 set unblocks ingestion) | S6.5 | Open |
 | D4 | Backend and data hosting | Vercel, Render, Railway, Fly.io, object storage for data | Whatever fits the data size and long backtests | Sprint 2 | S1.6 | Open |
 | D5 | Default decision and fill timing | 09:30 ET decision with same-day close fill, or next-day open fill | **09:30 ET decision, same-day close fill**, configurable per spec; next-day open is a robustness check (S14.3). See [`doc/time-model.md`](time-model.md#10-fills-strictly-after-the-decision-by-default-the-decision-days-close-d5). | Sprint 1 | S3.1 | Decided 2026-10-11 (pending team review) |
 | D6 | Model, API, and where the agent loop runs | Claude through the Anthropic API (default candidate) or alternatives; backend or frontend | Claude through the Anthropic API, with the loop in the Python backend | Sprint 7 | S11.1 | Open |
@@ -2793,6 +2794,7 @@ Open decisions, each owned by a story. When one is made, record the outcome and 
 | D9 | Access control and sign-in | Access code, GitHub sign-in, Supabase Auth accounts, none | Supabase Auth accounts (E16): the team plans sign-in so each user's data stays with their account, which also caps AI cost (S15.6). S16.1 picks the sign-in methods. | Sprint 2 | S16.1 | Open |
 | D10 | Run registry storage | Files, SQLite, PostgreSQL | Supabase PostgreSQL with row-level security, alongside accounts (D9), in the tables from S16.2; files until accounts exist. Runs point to market data by `data_version` and never copy it ([`doc/storage.md`](storage.md#two-stores-point-in-time-data-and-accounts)). | Sprint 3 | S16.2 | Open |
 | D11 | License | MIT, Apache-2.0, other | **MIT** ([`LICENSE`](../LICENSE)); still confirm it fits the course's code-ownership expectations | Sprint 1 | S1.3 | Decided 2026-10-11 |
+| D12 | Knowledge-time input and timestamps in API responses | Reject a time without an offset, or read it as New York time; echo times in UTC or in New York time | **A time without an offset is New York time**, which is the market clock and what the web app already sends. A local time that never happened or happened twice (the daylight-saving hours) gets a 422. Responses write every timestamp in New York time with its offset. See [time-model rule 3](time-model.md#3-a-bare-date-means-0930-et-and-a-time-without-an-offset-is-new-york-time) and [`doc/api-v1.md`](api-v1.md). | Sprint 2 | S8.1 | Decided 2026-10-19 (pending team review) |
 
 ## 11. Glossary
 

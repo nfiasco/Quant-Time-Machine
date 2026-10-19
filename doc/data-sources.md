@@ -21,7 +21,7 @@ The spike scripts that produced the evidence are in [`backend/spikes/`](../backe
 | Daily prices, splits, dividends | [Tiingo end-of-day API](#daily-prices-decision-d2) (D2) | The session's close (rule 4 of the [time model](time-model.md)) | Free tier: 50 requests per hour, 1,000 per day, 500 symbols per month | **Not without permission or a license**: free and paid individual plans are internal use only | Chosen. Verified 2026-10-12: raw prices ✓, splits and dividends ✓, delisted companies only partly |
 | Survivorship-free reference prices | [WRDS (CRSP) through UD](#wrds-crsp-at-the-university-of-delaware) | Session close; delisting dates and returns | Through UD's subscription | No: internal academic use only | Not requested yet |
 | Trading calendar | [`exchange_calendars`](#trading-calendar) | Not applicable | Open source (Apache-2.0) | Yes | Chosen (S3.5) |
-| Universe membership | [To be curated](#universe-membership) (D3) | The effective date of each change | Varies | Depends on the source | Gap; decide early in Sprint 2 |
+| Universe membership | [To be curated](#universe-membership) (D3) | The effective date of each change | Varies | Depends on the source | Gap. An interim [M2 ticker set](#m2-ticker-set) is chosen; the full universe is decided in Sprint 3 |
 
 ## FRED and ALFRED (economic data and its revisions)
 
@@ -271,7 +271,22 @@ Record the answers here.
 
 Official index membership (for example, the S&P 500's history) is proprietary. S&P Dow Jones Indices licenses it, and public reconstructions are incomplete. Compustat, through UD's WRDS, has historical index constituents, but the same internal-use limits as CRSP apply.
 
-The plan stays as in the roadmap: v1 is a small, documented, curated universe that deliberately includes companies that later left or were delisted (D3, decided early in Sprint 2; S6.5). Universe v2 is rules-based, the top N by market cap computed from our own data (S6.6).
+The plan stays as in the roadmap: v1 is a small, documented, curated universe that deliberately includes companies that later left or were delisted (D3, decided in Sprint 3; S6.5). Universe v2 is rules-based, the top N by market cap computed from our own data (S6.6).
+
+### M2 ticker set
+
+Until D3 picks the full universe, Sprint 2 ingestion and the walking skeleton (M2) load these five companies plus the benchmark. Each one is there to exercise a specific rule. It's a test set, not a universe for backtests. Checked against SEC EDGAR and Tiingo's metadata on 2026-10-19:
+
+| Ticker | Company | CIK | Tiingo prices | Why it's in the set |
+| --- | --- | --- | --- | --- |
+| AAPL | Apple Inc. | 320193 | 1980-12-12 on | The golden cases in the [time model](time-model.md). Splits in 2014 (7-for-1) and 2020 (4-for-1), dividends since 2012, and a 52/53-week fiscal year ending in late September. |
+| MSFT | Microsoft | 789019 | 1986-03-13 on | Its fiscal year ends June 30, which exercises fiscal-quarter logic (S5.7). Regular dividends. |
+| JPM | JPMorgan Chase | 19617 | 1983-12-30 on | A bank, whose revenue tags differ from other companies' (S5.6). Its EDGAR history is huge: 26,395 filings in the `recent` block and 71 older pages, mostly structured-note prospectuses. That stress-tests pagination and form filtering (S5.3). |
+| META | Meta Platforms (Facebook until June 2022) | 1326801 | 2012-05-18 on, under `META` | The FB → META ticker change (S5.2 overrides). Tiingo files Facebook's whole history under `META`, and Tiingo's `FB` today is an unrelated ETF (listed 2025-06-26). So the price fetcher must look prices up by security, not by the ticker a user typed. |
+| TWTR | Twitter, taken private in October 2022 | 1418091 | 2013-11-07 to 2022-10-28 | A delisted company. SEC's current ticker file doesn't list TWTR, and its submissions show no tickers, so it needs an override entry (S5.2). Its last bar later tests delisting exits (S6.7). |
+| SPY | SPDR S&P 500 ETF Trust (benchmark) | 884394 | 1993-01-29 on | The default benchmark (S6.2). It files no 10-K or 10-Q, so the filing endpoints should return an empty result with a reason, not an error. |
+
+Loading all six takes six Tiingo requests, against the free plan's 50 per hour and 500 symbols per month.
 
 ## Known gaps
 
