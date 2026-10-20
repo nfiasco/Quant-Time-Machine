@@ -156,7 +156,10 @@ uv run --python 3.12 spikes/storage_benchmark.py --postgres-dsn postgresql://pos
   - `corporate_actions`
 
   `DATA_DIR` is git-ignored.
-- **Columns.** Every table carries `available_at` and `ingested_at` (`TIMESTAMPTZ`, UTC), plus `source` and `source_ref`. Write files sorted by key and `available_at`, so DuckDB can skip what a query doesn't need.
-- **Reads.** `PointInTimeView` (S3.3) opens one DuckDB connection with views over the Parquet files. Every read filters `available_at <= knowledge_time`, and `ingested_at <= data_version` when a run is pinned (S3.7). Add `duckdb` to the backend's dependencies there, together with `pytz`: DuckDB's Python API needs it to return `TIMESTAMPTZ` values as `datetime` objects.
+- **Columns.** Every table carries `available_at` and `ingested_at` (`TIMESTAMPTZ`, UTC), plus `source`, `source_ref`, and `time_assumed`, which flags an `available_at` that was assumed rather than published (time model, rule 11). Write files sorted by key and `available_at`, so DuckDB can skip what a query doesn't need.
+- **Reads.** `PointInTimeView` (S3.3) opens one DuckDB connection with views over the Parquet files. Every read filters `available_at <= knowledge_time`, and `ingested_at <= data_version` when a run is pinned (S3.7).
+  - **Dependencies.** The backend depends on `duckdb` and `pytz`; DuckDB's Python API needs `pytz` to return `TIMESTAMPTZ` values as `datetime` objects.
+  - **Time zone.** Set `TimeZone = 'UTC'` on every connection, as `store.connect()` does. Otherwise DuckDB returns `TIMESTAMPTZ` values in the machine's local zone, so a Mac in New York and Linux CI would disagree.
+  - **Naive timestamps.** DuckDB reads a naive timestamp cast to `TIMESTAMPTZ` as UTC without complaint, so the writer rejects naive datetimes before they reach DuckDB.
 - **Ties.** Make `(key, available_at)` unique, or add a tie-breaker. `ASOF JOIN` picks an arbitrary row when two candidates have the same time.
 - **Compaction.** Incremental ingestion creates many small files, so compact them now and then. Because readers use immutable Parquet files rather than a shared database file, ingestion and the API never contend for a single writer lock.
