@@ -89,6 +89,7 @@ Running the apps and the tests needs no keys: tests use small fixtures, never li
   - `SEC_USER_AGENT`: the SEC refuses automated requests that don't identify who's asking. Use your name or the project's name plus a contact email, for example `"Quant Time Machine (UD CISC 498) jdoe@udel.edu"`.
   - `TIINGO_API_KEY`: the token for daily prices (our price source, [decision D2](doc/data-sources.md#daily-prices-decision-d2)). Create a free [Tiingo](https://www.tiingo.com) account and copy the token from its [API token page](https://www.tiingo.com/account/api/token).
   - `DATA_DIR`: where downloaded data goes (default `backend/data/`, which git ignores).
+  - `CORS_ORIGINS`: the web pages allowed to call the API from a browser, separated by commas (default `http://localhost:3000`). Add the deployed frontend's address here.
 - **Frontend:** copy [`frontend/.env.example`](frontend/.env.example) to `frontend/.env.local`. `NEXT_PUBLIC_API_URL` is the backend's address (default `http://localhost:8000`). Anything starting with `NEXT_PUBLIC_` is visible in the browser, so never put a secret there.
 
 Both `.env` files are git-ignored. Real environment variables override them, which is how a hosting provider supplies values.

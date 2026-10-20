@@ -4,13 +4,17 @@ version = "0.1.0"
 description = "Backend API for Quant Time Machine: point-in-time data and backtesting."
 requires-python = ">=3.14"
 dependencies = [
+    "duckdb>=1.5.6",
+    "exchange-calendars>=4.13.2",
     "fastapi[standard]>=0.141.1",
+    "httpx2>=2.13.1",
+    "pandas>=3.0.6",
     "pydantic-settings>=2.15.0",
+    "pytz>=2026.5",
 ]
 
 [dependency-groups]
 dev = [
-    "httpx2>=2.13.1",
     "pytest>=9.1.1",
     "ruff>=0.16.9",
 ]
@@ -23,6 +27,10 @@ entrypoint = "app.main:app"
 testpaths = ["tests"]
 # The backend is not installed as a package, so put this folder on the import path for tests.
 pythonpath = ["."]
+# Tests marked `network` call real APIs and need keys in backend/.env. They're skipped by
+# default, so CI never runs them; run them with `uv run pytest -m network`.
+addopts = "-m 'not network' --strict-markers"
+markers = ["network: calls a real external API and needs keys in backend/.env"]
 
 [tool.ruff]
 # The storage benchmark runs on Python 3.12 (its embedded PostgreSQL has no 3.14 wheels),

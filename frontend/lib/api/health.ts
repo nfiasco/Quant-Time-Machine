@@ -9,8 +9,8 @@ export type ApiHealth =
 /**
  * Checks `GET /health` on the backend. Never throws: an unreachable or unhealthy API
  * comes back as `offline` with a short reason, so pages can show it as a status.
- * Call it from the server; the backend doesn't allow browser (CORS) requests yet.
- * Memoized per request, so several components can ask without repeating the call.
+ * Call it from a Server Component: it's memoized per request with React's `cache`,
+ * so several components can ask without repeating the call.
  */
 export const getApiHealth = cache(async (): Promise<ApiHealth> => {
   try {

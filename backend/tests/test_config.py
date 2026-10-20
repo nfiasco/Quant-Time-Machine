@@ -5,7 +5,13 @@ from pydantic import ValidationError
 
 from app.config import BACKEND_DIR, Settings
 
-ENV_VARS = ("FRED_API_KEY", "SEC_USER_AGENT", "TIINGO_API_KEY", "DATA_DIR")
+ENV_VARS = (
+    "FRED_API_KEY",
+    "SEC_USER_AGENT",
+    "TIINGO_API_KEY",
+    "DATA_DIR",
+    "CORS_ORIGINS",
+)
 
 
 @pytest.fixture(autouse=True)
@@ -23,6 +29,7 @@ def test_defaults_need_no_keys() -> None:
     assert settings.sec_user_agent is None
     assert settings.tiingo_api_key is None
     assert settings.data_dir == BACKEND_DIR / "data"
+    assert settings.cors_origins == ["http://localhost:3000"]
 
 
 def test_environment_variables_override_defaults(
@@ -87,3 +94,16 @@ def test_sec_user_agent_requires_contact_email(monkeypatch: pytest.MonkeyPatch) 
 
 def test_env_file_is_anchored_to_backend() -> None:
     assert Settings.model_config["env_file"] == BACKEND_DIR / ".env"
+
+
+def test_cors_origins_are_comma_separated(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(
+        "CORS_ORIGINS", "http://localhost:3000, https://example.vercel.app/ ,"
+    )
+
+    settings = Settings(_env_file=None)
+
+    assert settings.cors_origins == [
+        "http://localhost:3000",
+        "https://example.vercel.app",
+    ]
