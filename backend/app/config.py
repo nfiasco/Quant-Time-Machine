@@ -8,9 +8,10 @@ live APIs.
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Annotated
 
 from pydantic import SecretStr, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 
@@ -40,6 +41,10 @@ class Settings(BaseSettings):
     # A relative path is resolved from backend/, not from the current directory.
     data_dir: Path = Path("data")
 
+    # Browser origins allowed to call the API (CORS). In the environment, separate them
+    # with commas, for example "http://localhost:3000,https://example.vercel.app".
+    cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
+
     @field_validator("sec_user_agent")
     @classmethod
     def _require_contact_email(cls, value: str | None) -> str | None:
@@ -52,6 +57,20 @@ class Settings(BaseSettings):
     def _resolve_data_dir(cls, value: Path) -> Path:
         value = value.expanduser()
         return value if value.is_absolute() else BACKEND_DIR / value
+
+    @field_validator("cors_origins", mode="before")
+    @classmethod
+    def _split_origins(cls, value: object) -> object:
+        # An origin never ends in a slash, and a browser's Origin header must match exactly.
+        if isinstance(value, str):
+            value = value.split(",")
+        if isinstance(value, list):
+            return [
+                str(origin).strip().rstrip("/")
+                for origin in value
+                if str(origin).strip()
+            ]
+        return value
 
 
 @lru_cache

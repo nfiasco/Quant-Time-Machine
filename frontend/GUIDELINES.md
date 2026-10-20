@@ -169,7 +169,7 @@ lib/            Framework-agnostic helpers: api/, time, theme, utils
 
 ### Data and URL state
 
-- Call the backend only through `lib/api/` (`apiFetch` plus one typed function per endpoint). Fetch on the server for now: the backend doesn't allow browser (CORS) requests yet (S8.1).
+- Call the backend only through `lib/api/` (`apiFetch` plus one typed function per endpoint). The backend accepts browser (CORS) requests only from the origins in its `CORS_ORIGINS` setting (S8.1), which defaults to `http://localhost:3000`. Before fetching from the browser on a deployed site, add that site's origin there.
 - Hand-written API types are temporary; generate them from the OpenAPI schema when S8.6 lands.
 - Shareable state lives in the URL, using the API's parameter names: `as_of`, `tickers`, `series`, `preset`. Parse and validate on read (see `parseAsOf`).
 
