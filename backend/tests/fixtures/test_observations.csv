@@ -1,0 +1,7 @@
+series_id,period,value,source,source_ref,available_at,time_assumed
+TEST,2020-04-01,100.0,test,synthetic: April first print,2020-05-08T12:30:00Z,false
+TEST,2020-05-01,101.0,test,synthetic: May first print,2020-06-05T12:30:00Z,false
+TEST,2020-05-01,101.5,test,synthetic: May revision,2020-07-02T12:30:00Z,false
+TEST,2020-06-01,102.0,test,synthetic: June first print,2020-07-02T12:30:00Z,false
+TEST,2020-05-01,999.0,test,canary: no query before 2099 may return this row,2099-01-01T00:00:00Z,false
+TEST_EOD,2020-05-01,,test,synthetic: release time unknown; end of day ET assumed,2020-06-02T03:59:59.999999Z,true
