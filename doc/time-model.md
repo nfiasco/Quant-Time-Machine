@@ -69,7 +69,11 @@ A knowledge time such as `2020-06-05` means `2020-06-05T09:30:00-04:00` (13:30Z)
 
 - **Echo the exact instant.** Every API response includes the knowledge time it actually used, so nobody has to guess.
 - **No snapping to trading days.** A bare date on a weekend or holiday still means 09:30 ET that day. Knowledge time is just a moment, and data published by then is visible. Trading days matter only for the decision schedule (rule 9).
-- **Timestamps without a zone are rejected.** A timestamp with an offset is used as given. One without an offset (such as `2020-06-05T09:30`) is ambiguous, so the API returns an error instead of guessing. *This clarifies the roadmap's rule.*
+- **A timestamp without an offset is New York time.** A timestamp with an offset (`Z`, or one such as `-04:00`) is used as given. One without an offset, such as `2020-06-05T09:30`, is read on the market clock like a bare date: 09:30 ET, or 13:30Z. The web app's links use this form. Two hours a year need a rule:
+  - **Fall back.** On November 1, 2020, 01:30 happened twice. The later instant (06:30Z) is used, so the system knows less (rule 11).
+  - **Spring forward.** On March 8, 2020, 02:30 never happened, so the API returns an error.
+
+  *Changed in Sprint 2. This rule used to reject timestamps without an offset, but the web app already sends them.*
 
 ### 4. A daily price bar is known at its session's close
 
@@ -200,7 +204,8 @@ Each rule becomes at least one golden test, built on small committed fixtures (n
 | `test_timestamps_are_timezone_aware_utc` | 1 | Load any fixture row | Every `available_at` and `ingested_at` is aware and in UTC |
 | `test_calendar_closures_and_early_closes` | 2 | Calendar for 2012-10-29/30, 2018-12-05, 2020-11-27 | Closed, closed, early close at 13:00 ET |
 | `test_bare_date_means_0930_eastern` | 3 | Parse `2020-06-05` and `2020-01-15` | `13:30Z` and `14:30Z`, echoed in the response |
-| `test_naive_timestamp_is_rejected` | 3 | Parse `2020-06-05T09:30` | Validation error |
+| `test_no_offset_timestamp_means_eastern` | 3 | Parse `2020-06-05T09:30` | `13:30Z`, the same as the bare date |
+| `test_no_offset_timestamp_in_dst_change_hours` | 3, 11 | Parse `2020-11-01T01:30` and `2020-03-08T02:30` | `06:30Z`, the later of the two instants; a validation error |
 | `test_bar_known_only_after_close` | 4 | AAPL bars, *T* = 2020-06-05 09:30 ET | Latest bar is June 4; June 5 raises `LookAheadError` |
 | `test_early_close_bar_known_at_1300` | 4 | Bar for 2020-11-27 | `available_at` = 18:00Z |
 | `test_filing_known_from_acceptance_time` | 5 | Apple filings, *T* = 2020-06-05 09:30 ET | Latest 10-Q is 0000320193-20-000052; -20-000062 is invisible |
