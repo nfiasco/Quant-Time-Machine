@@ -30,7 +30,7 @@ Every stored fact has:
 | --- | --- | --- |
 | 1 | Storage | Timestamps are timezone-aware and stored in UTC |
 | 2 | Market clock | `America/New_York` and the NYSE calendar, including holidays, early closes, and unscheduled closures |
-| 3 | Knowledge-time input | A bare date means 09:30 ET on that date; every response echoes the exact timestamp it used |
+| 3 | Knowledge-time input | A bare date means 09:30 ET on that date, and a time without an offset is New York time; every response echoes the exact timestamp it used |
 | 4 | Daily price bar | Known at that session's close: 16:00 ET, or 13:00 ET on early-close days |
 | 5 | SEC filing | Known at its EDGAR acceptance time, not the period end and not the filing date |
 | 6 | XBRL fact | Known at the acceptance time of the filing that reported it; a value re-reported or restated later is a new version from that filing's time |
@@ -44,7 +44,7 @@ Every stored fact has:
 
 ### 1. Timestamps are timezone-aware and stored in UTC
 
-Store and compare instants in UTC, and convert to Eastern time only for market dates and display. A naive timestamp (one without a zone) is a bug. Eastern time is UTC−4 in daylight time (EDT, which in 2020 ran from March 8 to November 1) and UTC−5 in standard time (EST).
+Store and compare instants in UTC, and convert to Eastern time only for market dates and display. Inside the system, a naive timestamp (one without a zone) is a bug. Input without an offset gets its zone at the edge, when it's parsed (rule 3). Eastern time is UTC−4 in daylight time (EDT, which in 2020 ran from March 8 to November 1) and UTC−5 in standard time (EST).
 
 | Eastern time | UTC | Why it matters |
 | --- | --- | --- |
@@ -63,11 +63,27 @@ Trading days, sessions, and closes come from an established calendar library (`e
 - national days of mourning (December 5, 2018, and January 9, 2025)
 - regular holidays such as Good Friday
 
-### 3. A bare date means 09:30 ET on that date
+### 3. A bare date means 09:30 ET, and a time without an offset is New York time
 
-A knowledge time such as `2020-06-05` means `2020-06-05T09:30:00-04:00` (13:30Z). `2020-01-15` means `2020-01-15T09:30:00-05:00` (14:30Z).
+A knowledge time, such as the API's `as_of` parameter, can take three forms:
 
-- **Echo the exact instant.** Every API response includes the knowledge time it actually used, so nobody has to guess.
+| Input | Means | UTC |
+| --- | --- | --- |
+| `2020-06-05` (a bare date) | 09:30 EDT that day | `2020-06-05T13:30Z` |
+| `2020-01-15` (a bare date in winter) | 09:30 EST that day | `2020-01-15T14:30Z` |
+| `2020-06-05T08:00` (no offset) | 08:00 New York time | `2020-06-05T12:00Z` |
+| `2020-06-05T13:30:00Z` or `2020-06-05T09:30:00-04:00` (with an offset) | Used as given | `2020-06-05T13:30Z` |
+
+- **A time without an offset is New York wall-clock time.**
+  - The market clock is always New York (rule 2), and that's how people write market times.
+  - It's also the form the web app sends (`frontend/lib/time.ts`).
+  - Seconds and fractions of a second are optional.
+- **A local time that never happened, or happened twice, is rejected.**
+  - When clocks spring forward, 02:00–02:59 is skipped, so `2020-03-08T02:30` never happened.
+  - When they fall back, 01:00–01:59 happens twice, so `2020-11-01T01:30` is ambiguous.
+  - The API returns a 422 error instead of guessing. Add an offset to pick one of the two.
+  - These hours are far from market hours, so no real decision is affected.
+- **Echo the exact instant.** Every API response includes the knowledge time it actually used, as `knowledge_time`, written in New York time with its offset (`2020-06-05T09:30:00-04:00`). Nobody has to guess. The response format is in [api-v1.md](api-v1.md).
 - **No snapping to trading days.** A bare date on a weekend or holiday still means 09:30 ET that day. Knowledge time is just a moment, and data published by then is visible. Trading days matter only for the decision schedule (rule 9).
 - **A timestamp without an offset is New York time.** A timestamp with an offset (`Z`, or one such as `-04:00`) is used as given. One without an offset, such as `2020-06-05T09:30`, is read on the market clock like a bare date: 09:30 ET, or 13:30Z. The web app's links use this form. Two hours a year need a rule:
   - **Fall back.** On November 1, 2020, 01:30 happened twice. The later instant (06:30Z) is used, so the system knows less (rule 11).
