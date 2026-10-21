@@ -1,0 +1,110 @@
+# The macro series catalog (S4.2): every series `ingest fred` loads and reads can ask for.
+#
+# Series load in the order listed, UNRATE first. Titles, units, frequencies, and seasonal
+# adjustments are FRED's own (fred/series), and ingestion warns when FRED's no longer
+# match. Each release's ID is FRED's (fred/series/release); ingestion stops if a series
+# turns out to come from a different release, because its release time would be wrong.
+#
+# Release times (S4.3). ALFRED dates each vintage but gives no time of day, so a vintage
+# becomes known at its date plus its release's `time`, New York wall-clock time
+# (doc/time-model.md, rule 7). `sources` cite the schedule each time comes from, checked
+# on 2026-10-21. A release whose time isn't known says time = "unknown": its vintages are
+# known at 23:59:59.999999 ET that day and flagged time_assumed (rule 11).
+# `exceptions` are days a release came out at another time, each with its source.
+
+[releases.employment_situation]
+name = "Employment Situation"
+fred_release_id = 50
+time = 08:30:00
+sources = [
+    # BLS's schedule: "Release Time 08:30 AM" for every release.
+    "https://www.bls.gov/schedule/news_release/empsit.htm",
+]
+
+[[releases.employment_situation.exceptions]]
+# Scheduled for 08:30 on Friday, November 6, 1998. Some payroll estimates were posted
+# early by mistake, so BLS released the report officially at 1:30 PM EST on Thursday,
+# November 5 (footnote 2 of BLS's historical release dates, 1957-2000).
+date = 1998-11-05
+time = 13:30:00
+source = "https://www.bls.gov/bls/histreleasedates.pdf"
+
+[releases.cpi]
+name = "Consumer Price Index"
+fred_release_id = 10
+time = 08:30:00
+sources = [
+    # BLS's schedule: "Release Time 08:30 AM" for every release.
+    "https://www.bls.gov/schedule/news_release/cpi.htm",
+]
+
+[releases.gdp]
+name = "Gross Domestic Product"
+fred_release_id = 53
+time = 08:30:00
+sources = [
+    # BEA's schedule lists each GDP estimate at 8:30 AM.
+    "https://www.bea.gov/news/schedule",
+    # "Bureau of Economic Analysis news releases are posted on www.bea.gov at 8:30 a.m.
+    # Eastern time unless otherwise noted." (BEA's 2023 schedule)
+    "https://apps.bea.gov/scb/issues/2022/12-december/1222-news-releases-2023.htm",
+]
+
+[releases.h15]
+name = "H.15 Selected Interest Rates"
+fred_release_id = 18
+time = 16:15:00
+sources = [
+    # "The release is posted daily Monday through Friday at 4:15pm." Monthly figures,
+    # such as FEDFUNDS and TB3MS, are averages of business days.
+    "https://www.federalreserve.gov/releases/h15/",
+]
+
+[[series]]
+id = "UNRATE"
+title = "Unemployment Rate"
+units = "Percent"
+frequency = "Monthly"
+seasonal_adjustment = "Seasonally Adjusted"
+release = "employment_situation"
+
+[[series]]
+id = "PAYEMS"
+title = "All Employees, Total Nonfarm"
+units = "Thousands of Persons"
+frequency = "Monthly"
+seasonal_adjustment = "Seasonally Adjusted"
+release = "employment_situation"
+
+[[series]]
+id = "CPIAUCSL"
+title = "Consumer Price Index for All Urban Consumers: All Items in U.S. City Average"
+units = "Index 1982-1984=100"
+frequency = "Monthly"
+seasonal_adjustment = "Seasonally Adjusted"
+release = "cpi"
+
+[[series]]
+id = "GDP"
+title = "Gross Domestic Product"
+units = "Billions of Dollars"
+frequency = "Quarterly"
+seasonal_adjustment = "Seasonally Adjusted Annual Rate"
+release = "gdp"
+
+[[series]]
+id = "FEDFUNDS"
+title = "Federal Funds Effective Rate"
+units = "Percent"
+frequency = "Monthly"
+seasonal_adjustment = "Not Seasonally Adjusted"
+release = "h15"
+
+# The risk-free rate for Sharpe ratios.
+[[series]]
+id = "TB3MS"
+title = "3-Month Treasury Bill Secondary Market Rate, Discount Basis"
+units = "Percent"
+frequency = "Monthly"
+seasonal_adjustment = "Not Seasonally Adjusted"
+release = "h15"

@@ -12,34 +12,26 @@ import argparse
 import logging
 import sys
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
-from pathlib import Path
 
-from app.config import Settings, get_settings
+from app.config import get_settings
 from app.data.http import (
     SOURCES,
+    FetchError,
     MissingSettingError,
     RateLimitExceeded,
-    SourceClient,
     client_for,
 )
+from app.data.sources import IngestContext, IngestError, alfred
 from app.data.store import store_dir
 
+__all__ = ["INGESTERS", "IngestContext", "main"]
 
-@dataclass(frozen=True)
-class IngestContext:
-    """What an ingester works with."""
+INGESTERS: dict[str, Callable[[IngestContext], None]] = {"fred": alfred.ingest}
+"""Each source's ingester, by source name. S5.3 (sec) and S6.2 (tiingo) add theirs.
 
-    settings: Settings
-    client: SourceClient
-    """Fetches from the ingester's source, through the raw cache."""
-    store: Path
-    """The point-in-time store, for `write_rows`."""
-
-
-INGESTERS: dict[str, Callable[[IngestContext], None]] = {}
-"""Each source's ingester, by source name. S4.2 (fred), S5.3 (sec), and S6.2 (tiingo)
-add theirs."""
+The map is written out here rather than filled in by each source module when it's
+imported: `python -m app.data.ingest` runs this file as `__main__`, so a module that
+imported `app.data.ingest` to register itself would fill a second copy of the map."""
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -57,6 +49,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     logging.basicConfig(
         level=logging.INFO, format="%(levelname)s %(name)s: %(message)s"
     )
+    # httpx2 logs each request's full URL at INFO, and FRED's URLs carry the API key.
+    for library in ("httpx2", "httpcore2"):
+        logging.getLogger(library).setLevel(logging.WARNING)
 
     ingester = INGESTERS.get(args.source)
     if ingester is None:
@@ -76,6 +71,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             "reused, so it picks up where it stopped.",
             file=sys.stderr,
         )
+        return 1
+    except (FetchError, IngestError) as error:
+        print(error, file=sys.stderr)
         return 1
     return 0
 

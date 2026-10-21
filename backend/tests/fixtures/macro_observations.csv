@@ -1,0 +1,4 @@
+series_id,observation_date,value,vintage_date,source,source_ref,available_at,time_assumed
+UNRATE,1990-01-01,5.3,1990-02-02,alfred,UNRATE vintage 1990-02-02,1990-02-02T13:30:00Z,false
+UNRATE,1990-01-01,5.4,1996-03-08,alfred,UNRATE vintage 1996-03-08,1996-03-08T13:30:00Z,false
+UNRATE,1990-01-01,99.9,2099-01-01,alfred,canary: no query before 2099 may return this row,2099-01-01T00:00:00Z,false

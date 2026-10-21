@@ -133,6 +133,17 @@ Here the value never changed. If a later filing had restated it, the restated nu
 
 ALFRED records each published version of an observation (a *vintage*) with a `realtime_start` date, but no time of day. We add the release's scheduled time from a release-time table (S4.3); for example, BLS publishes the Employment Situation at 08:30 ET. If a release's time isn't known, we use the end of that day, so it's first usable on the next trading day, and we flag it.
 
+The release-time table lives in [`alfred_series.toml`](../backend/app/data/sources/alfred_series.toml), next to the series that use it. Sources were checked on 2026-10-21:
+
+| Release (FRED ID) | Series | Time (ET) | Source |
+| --- | --- | --- | --- |
+| Employment Situation (50) | UNRATE, PAYEMS | 08:30 | [BLS schedule](https://www.bls.gov/schedule/news_release/empsit.htm): "08:30 AM" for every release |
+| Consumer Price Index (10) | CPIAUCSL | 08:30 | [BLS schedule](https://www.bls.gov/schedule/news_release/cpi.htm): "08:30 AM" for every release |
+| Gross Domestic Product (53) | GDP | 08:30 | [BEA schedule](https://www.bea.gov/news/schedule), and BEA's [2023 schedule](https://apps.bea.gov/scb/issues/2022/12-december/1222-news-releases-2023.htm): releases "are posted on www.bea.gov at 8:30 a.m. Eastern time unless otherwise noted" |
+| H.15 Selected Interest Rates (18) | FEDFUNDS, TB3MS | 16:15 | [Federal Reserve](https://www.federalreserve.gov/releases/h15/): "The release is posted daily Monday through Friday at 4:15pm." Monthly figures are averages of business days. |
+
+A release that came out at another time on one day gets an exception. The October 1998 Employment Situation was scheduled for 08:30 on Friday, November 6, 1998. Some payroll estimates were posted early by mistake, so BLS released it officially at 1:30 PM EST on Thursday, November 5 ([BLS historical release dates](https://www.bls.gov/bls/histreleasedates.pdf), footnote 2). A vintage dated 1998-11-05 is therefore known at 13:30 EST (18:30Z), not 08:30.
+
 - **May 2020 unemployment.**
   - The first print, 13.3%, came out at 08:30 ET on Friday, June 5, 2020, so `available_at = 2020-06-05T12:30Z`.
   - A 09:30 decision that day sees 13.3%; an 08:00 decision doesn't, and its latest value is April's first print, 14.7%.
@@ -208,7 +219,11 @@ The pitfalls table in [roadmap §2.4](roadmap.md#24-where-look-ahead-bias-creeps
 
 1. **Earnings releases come first, so our rule is conservative.** Companies announce results in an 8-K press release before the 10-Q. Apple's 8-K for fiscal Q2 2020 was accepted at 16:30:41 ET on April 30, 2020, and the 10-Q at 18:03:10 ET. For other companies the gap can be days. We date fundamentals by the filing their XBRL numbers come from, so they become usable slightly later than in reality. That's acceptable for v1; say so on the methodology page.
 2. **A decision at exactly 16:00.** The bar is known at 16:00 (the comparison is inclusive), so a 16:00 decision can use that close. But fills must be strictly after the decision, so its earliest fill is the next session. A same-day close fill is allowed only for decisions before the close.
-3. **Release-time coverage.** ALFRED has dates only. Until S4.3's release-time table covers a release, its rows use the end-of-day rule and carry a flag.
+3. **Release times are today's schedules.** ALFRED has dates only, so the release-time table (rule 7) supplies the time of day, with two limits:
+   - **The times are applied to every vintage.** BLS's 08:30 is documented back to 1998 by its own footnote, and the January 1990 example above assumes it. BEA's and the Fed's times are documented only for recent years.
+   - **Not every vintage date is a scheduled release.** A vintage dated on another day, such as a FRED correction, still gets its release's time, unless it's listed as an exception.
+
+   A release without a time in the table uses the end-of-day rule and is flagged.
 4. **Ticker history.** SEC's ticker file lists only current tickers, so historical tickers need a curated overrides file (S5.2).
 
 ## Named test cases for S3.6

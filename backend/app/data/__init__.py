@@ -7,4 +7,5 @@ is "as of" a knowledge time, so nothing can see the future (doc/time-model.md).
 - `view`: `PointInTimeView`, the only way to read the store
 - `errors`: errors that reads raise and the API answers
 - `raw_cache`, `http`, and `ingest`: downloading sources into the store
+- `sources`: one ingester per source, such as `alfred` for macro vintages
 """

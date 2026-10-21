@@ -3,7 +3,6 @@ import time
 
 import pandas as pd
 import requests
-import httpx
 
 # Same 5 companies, need their CIK numbers
 COMPANIES = {
@@ -28,7 +27,7 @@ def fetch_company_filings(ticker, cik, metrics):
         r = requests.get(url, headers=HEADERS)
         r.raise_for_status()
         facts = r.json()
-    except Exception as e:
+    except requests.RequestException as e:
         print(f"    Error fetching {ticker}: {e}")
         return []
 
