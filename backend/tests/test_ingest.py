@@ -1,14 +1,17 @@
+import logging
 import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
+import httpx2
 import pytest
 
 from app.config import BACKEND_DIR, Settings
 from app.data import ingest
-from app.data.http import RateLimitExceeded
+from app.data.http import FetchError, RateLimitExceeded
 from app.data.ingest import INGESTERS, IngestContext, main
+from app.data.sources import IngestError, alfred
 
 
 @pytest.fixture
@@ -65,6 +68,54 @@ def test_a_rate_limit_stops_the_run_with_exit_1(
 
     assert main(["tiingo"]) == 1
     assert "picks up where it stopped" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        FetchError("fred: GET series failed after 4 attempts: HTTP 500"),
+        IngestError("UNRATE: FRED says it comes from release 99"),
+    ],
+)
+def test_a_failed_ingest_exits_1_with_its_message(
+    monkeypatch: pytest.MonkeyPatch,
+    use_settings,
+    capsys: pytest.CaptureFixture[str],
+    error: Exception,
+) -> None:
+    def ingester(context: IngestContext) -> None:
+        raise error
+
+    monkeypatch.setitem(INGESTERS, "fred", ingester)
+    use_settings(fred_api_key="test-key")
+
+    assert main(["fred"]) == 1
+    assert str(error) in capsys.readouterr().err
+
+
+def test_request_urls_with_keys_are_never_logged(
+    monkeypatch: pytest.MonkeyPatch, use_settings, caplog: pytest.LogCaptureFixture
+) -> None:
+    # httpx2 logs every request URL at INFO, and FRED's URLs carry the API key.
+    caplog.set_level(logging.INFO)
+    answer = httpx2.MockTransport(lambda request: httpx2.Response(200, json={}))
+    real_client_for = ingest.client_for
+    monkeypatch.setattr(
+        ingest,
+        "client_for",
+        lambda *args, **options: real_client_for(*args, transport=answer, **options),
+    )
+    monkeypatch.setitem(
+        INGESTERS, "fred", lambda context: context.client.get("series", {"x": "1"})
+    )
+    use_settings(fred_api_key="fredsecret0123456789")
+
+    assert main(["fred"]) == 0
+    assert "fredsecret0123456789" not in caplog.text
+
+
+def test_fred_runs_the_alfred_ingester() -> None:
+    assert INGESTERS["fred"] is alfred.ingest
 
 
 def test_unknown_sources_are_usage_errors() -> None:

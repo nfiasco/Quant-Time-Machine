@@ -1,7 +1,6 @@
 import json
 import traceback
-from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 
 import httpx2
@@ -14,76 +13,24 @@ from app.data.http import (
     RateLimit,
     RateLimiter,
     RateLimitExceeded,
-    SourceClient,
     client_for,
 )
 from app.data.raw_cache import RawCache, redact_url
-
-FRED_KEY = "fredkey0123456789abcdef0123456789"
-TIINGO_TOKEN = "tiingotoken0123456789abcdef"
-NOW = datetime(2026, 10, 19, 12, tzinfo=UTC)
-
-
-class FakeClock:
-    """A clock that moves only when the code under test sleeps."""
-
-    def __init__(self) -> None:
-        self.now = NOW
-        self.sleeps: list[float] = []
-
-    def __call__(self) -> datetime:
-        return self.now
-
-    def sleep(self, seconds: float) -> None:
-        self.sleeps.append(seconds)
-        self.now += timedelta(seconds=seconds)
-
-
-Reply = httpx2.Response | Callable[[httpx2.Request], httpx2.Response]
-
-
-class FakeServer:
-    """Answers requests with canned replies, in order, and records the requests."""
-
-    def __init__(self, *replies: Reply) -> None:
-        self.replies = list(replies)
-        self.requests: list[httpx2.Request] = []
-
-    def __call__(self, request: httpx2.Request) -> httpx2.Response:
-        self.requests.append(request)
-        reply = self.replies.pop(0) if len(self.replies) > 1 else self.replies[0]
-        return reply(request) if callable(reply) else reply
-
-
-def settings(tmp_path: Path) -> Settings:
-    return Settings(
-        _env_file=None,
-        data_dir=tmp_path,
-        fred_api_key=FRED_KEY,
-        tiingo_api_key=TIINGO_TOKEN,
-        sec_user_agent="Quant Time Machine tests test@example.com",
-    )
-
-
-def client(
-    tmp_path: Path, source: str, server: FakeServer, clock: FakeClock, **options: object
-) -> SourceClient:
-    return client_for(
-        source,
-        settings(tmp_path),
-        transport=httpx2.MockTransport(server),
-        clock=clock,
-        sleep=clock.sleep,
-        **options,
-    )
+from tests.fakes import (
+    FRED_KEY,
+    NOW,
+    TIINGO_TOKEN,
+    FakeClock,
+    FakeServer,
+    Reply,
+    ok,
+    settings,
+)
+from tests.fakes import fake_client as client
 
 
 def saved_files(tmp_path: Path) -> list[Path]:
     return [path for path in (tmp_path / "raw").rglob("*") if path.is_file()]
-
-
-def ok(body: object) -> httpx2.Response:
-    return httpx2.Response(200, json=body)
 
 
 def test_cached_response_makes_no_request(tmp_path: Path) -> None:
@@ -229,6 +176,25 @@ def test_client_errors_are_not_retried(tmp_path: Path) -> None:
 
     assert len(server.requests) == 1
     assert saved_files(tmp_path) == []
+
+
+def test_a_page_that_is_not_json_fails_and_is_not_cached(tmp_path: Path) -> None:
+    # FRED answers 200 with an HTML page while it's down for maintenance.
+    maintenance = httpx2.Response(
+        200, text="<html>Site Maintenance</html>", headers={"content-type": "text/html"}
+    )
+    server, clock = FakeServer(maintenance, ok({"seriess": []})), FakeClock()
+
+    with (
+        client(tmp_path, "fred", server, clock) as fred,
+        pytest.raises(FetchError, match="text/html instead of JSON"),
+    ):
+        fred.get("series", {"series_id": "UNRATE"})
+
+    assert saved_files(tmp_path) == []
+    # Once the source is back, the next run asks again instead of reading the page.
+    with client(tmp_path, "fred", server, clock) as fred:
+        assert fred.get("series", {"series_id": "UNRATE"}).json() == {"seriess": []}
 
 
 def test_rate_limiter_spaces_requests() -> None:
