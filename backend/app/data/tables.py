@@ -20,9 +20,9 @@ MACRO_OBSERVATIONS = TableSpec(
 )
 """Every published version of each macro observation, from ALFRED (S4.2).
 
-A version is the value from one vintage: `vintage_date` is ALFRED's `realtime_start`.
-Until release times arrive (S4.3), `available_at` is the end of that day in New York,
-flagged `time_assumed`. `value` is None when the source published the observation as
-missing (FRED's ".")."""
+A version is the value from one vintage: `vintage_date` is ALFRED's `realtime_start`,
+and `available_at` is that date at the release's time in New York (S4.3), or the end of
+the day, flagged `time_assumed`, when the time isn't known. `value` is None when the
+source published the observation as missing (FRED's ".")."""
 
 TABLES: dict[str, TableSpec] = {spec.name: spec for spec in (MACRO_OBSERVATIONS,)}
