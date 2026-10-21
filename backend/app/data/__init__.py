@@ -1,7 +1,10 @@
-"""Point-in-time data layer (placeholder).
+"""Point-in-time data layer: every record carries when it became public, and every read
+is "as of" a knowledge time, so nothing can see the future (doc/time-model.md).
 
-Planned home for loading historical data and querying it "as of" a given date:
-market prices, SEC filings and the fundamentals derived from them, and vintage
-economic data (for example, from ALFRED). Every record should carry the time it
-became publicly available, so an as-of query never returns information from the future.
+- `timeutil`: the market clock and the knowledge-time (`as_of`) parser
+- `calendar`: the NYSE trading calendar
+- `store` and `tables`: the append-only Parquet store, and the tables in it
+- `view`: `PointInTimeView`, the only way to read the store
+- `errors`: errors that reads raise and the API answers
+- `raw_cache`, `http`, and `ingest`: downloading sources into the store
 """
