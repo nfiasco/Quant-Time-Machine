@@ -1,0 +1,71 @@
+# The macro series catalog (S4.2): every series `ingest fred` loads and reads can ask for.
+#
+# Series load in the order listed, UNRATE first. Titles, units, frequencies, and seasonal
+# adjustments are FRED's own (fred/series), and ingestion warns when FRED's no longer
+# match. Each release's ID is FRED's (fred/series/release); ingestion stops if a series
+# turns out to come from a different release, because its release time would be wrong.
+
+[releases.employment_situation]
+name = "Employment Situation"
+fred_release_id = 50
+
+[releases.cpi]
+name = "Consumer Price Index"
+fred_release_id = 10
+
+[releases.gdp]
+name = "Gross Domestic Product"
+fred_release_id = 53
+
+[releases.h15]
+name = "H.15 Selected Interest Rates"
+fred_release_id = 18
+
+[[series]]
+id = "UNRATE"
+title = "Unemployment Rate"
+units = "Percent"
+frequency = "Monthly"
+seasonal_adjustment = "Seasonally Adjusted"
+release = "employment_situation"
+
+[[series]]
+id = "PAYEMS"
+title = "All Employees, Total Nonfarm"
+units = "Thousands of Persons"
+frequency = "Monthly"
+seasonal_adjustment = "Seasonally Adjusted"
+release = "employment_situation"
+
+[[series]]
+id = "CPIAUCSL"
+title = "Consumer Price Index for All Urban Consumers: All Items in U.S. City Average"
+units = "Index 1982-1984=100"
+frequency = "Monthly"
+seasonal_adjustment = "Seasonally Adjusted"
+release = "cpi"
+
+[[series]]
+id = "GDP"
+title = "Gross Domestic Product"
+units = "Billions of Dollars"
+frequency = "Quarterly"
+seasonal_adjustment = "Seasonally Adjusted Annual Rate"
+release = "gdp"
+
+[[series]]
+id = "FEDFUNDS"
+title = "Federal Funds Effective Rate"
+units = "Percent"
+frequency = "Monthly"
+seasonal_adjustment = "Not Seasonally Adjusted"
+release = "h15"
+
+# The risk-free rate for Sharpe ratios.
+[[series]]
+id = "TB3MS"
+title = "3-Month Treasury Bill Secondary Market Rate, Discount Basis"
+units = "Percent"
+frequency = "Monthly"
+seasonal_adjustment = "Not Seasonally Adjusted"
+release = "h15"

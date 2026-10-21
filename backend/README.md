@@ -7,7 +7,7 @@ The Quant Time Machine API, built with [FastAPI](https://fastapi.tiangolo.com). 
 - the NYSE calendar;
 - the ingestion client and CLI.
 
-The data sources and their endpoints come next (S4.2, S5.3, S6.2, S8.2).
+Macro vintages from ALFRED are the first source (S4.2). Filings, prices, and their endpoints come next (S5.3, S6.2, S8.2).
 
 ## Getting started
 
@@ -117,6 +117,7 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | [`view.py`](app/data/view.py) | `PointInTimeView`, the only way to read the store (S3.3) |
 | [`raw_cache.py`](app/data/raw_cache.py) and [`http.py`](app/data/http.py) | Downloads, with rate limits, retries, and a cache of every response |
 | [`ingest.py`](app/data/ingest.py) | The ingestion command |
+| [`sources/`](app/data/sources/) | One ingester per source, with its config files |
 
 **Store.** Each table is a folder of Parquet files under `DATA_DIR/store/<table>/`, defined by a `TableSpec` in `tables.py`:
 
@@ -132,9 +133,15 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 uv run python -m app.data.ingest <source> [--refresh]   # source: fred, sec, or tiingo
 ```
 
-Each source's ingester (S4.2, S5.3, S6.2) registers in `INGESTERS` in [`app/data/ingest.py`](app/data/ingest.py). Until it does, the command says so and exits.
+Each source's ingester lives in [`app/data/sources/`](app/data/sources/) and is listed in `INGESTERS` in [`app/data/ingest.py`](app/data/ingest.py). A source without one yet (`sec` and `tiingo`, until S5.3 and S6.2) makes the command say so and exit.
 
-**Raw cache.** Every response is saved as it arrived under `DATA_DIR/raw/<source>/`, with a metadata file: the URL without secrets, the status, and the fetch time. A re-run answers from the cache, and `--refresh` downloads again. API keys are never written to disk.
+| Source | Ingester | What it loads |
+| --- | --- | --- |
+| `fred` | [`sources/alfred.py`](app/data/sources/alfred.py) | Every vintage of the series in [`sources/alfred_series.toml`](app/data/sources/alfred_series.toml), UNRATE first, into `macro_observations` (S4.2). Each request asks for ALFRED's whole real-time range, because FRED's defaults return today's revised values. |
+
+To add a macro series, add it to `alfred_series.toml` with FRED's metadata and its release, then run `ingest fred` again. Until release times arrive (S4.3), every vintage counts as known at the end of its date in New York and is flagged `time_assumed`.
+
+**Raw cache.** Every response is saved as it arrived under `DATA_DIR/raw/<source>/`, with a metadata file: the URL without secrets, the status, and the fetch time. A re-run answers from the cache, and `--refresh` downloads again. API keys are never written to disk or to the command's log. Every source answers in JSON, so a page that isn't JSON (FRED serves an HTML page with status 200 while it's down for maintenance) counts as a failed request and isn't cached.
 
 **Rate limits.** The client stays within each source's limits and retries failures with backoff:
 

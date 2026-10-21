@@ -12,6 +12,10 @@ and limits. `client.get(path, params)` answers from the raw cache when it can, s
 re-run makes no requests for what it already has. When a limit would mean waiting more
 than a minute, the client raises RateLimitExceeded instead of sleeping, and a later run
 picks up where this one stopped.
+
+Every source answers in JSON. A successful status with anything else, such as the HTML
+page FRED serves with 200 while it's down for maintenance, is a failed request: it isn't
+cached, so the next run asks again.
 """
 
 import time
@@ -217,9 +221,16 @@ class SourceClient:
             except httpx2.TransportError as error:
                 problem = type(error).__name__
             else:
-                if response.is_success:
+                content_type = response.headers.get("content-type", "")
+                if response.is_success and "json" in content_type.lower():
                     return response
                 problem = f"HTTP {response.status_code}"
+                if response.is_success:
+                    problem += (
+                        f", but {content_type or 'no content type'} instead of JSON "
+                        "(is the source down for maintenance?)"
+                    )
+                    break
                 if response.status_code in (401, 403):
                     problem += " (check this source's credentials in backend/.env)"
                 if response.status_code not in RETRY_STATUSES:
