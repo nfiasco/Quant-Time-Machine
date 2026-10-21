@@ -1,4 +1,4 @@
-"""ALFRED: every published version of the starter macro series (S4.2).
+"""ALFRED: every published version of the starter macro series (S4.2, S4.3).
 
 `uv run python -m app.data.ingest fred` loads each series in alfred_series.toml, in the
 order listed (UNRATE first), into the `macro_observations` table:
@@ -15,9 +15,11 @@ FRED answers with one record per real-time period: an observation's value from
 value, and a stored end date would change when a new vintage arrives, which an
 append-only store can't do. A missing value (FRED's ".") is stored as None.
 
-Until release times are modeled (S4.3), every vintage becomes known at the end of its
-date in New York and is flagged `time_assumed`, the conservative default
-(doc/time-model.md, rules 7 and 11).
+ALFRED dates a vintage but gives no time of day, so each row's `available_at` is its
+vintage date at its release's time in New York, from the catalog: the Employment
+Situation's 08:30 ET, for example (doc/time-model.md, rule 7). A release whose time
+isn't known makes its vintages known at the end of the day, flagged `time_assumed`
+(rule 11), so a 09:30 decision first sees them the next day.
 """
 
 import logging
@@ -26,6 +28,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, time
 from pathlib import Path
+from typing import Any
 
 from app.data.http import SourceClient
 from app.data.sources import IngestContext, IngestError
@@ -49,11 +52,17 @@ END_OF_DAY = time(23, 59, 59, 999999)
 
 @dataclass(frozen=True)
 class Release:
-    """A FRED release: the publication a series comes out in."""
+    """A FRED release: the publication a series comes out in, and when it comes out."""
 
     key: str
     name: str
     fred_release_id: int
+    time_of_day: time | None
+    """When it's published, New York time, or None if that isn't known."""
+    sources: tuple[str, ...]
+    """Where `time_of_day` comes from."""
+    exceptions: Mapping[date, time]
+    """Days it came out at another time."""
 
 
 @dataclass(frozen=True)
@@ -73,8 +82,7 @@ def load_catalog(path: Path = CATALOG) -> dict[str, Series]:
     with path.open("rb") as file:
         config = tomllib.load(file)
     releases = {
-        key: Release(key, entry["name"], entry["fred_release_id"])
-        for key, entry in config["releases"].items()
+        key: _release(key, entry, path) for key, entry in config["releases"].items()
     }
     catalog: dict[str, Series] = {}
     for entry in config["series"]:
@@ -94,6 +102,30 @@ def load_catalog(path: Path = CATALOG) -> dict[str, Series]:
             release=releases[entry["release"]],
         )
     return catalog
+
+
+def _release(key: str, entry: Mapping[str, Any], path: Path) -> Release:
+    """A release from the catalog, with its time checked and cited."""
+    where = f"{path.name}: release {key}"
+    if "time" not in entry:
+        raise ValueError(f'{where} needs a time, such as 08:30:00, or time = "unknown"')
+    at = None if entry["time"] == "unknown" else entry["time"]
+    if at is not None and not isinstance(at, time):
+        raise ValueError(f'{where}: time must look like 08:30:00, or be "unknown"')
+    sources = tuple(entry.get("sources", ()))
+    if at is not None and not sources:
+        raise ValueError(f"{where} needs sources for its time")
+    exceptions: dict[date, time] = {}
+    for exception in entry.get("exceptions", ()):
+        day, other = exception.get("date"), exception.get("time")
+        if type(day) is not date or not isinstance(other, time):
+            raise ValueError(f"{where}: each exception needs a date and a time")
+        if not exception.get("source"):
+            raise ValueError(f"{where}: the exception on {day} needs a source")
+        exceptions[day] = other
+    return Release(
+        key, entry["name"], entry["fred_release_id"], at, sources, exceptions
+    )
 
 
 SERIES = load_catalog()
@@ -174,7 +206,7 @@ def vintage_rows(
     last: dict[str, Mapping[str, str]] = {}
     for record in observations:
         vintage = date.fromisoformat(record["realtime_start"])
-        available_at, time_assumed = vintage_known_at(vintage)
+        available_at, time_assumed = vintage_known_at(series.release, vintage)
         rows.append(
             {
                 "series_id": series.id,
@@ -207,10 +239,14 @@ def vintage_rows(
     return rows
 
 
-def vintage_known_at(vintage: date) -> tuple[datetime, bool]:
+def vintage_known_at(release: Release, vintage: date) -> tuple[datetime, bool]:
     """When a vintage became public, and whether that time was assumed (rule 11).
 
-    Release times arrive with S4.3. Until then, every vintage is known at the end of its
-    date in New York, the latest time it could have been published that day.
+    It's the vintage date at the release's New York time, or at that day's exception:
+    a jobs report dated 2020-06-05 is known at 08:30 EDT, 12:30Z. Without a known time,
+    it's the end of the day, the latest it could have come out, and flagged.
     """
-    return market_time(vintage, END_OF_DAY), True
+    at = release.exceptions.get(vintage, release.time_of_day)
+    if at is None:
+        return market_time(vintage, END_OF_DAY), True
+    return market_time(vintage, at), False

@@ -139,7 +139,9 @@ Each source's ingester lives in [`app/data/sources/`](app/data/sources/) and is 
 | --- | --- | --- |
 | `fred` | [`sources/alfred.py`](app/data/sources/alfred.py) | Every vintage of the series in [`sources/alfred_series.toml`](app/data/sources/alfred_series.toml), UNRATE first, into `macro_observations` (S4.2). Each request asks for ALFRED's whole real-time range, because FRED's defaults return today's revised values. |
 
-To add a macro series, add it to `alfred_series.toml` with FRED's metadata and its release, then run `ingest fred` again. Until release times arrive (S4.3), every vintage counts as known at the end of its date in New York and is flagged `time_assumed`.
+Each vintage counts as known on its date at its release's time, New York time: 08:30 for BLS's and BEA's releases, 16:15 for the Fed's H.15 (S4.3). The times and their sources are in `alfred_series.toml`, and [`doc/time-model.md`](../doc/time-model.md) (rule 7) summarizes them. A release whose time isn't known (`time = "unknown"`) makes its vintages known at the end of their date, flagged `time_assumed`.
+
+To add a macro series, add it to `alfred_series.toml` with FRED's metadata and its release, then run `ingest fred` again. A new release needs its time and a source for it.
 
 **Raw cache.** Every response is saved as it arrived under `DATA_DIR/raw/<source>/`, with a metadata file: the URL without secrets, the status, and the fetch time. A re-run answers from the cache, and `--refresh` downloads again. API keys are never written to disk or to the command's log. Every source answers in JSON, so a page that isn't JSON (FRED serves an HTML page with status 200 while it's down for maintenance) counts as a failed request and isn't cached.
 
