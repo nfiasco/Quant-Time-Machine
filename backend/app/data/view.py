@@ -7,20 +7,13 @@ connection can see a later row, even one that forgets to filter. Every read goes
 through `_select`, which also re-checks each row and records it in the access log that
 feeds a run's audit (S7.7) and the bias checks (E12).
 
-Read functions (tasks 11, 13, and 16) are methods that call `_select`. For example:
+Read functions are methods that call `_select` and return the records in
+app/data/records.py:
 
-    def get_macro_as_of(self, series_id: str) -> dict[str, object] | None:
-        rows = self._select(
-            "macro_observations",
-            where="series_id = ?",
-            params=[series_id],
-            latest_per_key=True,
-            order_by="observation_date DESC",
-            limit=1,
-        )
-        return rows[0] if rows else None
+- `get_macro_as_of` and `get_macro_series_as_of`: macro series as published (S4.4)
 
-Callers use one view per request or backtest decision, and close it when done:
+Prices (S6.3) and filings (S5.4) follow. Callers use one view per request or backtest
+decision, and close it when done:
 
     with PointInTimeView(parse_knowledge_time("2020-06-05")) as view:
         view.get_macro_as_of("UNRATE")  # May 2020's first print, 13.3%
@@ -29,14 +22,16 @@ Callers use one view per request or backtest decision, and close it when done:
 A view isn't thread-safe; don't share one between threads.
 """
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
-from typing import Self
+from typing import Any, Self
 
 from app.config import get_settings
 from app.data.errors import LookAheadError, NotFoundError
+from app.data.records import MacroObservation
+from app.data.sources.alfred import SERIES, Series
 from app.data.store import TableSpec, connect, sql_timestamp, store_dir, table_source
 from app.data.tables import TABLES
 from app.data.timeutil import to_utc
@@ -110,7 +105,7 @@ class PointInTimeView:
         latest_per_key: bool = False,
         order_by: str | None = None,
         limit: int | None = None,
-    ) -> list[dict[str, object]]:
+    ) -> list[dict[str, Any]]:
         """Read rows from one table: the one path every read takes.
 
         `where` is a SQL condition with `?` placeholders for `params`; pass values only
@@ -176,6 +171,62 @@ class PointInTimeView:
                 data_version=self.data_version,
             )
 
+    def get_macro_as_of(
+        self, series_id: str, period: date | None = None
+    ) -> MacroObservation | None:
+        """A macro series as it was published by the knowledge time.
+
+        With `period`, an observation date such as 2020-05-01 for May 2020, it's that
+        observation's latest version; without it, the latest observation published so
+        far. None if nothing was published yet. On June 5, 2020 at 09:30 ET, UNRATE is
+        May's first print, 13.3%; at 08:00 that morning it's April's, 14.7%.
+
+        Raises NotFoundError for a series that isn't in the catalog
+        (app/data/sources/alfred_series.toml).
+        """
+        series = _macro_series(series_id)
+        where = "series_id = ?"
+        params: list[object] = [series.id]
+        if period is not None:
+            where += " AND observation_date = ?"
+            params.append(period)
+        rows = self._select(
+            "macro_observations",
+            where=where,
+            params=params,
+            latest_per_key=True,
+            order_by="observation_date DESC",
+            limit=1,
+        )
+        return _macro_record(series, rows[0]) if rows else None
+
+    def get_macro_series_as_of(
+        self, series_id: str, start: date | None = None, end: date | None = None
+    ) -> list[MacroObservation]:
+        """A whole macro series as it looked at the knowledge time, oldest first.
+
+        Each observation from `start` through `end` (both optional and inclusive) is at
+        its latest version published by then, for charts and signals. Raises
+        NotFoundError for a series that isn't in the catalog.
+        """
+        series = _macro_series(series_id)
+        where = "series_id = ?"
+        params: list[object] = [series.id]
+        if start is not None:
+            where += " AND observation_date >= ?"
+            params.append(start)
+        if end is not None:
+            where += " AND observation_date <= ?"
+            params.append(end)
+        rows = self._select(
+            "macro_observations",
+            where=where,
+            params=params,
+            latest_per_key=True,
+            order_by="observation_date",
+        )
+        return [_macro_record(series, row) for row in rows]
+
     def close(self) -> None:
         """Close the view's DuckDB connection."""
         self._connection.close()
@@ -191,3 +242,30 @@ class PointInTimeView:
             f"PointInTimeView(knowledge_time={self.knowledge_time.isoformat()}, "
             f"data_version={self.data_version!r})"
         )
+
+
+def _macro_series(series_id: str) -> Series:
+    """A series in the macro catalog. IDs are FRED's, matched in any case."""
+    series = SERIES.get(series_id.upper())
+    if series is None:
+        raise NotFoundError("series", series_id)
+    return series
+
+
+def _macro_record(series: Series, row: Mapping[str, Any]) -> MacroObservation:
+    """A `macro_observations` row as a record, with its series' metadata."""
+    return MacroObservation(
+        series_id=series.id,
+        title=series.title,
+        units=series.units,
+        frequency=series.frequency,
+        seasonal_adjustment=series.seasonal_adjustment,
+        release=series.release.name,
+        period=row["observation_date"],
+        value=row["value"],
+        vintage_date=row["vintage_date"],
+        available_at=row["available_at"],
+        time_assumed=row["time_assumed"],
+        source=row["source"],
+        source_ref=row["source_ref"],
+    )

@@ -221,7 +221,7 @@ The pitfalls table in [roadmap §2.4](roadmap.md#24-where-look-ahead-bias-creeps
 2. **A decision at exactly 16:00.** The bar is known at 16:00 (the comparison is inclusive), so a 16:00 decision can use that close. But fills must be strictly after the decision, so its earliest fill is the next session. A same-day close fill is allowed only for decisions before the close.
 3. **Release times are today's schedules.** ALFRED has dates only, so the release-time table (rule 7) supplies the time of day, with two limits:
    - **The times are applied to every vintage.** BLS's 08:30 is documented back to 1998 by its own footnote, and the January 1990 example above assumes it. BEA's and the Fed's times are documented only for recent years.
-   - **Not every vintage date is a scheduled release.** A vintage dated on another day, such as a FRED correction, still gets its release's time, unless it's listed as an exception.
+   - **Not every vintage date is a scheduled release.** A vintage dated on another day, such as a FRED correction, still gets its release's time, unless it's listed as an exception. For example, PAYEMS has a vintage dated Monday, May 11, 2020, three days after the April 2020 jobs report, that changed three observations (April from 131,072 to 131,045 thousand). It counts as known at 08:30 that day.
 
    A release without a time in the table uses the end-of-day rule and is flagged.
 4. **Ticker history.** SEC's ticker file lists only current tickers, so historical tickers need a curated overrides file (S5.2).

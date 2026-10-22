@@ -5,6 +5,7 @@ is "as of" a knowledge time, so nothing can see the future (doc/time-model.md).
 - `calendar`: the NYSE trading calendar
 - `store` and `tables`: the append-only Parquet store, and the tables in it
 - `view`: `PointInTimeView`, the only way to read the store
+- `records`: what the view's reads return
 - `errors`: errors that reads raise and the API answers
 - `raw_cache`, `http`, and `ingest`: downloading sources into the store
 - `sources`: one ingester per source, such as `alfred` for macro vintages

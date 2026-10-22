@@ -115,6 +115,7 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | [`store.py`](app/data/store.py) | The Parquet store: `TableSpec` and `write_rows` (S3.4) |
 | [`tables.py`](app/data/tables.py) | Every table in the store |
 | [`view.py`](app/data/view.py) | `PointInTimeView`, the only way to read the store (S3.3) |
+| [`records.py`](app/data/records.py) | What the view's reads return, with the field names of the API contract |
 | [`raw_cache.py`](app/data/raw_cache.py) and [`http.py`](app/data/http.py) | Downloads, with rate limits, retries, and a cache of every response |
 | [`ingest.py`](app/data/ingest.py) | The ingestion command |
 | [`sources/`](app/data/sources/) | One ingester per source, with its config files |
@@ -126,6 +127,21 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 - **Rebuilding.** Changing how a table's `available_at` is computed means deleting `DATA_DIR/store/<table>/` and ingesting again from the raw cache.
 
 **Reading.** Create a `PointInTimeView` for a knowledge time and call its read methods. They return only rows with `available_at` at or before that time, and log every row they read. Nothing else may open DuckDB or Parquet files, and a test enforces this.
+
+| Read | Returns |
+| --- | --- |
+| `get_macro_as_of(series_id, period=None)` | A `MacroObservation`: the latest observation published by then, or the given period's latest version; `None` if nothing was published yet (S4.4) |
+| `get_macro_series_as_of(series_id, start=None, end=None)` | The whole series as it looked then, each observation at its latest version, oldest first (S4.4) |
+
+```python
+from app.data.timeutil import parse_knowledge_time
+from app.data.view import PointInTimeView
+
+with PointInTimeView(parse_knowledge_time("2020-06-05")) as view:  # 09:30 ET
+    view.get_macro_as_of("UNRATE").value  # 13.3, May's first print from 08:30 that day
+```
+
+A series outside the catalog in `alfred_series.toml` raises `NotFoundError`, which the API answers with 404.
 
 ## Ingestion
 
