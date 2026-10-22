@@ -32,3 +32,23 @@ class MacroObservation:
     time_assumed: bool
     source: str
     source_ref: str
+
+
+@dataclass(frozen=True)
+class Security:
+    """A security as identified at the knowledge time (S5.2)."""
+
+    security_id: str
+    """Ours, and stable: it doesn't change when the ticker, name, or CIK does."""
+    ticker: str
+    name: str
+    """The name at the knowledge time, such as "Facebook, Inc." in 2020."""
+    cik: int | None
+    """SEC's ID for the company at the knowledge time, if it has one."""
+    share_class: str | None
+    effective_date: date | None
+    """When this ticker, name, and CIK took effect; None if only SEC's file knows it."""
+    available_at: datetime
+    time_assumed: bool
+    source: str
+    source_ref: str

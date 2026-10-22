@@ -91,6 +91,37 @@ def test_latest_version_per_key(fixture_store: Path) -> None:
     ]
 
 
+def test_latest_where_looks_only_at_each_keys_latest_version(
+    fixture_store: Path,
+) -> None:
+    # On July 2, May's 101.0 was revised to 101.5. A `where` filters versions before
+    # the latest is picked, so it still finds the old value; `latest_where` doesn't.
+    with view_at(fixture_store, utc(2020, 7, 2, 13, 30)) as view:
+        stale = view._select(
+            "test_observations",
+            where="value = ?",
+            params=[101.0],
+            latest_per_key=True,
+        )
+        current = view._select(
+            "test_observations",
+            params=[101.0],
+            latest_per_key=True,
+            latest_where="value = ?",
+        )
+
+    assert [r["value"] for r in stale] == [101.0]
+    assert current == []
+
+
+def test_latest_where_needs_latest_per_key(store_dir: Path) -> None:
+    with (
+        PointInTimeView(DEMO, store=store_dir, tables=[TEST_OBSERVATIONS]) as view,
+        pytest.raises(ValueError, match="latest_per_key"),
+    ):
+        view._select("test_observations", latest_where="true")
+
+
 def test_all_versions_known_so_far(fixture_store: Path) -> None:
     with view_at(fixture_store, utc(2020, 7, 2, 13, 30)) as view:
         rows = view._select(

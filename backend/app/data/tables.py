@@ -25,4 +25,33 @@ and `available_at` is that date at the release's time in New York (S4.3), or the
 the day, flagged `time_assumed`, when the time isn't known. `value` is None when the
 source published the observation as missing (FRED's ".")."""
 
-TABLES: dict[str, TableSpec] = {spec.name: spec for spec in (MACRO_OBSERVATIONS,)}
+SECURITIES = TableSpec(
+    name="securities",
+    key=("security_id",),
+    columns={
+        "security_id": "VARCHAR",
+        "ticker": "VARCHAR",
+        "name": "VARCHAR",
+        "cik": "BIGINT",
+        "share_class": "VARCHAR",
+        "effective_date": "DATE",
+    },
+)
+"""Each curated security's ticker, name, and CIK over time (S5.2).
+
+A row is a change that took effect on `effective_date`, known from 00:00 ET that day, so
+a security's latest version at a knowledge time is what applied then. `ticker` is None
+once the security was delisted."""
+
+SEC_TICKERS = TableSpec(
+    name="sec_tickers",
+    key=("cik", "ticker"),
+    columns={"cik": "BIGINT", "ticker": "VARCHAR", "name": "VARCHAR"},
+)
+"""Snapshots of SEC's ticker file, which lists only the tickers in use when it's
+downloaded (S5.2). Every row of a snapshot has that download's time as `available_at`,
+flagged `time_assumed`."""
+
+TABLES: dict[str, TableSpec] = {
+    spec.name: spec for spec in (MACRO_OBSERVATIONS, SECURITIES, SEC_TICKERS)
+}

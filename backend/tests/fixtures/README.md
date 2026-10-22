@@ -15,6 +15,7 @@ Small, committed tables that the tests load into a temporary point-in-time store
 - **FRED and SEC values may be real.** They're public. Put the vintage, URL, or accession number in `source_ref`.
 - **Every file has a canary row** with `available_at` in 2099 or later. No query at a realistic knowledge time may return it, and [`test_view.py`](../test_view.py) checks this for every table. The loader refuses a file without one.
 - **Keep files small:** a few rows per case, each there for a test.
+- **`securities.csv` copies the starter set's history** from [`app/data/sources/securities.toml`](../../app/data/sources/securities.toml), and a test fails if the two drift apart.
 
 ## Using them
 

@@ -1,0 +1,5 @@
+cik,ticker,name,source,source_ref,available_at,time_assumed
+320193,AAPL,Apple Inc.,edgar,https://www.sec.gov/files/company_tickers.json fetched 2026-10-01T12:00:00Z,2026-10-01T12:00:00Z,true
+1045810,NVDA,NVIDIA CORP,edgar,https://www.sec.gov/files/company_tickers.json fetched 2026-10-01T12:00:00Z,2026-10-01T12:00:00Z,true
+1067983,BRK-B,BERKSHIRE HATHAWAY INC,edgar,https://www.sec.gov/files/company_tickers.json fetched 2026-10-01T12:00:00Z,2026-10-01T12:00:00Z,true
+1045810,CANARY,NVIDIA CORP,edgar,canary: no query before 2099 may return this row,2099-01-01T00:00:00Z,true

@@ -1,0 +1,216 @@
+# Curated securities (S5.2): which security used which ticker, and when.
+#
+# SEC's ticker file (company_tickers.json) lists only today's tickers, so ticker history
+# comes from here: the M2 ticker set (doc/data-sources.md), plus tickers that changed
+# hands. FB became META, GOOG moved from Google's Class A shares to its Class C shares,
+# and WB went from Wachovia to Weibo.
+#
+# Each [[securities.history]] entry applies from 00:00 ET on its date until the next
+# entry, and cites the source of that date. `name` and `cik` carry over from the entry
+# before when they don't change. `delisted = true` means the security stopped trading:
+# from then on, no ticker resolves to it. Sources were checked on 2026-10-22.
+#
+# `id` is ours and never changes, even when the ticker, name, or CIK does. `symbols` are
+# the codes each price vendor uses for the security's whole history: Tiingo files
+# Facebook's history under META, for example.
+
+# The securities the price and filing ingesters load: the M2 ticker set, with SPY as the
+# benchmark. The full universe (D3, S6.5) replaces it.
+starter_set = ["apple", "microsoft", "jpmorgan", "meta", "twitter", "spdr-sp500"]
+
+[[securities]]
+id = "apple"
+share_class = "Common stock"
+symbols = { tiingo = "AAPL" }
+
+[[securities.history]]
+from = 1980-12-12
+ticker = "AAPL"
+name = "Apple Computer, Inc."
+cik = 320193
+# Apple first listed its shares on December 12, 1980.
+source = "https://www.cnbc.com/2018/12/12/apple-stock-is-up-43000percent-since-its-ipo-38-years-ago.html"
+
+[[securities.history]]
+from = 2007-01-09
+ticker = "AAPL"
+name = "Apple Inc."
+# 8-K: Apple Computer, Inc. changed its name to Apple Inc.
+source = "https://www.sec.gov/Archives/edgar/data/320193/000110465907001648/a07-1512_18k.htm"
+
+[[securities]]
+id = "microsoft"
+share_class = "Common stock"
+symbols = { tiingo = "MSFT" }
+
+[[securities.history]]
+from = 1986-03-13
+ticker = "MSFT"
+name = "Microsoft Corporation"
+cik = 789019
+# The IPO, led by Goldman Sachs, on March 13, 1986.
+source = "https://www.goldmansachs.com/our-firm/history/moments/1986-microsoft-ipo"
+
+[[securities]]
+id = "jpmorgan"
+share_class = "Common stock"
+symbols = { tiingo = "JPM" }
+
+# Earlier, this CIK traded as Chase Manhattan (CMB) and Chemical Banking (CHL); those
+# tickers aren't modeled. The JPM ticker before 2001 belonged to J.P. Morgan & Co.
+[[securities.history]]
+from = 2001-01-02
+ticker = "JPM"
+name = "J.P. Morgan Chase & Co."
+cik = 19617
+# Chase Manhattan's merger with J.P. Morgan & Co. closed on December 31, 2000, and the
+# combined company began trading on the NYSE as JPM on January 2 (Boston Fed, Bank Notes).
+source = "https://www.bostonfed.org/publications/bank-notes/xxx/february-2001.aspx"
+
+[[securities.history]]
+from = 2004-07-20
+ticker = "JPM"
+name = "JPMorgan Chase & Co."
+# 8-K: "On July 20, 2004, J.P. Morgan Chase & Co. ... changed its name to JPMorgan Chase & Co."
+source = "https://www.sec.gov/Archives/edgar/data/19617/000095012304008604/y99114e8vk.htm"
+
+[[securities]]
+id = "meta"
+share_class = "Class A common stock"
+symbols = { tiingo = "META" }
+
+[[securities.history]]
+from = 2012-05-18
+ticker = "FB"
+name = "Facebook, Inc."
+cik = 1326801
+# The IPO's final prospectus (424B4), filed the day trading began.
+source = "https://www.sec.gov/Archives/edgar/data/1326801/000119312512240111/0001193125-12-240111-index.htm"
+
+[[securities.history]]
+from = 2021-10-28
+ticker = "FB"
+name = "Meta Platforms, Inc."
+# 8-K: the name changed on October 28, 2021. (It also planned a switch to MVRS that
+# never happened.)
+source = "https://www.sec.gov/Archives/edgar/data/1326801/000132680121000071/fb-20211028.htm"
+
+[[securities.history]]
+from = 2022-06-09
+ticker = "META"
+# 8-K: trading "under the new ticker symbol 'META' prior to market open on June 9, 2022"
+source = "https://www.sec.gov/Archives/edgar/data/1326801/000132680122000070/fb-20220531.htm"
+
+[[securities]]
+id = "twitter"
+share_class = "Common stock"
+symbols = { tiingo = "TWTR" }
+
+[[securities.history]]
+from = 2013-11-07
+ticker = "TWTR"
+name = "Twitter, Inc."
+cik = 1418091
+# The IPO's final prospectus (424B4), filed the day trading began.
+source = "https://www.sec.gov/Archives/edgar/data/1418091/000119312513431301/0001193125-13-431301-index.htm"
+
+[[securities.history]]
+from = 2022-10-28
+delisted = true
+# NYSE Form 25: suspended from trading before the open on October 28, 2022, after the
+# buyout closed.
+source = "https://www.sec.gov/Archives/edgar/data/1418091/000087666122000890/ruleprovisionnotice.htm"
+
+[[securities]]
+id = "spdr-sp500"
+share_class = "Trust units"
+symbols = { tiingo = "SPY" }
+
+# Called SPDR Trust, Series 1 until about 2010, per EDGAR's company record; the earlier
+# name isn't modeled.
+[[securities.history]]
+from = 1993-01-29
+ticker = "SPY"
+name = "SPDR S&P 500 ETF Trust"
+cik = 884394
+# State Street, on EDGAR: SPY first traded on the AMEX on January 29, 1993.
+source = "https://www.sec.gov/Archives/edgar/data/1222333/000119312513023294/d473476dfwp.htm"
+
+[[securities]]
+id = "alphabet-a"
+share_class = "Class A common stock"
+
+[[securities.history]]
+from = 2004-08-19
+ticker = "GOOG"
+name = "Google Inc."
+cik = 1288776
+# The IPO's final prospectus (424B4), filed the day trading began.
+source = "https://www.sec.gov/Archives/edgar/data/1288776/000119312504143377/0001193125-04-143377-index.htm"
+
+[[securities.history]]
+from = 2014-04-03
+ticker = "GOOGL"
+# "On April 3, 2014, Google Inc.'s Class C capital stock began regular trading under the
+# ticker 'GOOG' and Class A common stock began trading under the ticker 'GOOGL'."
+source = "https://www.sec.gov/Archives/edgar/data/1114446/000091412119002865/ub54239934-424b2.htm"
+
+[[securities.history]]
+from = 2015-10-02
+ticker = "GOOGL"
+name = "Alphabet Inc."
+cik = 1652044
+# 8-K12B: Alphabet Inc. became the successor issuer to Google Inc. on October 2, 2015.
+source = "https://www.sec.gov/Archives/edgar/data/1652044/000119312515336577/0001193125-15-336577-index.htm"
+
+[[securities]]
+id = "alphabet-c"
+share_class = "Class C capital stock"
+
+[[securities.history]]
+from = 2014-04-03
+ticker = "GOOG"
+name = "Google Inc."
+cik = 1288776
+# Same source as alphabet-a's GOOGL: Class C took over the GOOG ticker.
+source = "https://www.sec.gov/Archives/edgar/data/1114446/000091412119002865/ub54239934-424b2.htm"
+
+[[securities.history]]
+from = 2015-10-02
+ticker = "GOOG"
+name = "Alphabet Inc."
+cik = 1652044
+source = "https://www.sec.gov/Archives/edgar/data/1652044/000119312515336577/0001193125-15-336577-index.htm"
+
+[[securities]]
+id = "wachovia"
+share_class = "Common stock"
+
+# First Union, which took the Wachovia name when it bought Wachovia in 2001. The old
+# Wachovia also traded as WB before then; it isn't modeled.
+[[securities.history]]
+from = 2001-09-04
+ticker = "WB"
+name = "Wachovia Corporation"
+cik = 36995
+# The companies' joint release: the new Wachovia "will trade under the ticker symbol WB
+# on the New York Stock Exchange beginning today," September 4, 2001.
+source = "https://www.sec.gov/Archives/edgar/data/0000036995/000095010901503373/dex99a.txt"
+
+[[securities.history]]
+from = 2009-01-02
+delisted = true
+# NYSE Form 25: suspended from trading on January 2, 2009, after the Wells Fargo merger.
+source = "https://www.sec.gov/Archives/edgar/data/36995/000087666109000008/0000876661-09-000008.txt"
+
+[[securities]]
+id = "weibo"
+share_class = "American depositary shares"
+
+[[securities.history]]
+from = 2014-04-17
+ticker = "WB"
+name = "Weibo Corporation"
+cik = 1595761
+# The IPO's final prospectus (424B4), filed the day trading began.
+source = "https://www.sec.gov/Archives/edgar/data/1595761/000119312514147656/0001193125-14-147656-index.htm"

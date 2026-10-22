@@ -11,6 +11,7 @@ Read functions are methods that call `_select` and return the records in
 app/data/records.py:
 
 - `get_macro_as_of` and `get_macro_series_as_of`: macro series as published (S4.4)
+- `resolve_ticker`: the security that used a ticker at the time (S5.2)
 
 Prices (S6.3) and filings (S5.4) follow. Callers use one view per request or backtest
 decision, and close it when done:
@@ -30,7 +31,7 @@ from typing import Any, Self
 
 from app.config import get_settings
 from app.data.errors import LookAheadError, NotFoundError
-from app.data.records import MacroObservation
+from app.data.records import MacroObservation, Security
 from app.data.sources.alfred import SERIES, Series
 from app.data.store import TableSpec, connect, sql_timestamp, store_dir, table_source
 from app.data.tables import TABLES
@@ -103,6 +104,7 @@ class PointInTimeView:
         where: str = "true",
         params: Sequence[object] = (),
         latest_per_key: bool = False,
+        latest_where: str | None = None,
         order_by: str | None = None,
         limit: int | None = None,
     ) -> list[dict[str, Any]]:
@@ -110,13 +112,18 @@ class PointInTimeView:
 
         `where` is a SQL condition with `?` placeholders for `params`; pass values only
         through `params`. With `latest_per_key`, only each key's most recent version
-        known at the knowledge time is returned. Rows come back ordered by `order_by`
-        (a SQL ORDER BY list), or by key and `available_at`, with datetimes in UTC.
-        Each returned row is checked and added to the access log.
+        known at the knowledge time is returned. `latest_where` then filters those
+        latest versions, its placeholders following `where`'s in `params`: "the
+        security whose ticker is FB now", where `where` would also match a security
+        whose ticker was FB once. Rows come back ordered by `order_by` (a SQL ORDER BY
+        list), or by key and `available_at`, with datetimes in UTC. Each returned row
+        is checked and added to the access log.
         """
         spec = self._tables.get(table)
         if spec is None:
             raise ValueError(f"this view has no table named {table!r}")
+        if latest_where is not None and not latest_per_key:
+            raise ValueError("latest_where filters latest versions: use latest_per_key")
 
         sql = f"SELECT * FROM {spec.name} WHERE ({where})"
         if latest_per_key:
@@ -124,6 +131,8 @@ class PointInTimeView:
                 f" QUALIFY row_number() OVER (PARTITION BY {', '.join(spec.key)}"
                 " ORDER BY available_at DESC) = 1"
             )
+            if latest_where is not None:
+                sql += f" AND ({latest_where})"
         sql += f" ORDER BY {order_by or ', '.join([*spec.key, 'available_at'])}"
         if limit is not None:
             sql += f" LIMIT {int(limit)}"
@@ -227,6 +236,43 @@ class PointInTimeView:
         )
         return [_macro_record(series, row) for row in rows]
 
+    def resolve_ticker(self, ticker: str) -> Security:
+        """The security that used `ticker` at the knowledge time, in any case.
+
+        The curated history comes first (app/data/sources/securities.toml): in 2020,
+        FB is Facebook (the security `meta`), and WB is Weibo, though in 2005 it was
+        Wachovia. A ticker that only SEC's ticker file lists resolves from when the
+        newest download of that file known at the knowledge time was made, because the
+        file says only who uses a ticker now; the result is flagged `time_assumed`.
+
+        Raises NotFoundError if no security in our data used the ticker then, or if
+        SEC's file lists it under more than one company.
+        """
+        symbol = ticker.strip().upper()
+        rows = self._select(
+            "securities",
+            params=[symbol],
+            latest_per_key=True,
+            latest_where="ticker = ?",
+        )
+        if len(rows) > 1:
+            # load_curated rejects shared tickers, so the store or the file is broken.
+            raise RuntimeError(
+                f"securities {[r['security_id'] for r in rows]} all use {symbol} at "
+                f"{self.knowledge_time.isoformat()}"
+            )
+        if rows:
+            return _curated_security(rows[0])
+
+        rows = self._select(
+            "sec_tickers",
+            where="ticker = ? AND available_at = (SELECT max(available_at) FROM sec_tickers)",
+            params=[symbol],
+        )
+        if len(rows) == 1:
+            return _sec_security(rows[0])
+        raise NotFoundError("ticker", ticker)
+
     def close(self) -> None:
         """Close the view's DuckDB connection."""
         self._connection.close()
@@ -250,6 +296,39 @@ def _macro_series(series_id: str) -> Series:
     if series is None:
         raise NotFoundError("series", series_id)
     return series
+
+
+def _curated_security(row: Mapping[str, Any]) -> Security:
+    """A `securities` row as a record."""
+    return Security(
+        security_id=row["security_id"],
+        ticker=row["ticker"],
+        name=row["name"],
+        cik=row["cik"],
+        share_class=row["share_class"],
+        effective_date=row["effective_date"],
+        available_at=row["available_at"],
+        time_assumed=row["time_assumed"],
+        source=row["source"],
+        source_ref=row["source_ref"],
+    )
+
+
+def _sec_security(row: Mapping[str, Any]) -> Security:
+    """A `sec_tickers` row as a record. Its ID combines the CIK and the ticker,
+    which can't clash with the curated file's lowercase IDs."""
+    return Security(
+        security_id=f"{row['cik']}-{row['ticker']}",
+        ticker=row["ticker"],
+        name=row["name"],
+        cik=row["cik"],
+        share_class=None,
+        effective_date=None,
+        available_at=row["available_at"],
+        time_assumed=row["time_assumed"],
+        source=row["source"],
+        source_ref=row["source_ref"],
+    )
 
 
 def _macro_record(series: Series, row: Mapping[str, Any]) -> MacroObservation:
