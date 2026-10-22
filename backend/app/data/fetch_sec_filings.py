@@ -3,7 +3,11 @@ import time
 
 import pandas as pd
 import requests
+from dotenv import load_dotenv
 
+load_dotenv()
+
+HEADERS = {"User-Agent": os.getenv("SEC_USER_AGENT", "Quant-Time-Machine contact@example.com")}
 # Same 5 companies, need their CIK numbers
 COMPANIES = {
     "AAPL": "0000320193",
@@ -16,7 +20,6 @@ COMPANIES = {
 # Metrics to pull (these are the XBRL tag names SEC uses)
 METRICS = {"Revenues": "revenue", "NetIncomeLoss": "net_income"}
 
-HEADERS = {"User-Agent": "Elijah Jeudy elijah.jeudy10@gmail.com"}
 
 
 def fetch_company_filings(ticker, cik, metrics):
