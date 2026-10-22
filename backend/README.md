@@ -7,7 +7,7 @@ The Quant Time Machine API, built with [FastAPI](https://fastapi.tiangolo.com). 
 - the NYSE calendar;
 - the ingestion client and CLI.
 
-Macro vintages from ALFRED (S4.2–S4.4) and company identity (S5.2) are in. Prices, filings, and their endpoints come next (S6.2, S5.3, S8.2).
+Macro vintages from ALFRED (S4.2–S4.4), company identity (S5.2), and raw daily prices (S6.2) are in. Price reads, filings, and their endpoints come next (S6.3, S5.3, S8.2).
 
 ## Getting started
 
@@ -150,12 +150,13 @@ A series outside the catalog in `alfred_series.toml`, or a ticker no security in
 uv run python -m app.data.ingest <source> [--refresh]   # source: fred, sec, or tiingo
 ```
 
-Each source's ingester lives in [`app/data/sources/`](app/data/sources/) and is listed in `INGESTERS` in [`app/data/ingest.py`](app/data/ingest.py). A source without one yet (`tiingo`, until S6.2) makes the command say so and exit.
+Each source's ingester lives in [`app/data/sources/`](app/data/sources/) and is listed in `INGESTERS` in [`app/data/ingest.py`](app/data/ingest.py).
 
 | Source | Ingester | What it loads |
 | --- | --- | --- |
 | `fred` | [`sources/alfred.py`](app/data/sources/alfred.py) | Every vintage of the series in [`sources/alfred_series.toml`](app/data/sources/alfred_series.toml), UNRATE first, into `macro_observations` (S4.2). Each request asks for ALFRED's whole real-time range, because FRED's defaults return today's revised values. |
 | `sec` | [`sources/securities.py`](app/data/sources/securities.py) | The curated ticker history in [`sources/securities.toml`](app/data/sources/securities.toml) into `securities`, and a snapshot of SEC's ticker file into `sec_tickers` (S5.2). It warns when a curated security's current ticker isn't in SEC's file. |
+| `tiingo` | [`sources/tiingo.py`](app/data/sources/tiingo.py), through [`sources/prices.py`](app/data/sources/prices.py) | Raw daily bars for the starter set, SPY included, into `price_bars`, and the splits and dividends they report into `corporate_actions` (S6.2). A first run loads each security from 2005. Later runs ask only for sessions after its last stored bar, through the last one Tiingo has settled (20:00 ET), and log any session that comes back without a bar. Adjusted prices are never stored. |
 
 Each vintage counts as known on its date at its release's time, New York time: 08:30 for BLS's and BEA's releases, 16:15 for the Fed's H.15 (S4.3). The times and their sources are in `alfred_series.toml`, and [`doc/time-model.md`](../doc/time-model.md) (rule 7) summarizes them. A release whose time isn't known (`time = "unknown"`) makes its vintages known at the end of their date, flagged `time_assumed`.
 

@@ -218,7 +218,7 @@ Notes on the evidence:
 - **Alpha Vantage:** limits and premium features are from its [documentation](https://www.alphavantage.co/documentation/) and [premium page](https://www.alphavantage.co/premium/), and the spike confirmed them. Its [terms](https://www.alphavantage.co/terms_of_service/) treat use beyond "private and individual" activity as commercial.
 - **Tiingo:**
   - **Docs:** fields and timing are from its [end-of-day docs](https://www.tiingo.com/documentation/end-of-day): "Both raw prices and adjusted prices are available"; most US prices are in by 5:30 PM ET, with corrections until 8 PM. Plans and the internal-use license are from its [pricing page](https://www.tiingo.com/about/pricing).
-  - **A quirk:** AAPL's 7-for-1 split in 2014 comes through as a `splitFactor` of 7.00001, not 7.
+  - **A quirk:** AAPL's 7-for-1 split in 2014 comes through as a `splitFactor` of 7.000007, not 7. (The spike printed it as 7.00001, rounded to six significant digits; S6.2 found the exact value.)
 - **Also considered:**
   - **Alpaca:** a broker whose market-data API has historical stock data only since 2016. Its free Basic plan needs an Alpaca account, uses the IEX feed for real-time data, can't query the latest 15 minutes, and allows 200 calls per minute; data from every exchange costs $99 per month ([Alpaca market data docs](https://docs.alpaca.markets/docs/about-market-data-api)). Bars can be raw or adjusted, but Alpaca says its API data can't be redistributed ([support article, 2022](https://alpaca.markets/support/redistribute-alpaca-api)). Trading, Alpaca's main purpose, is a non-goal (roadmap §1.3). Its history is too short for 2010–2025 backtests, so it isn't chosen.
   - **Nasdaq Data Link:** its free WIKI end-of-day prices stopped updating in 2018, and current US equity datasets are premium.
@@ -230,9 +230,9 @@ What the test pull showed, and what follows:
 
 1. **Raw prices and corporate actions: confirmed.**
    - Store the raw fields and the split and dividend events. Never feed adjusted price levels into signals.
-   - In S6.4, round split ratios or allow a small tolerance (AAPL's 2014 split arrives as 7.00001), and reconcile computed returns against `adjClose`.
+   - In S6.4, round split ratios or allow a small tolerance (AAPL's 2014 split arrives as 7.000007), and reconcile computed returns against `adjClose`.
 2. **Delisted companies: only partly covered.**
-   - Recent delistings are there: Twitter's data runs to its last trading day.
+   - Recent delistings are there: Twitter's data runs to its last trading day. Its final bar, for October 28, 2022, the day the NYSE suspended trading before the open, has zero volume and repeats the previous close. It's a placeholder, not a trade, and delisting exits (S6.7) must treat it that way.
    - Coverage thins out before 2015 and is nearly absent before 2010; Lehman Brothers has no prices.
    - So for universe v1 (D3, S6.5), check each member's Tiingo coverage before including it, and report gaps in every run (S6.7).
    - If WRDS access comes through, use CRSP internally to measure what's missing (R1).
@@ -242,7 +242,7 @@ What the test pull showed, and what follows:
    - (c) or budget for a redistribution license.
 
    Until then, the API must not serve raw Tiingo prices to anonymous users.
-4. **Keep the fetcher swappable.** S6.2's fetcher should sit behind a small interface, so a licensed or CRSP-based source can replace Tiingo without touching the rest of the system.
+4. **Keep the fetcher swappable.** S6.2's fetcher should sit behind a small interface, so a licensed or CRSP-based source can replace Tiingo without touching the rest of the system. Done: a new source implements `PriceSource` in [`sources/prices.py`](../backend/app/data/sources/prices.py), as [`sources/tiingo.py`](../backend/app/data/sources/tiingo.py) does.
 
 ## WRDS (CRSP) at the University of Delaware
 
@@ -299,7 +299,7 @@ Loading all six takes six Tiingo requests, against the free plan's 50 per hour a
 | **Release times.** ALFRED has dates, not times. | A release could be visible too early, or too late | A release-time table plus the end-of-day default, flagged (S4.3). |
 | **ALFRED vintages start late** for some series. | Early values have no first-release record | Treat values before the first vintage as unknown (S4.3). The spike prints each starter series' first vintage. |
 | **EDGAR's acceptance time is shifted** by the Eastern UTC offset. | Filings would appear 4 to 5 hours late (or early, if read as Eastern time) | Correct in ingestion, with a golden test (S5.3, S3.6). |
-| **Corporate actions beyond splits and cash dividends** (spin-offs, mergers, special dividends). | Wrong total returns around those events | Check what Tiingo's `divCash` and `splitFactor` cover in S6.2. Reconcile returns against Tiingo's `adjClose` in S6.4, rounding split ratios such as 7.00001. |
+| **Corporate actions beyond splits and cash dividends** (spin-offs, mergers, special dividends). | Wrong total returns around those events | Check what Tiingo's `divCash` and `splitFactor` cover in S6.2. Reconcile returns against Tiingo's `adjClose` in S6.4, rounding split ratios such as 7.000007. |
 
 ## What the public app may show
 

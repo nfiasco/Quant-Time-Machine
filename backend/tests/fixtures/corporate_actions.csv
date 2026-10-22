@@ -1,0 +1,4 @@
+security_id,ex_date,action,value,source,source_ref,available_at,time_assumed
+apple,2020-08-07,dividend,0.82,tiingo,Apple's announced dividend (not Tiingo's data),2020-08-07T20:00:00Z,false
+apple,2020-08-31,split,4.0,tiingo,Apple's announced 4-for-1 split (not Tiingo's data),2020-08-31T20:00:00Z,false
+apple,2020-08-31,split,99.0,tiingo,canary: no query before 2099 may return this row,2099-01-01T00:00:00Z,false

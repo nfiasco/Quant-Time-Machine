@@ -7,6 +7,7 @@ from app.data.store import (
     StoreError,
     TableSpec,
     connect,
+    max_per_group,
     sql_string,
     table_files,
     table_source,
@@ -176,6 +177,29 @@ def test_invalid_rows_are_rejected(
 ) -> None:
     with pytest.raises(StoreError, match=message):
         write_rows(tmp_path, SPEC, [bad_row])
+
+
+def test_max_per_group_finds_each_groups_largest_value(tmp_path: Path) -> None:
+    write_rows(
+        tmp_path,
+        SPEC,
+        [
+            row(),
+            row(period=date(2020, 6, 1), source_ref="June"),
+            row(series_id="PAYEMS", period=date(2020, 4, 1)),
+        ],
+    )
+
+    assert max_per_group(tmp_path, SPEC, "period", group="series_id") == {
+        "UNRATE": date(2020, 6, 1),
+        "PAYEMS": date(2020, 4, 1),
+    }
+    assert max_per_group(tmp_path / "empty", SPEC, "period", group="series_id") == {}
+
+
+def test_max_per_group_takes_only_the_tables_columns(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="no column"):
+        max_per_group(tmp_path, SPEC, "period) FROM x; --", group="series_id")
 
 
 def test_an_empty_table_reads_as_no_rows(tmp_path: Path) -> None:

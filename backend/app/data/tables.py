@@ -52,6 +52,48 @@ SEC_TICKERS = TableSpec(
 downloaded (S5.2). Every row of a snapshot has that download's time as `available_at`,
 flagged `time_assumed`."""
 
+PRICE_BARS = TableSpec(
+    name="price_bars",
+    key=("security_id", "session_date"),
+    columns={
+        "security_id": "VARCHAR",
+        "session_date": "DATE",
+        "open": "DOUBLE",
+        "high": "DOUBLE",
+        "low": "DOUBLE",
+        "close": "DOUBLE",
+        "volume": "BIGINT",
+    },
+)
+"""Raw daily bars, as traded and never adjusted for later splits or dividends (S6.2).
+
+A bar is known at its session's close: 16:00 ET, or 13:00 ET on early-close days
+(doc/time-model.md, rule 4)."""
+
+CORPORATE_ACTIONS = TableSpec(
+    name="corporate_actions",
+    key=("security_id", "ex_date", "action"),
+    columns={
+        "security_id": "VARCHAR",
+        "ex_date": "DATE",
+        "action": "VARCHAR",
+        "value": "DOUBLE",
+    },
+)
+"""Splits and cash dividends by ex-date, from the same bars (S6.2).
+
+`action` is "split", where `value` is the vendor's split factor as given (new shares
+per old share, such as 7.000007 for Apple's 7-for-1 in 2014; S6.4 rounds it), or
+"dividend", where `value` is the cash paid per share. Each is part of its ex-date's
+bar, so it's known at that session's close."""
+
 TABLES: dict[str, TableSpec] = {
-    spec.name: spec for spec in (MACRO_OBSERVATIONS, SECURITIES, SEC_TICKERS)
+    spec.name: spec
+    for spec in (
+        MACRO_OBSERVATIONS,
+        SECURITIES,
+        SEC_TICKERS,
+        PRICE_BARS,
+        CORPORATE_ACTIONS,
+    )
 }

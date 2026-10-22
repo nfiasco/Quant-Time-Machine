@@ -26,6 +26,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import Any
 
 import duckdb
 import pandas as pd
@@ -153,6 +154,26 @@ def sql_string(text: str) -> str:
 def sql_timestamp(instant: datetime) -> str:
     """A SQL TIMESTAMPTZ literal for an aware datetime."""
     return f"TIMESTAMPTZ {sql_string(to_utc(instant).isoformat())}"
+
+
+def max_per_group(
+    store: Path, spec: TableSpec, column: str, *, group: str
+) -> dict[Any, Any]:
+    """The largest `column` among stored rows, for each value of `group`.
+
+    For ingesters deciding what to download next, such as each security's last stored
+    session. It reads every stored row, whatever its `available_at`: questions about
+    what was known at a time go through PointInTimeView.
+    """
+    for name in (column, group):
+        if name not in spec.all_columns:
+            raise ValueError(f"{spec.name} has no column {name!r}")
+    with connect() as connection:
+        rows = connection.execute(
+            f"SELECT {group}, max({column}) FROM {table_source(store, spec)} "
+            f"GROUP BY {group}"
+        ).fetchall()
+    return dict(rows)
 
 
 def write_rows(

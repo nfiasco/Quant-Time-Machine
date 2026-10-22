@@ -6,6 +6,7 @@ source names to them:
 
 - `alfred`: every vintage of the starter macro series (`ingest fred`, S4.2)
 - `securities`: who used which ticker when, curated and from SEC (`ingest sec`, S5.2)
+- `prices` and `tiingo`: raw daily bars, splits, and dividends (`ingest tiingo`, S6.2)
 """
 
 from dataclasses import dataclass
