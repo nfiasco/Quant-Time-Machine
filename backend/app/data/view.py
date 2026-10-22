@@ -12,9 +12,11 @@ app/data/records.py:
 
 - `get_macro_as_of` and `get_macro_series_as_of`: macro series as published (S4.4)
 - `resolve_ticker`: the security that used a ticker at the time (S5.2)
+- `get_price_as_of` and `get_price_history_as_of`: daily bars whose sessions had
+  closed (S6.3)
 
-Prices (S6.3) and filings (S5.4) follow. Callers use one view per request or backtest
-decision, and close it when done:
+Filings (S5.4) follow. Callers use one view per request or backtest decision, and close
+it when done:
 
     with PointInTimeView(parse_knowledge_time("2020-06-05")) as view:
         view.get_macro_as_of("UNRATE")  # May 2020's first print, 13.3%
@@ -30,8 +32,9 @@ from pathlib import Path
 from typing import Any, Self
 
 from app.config import get_settings
+from app.data import calendar
 from app.data.errors import LookAheadError, NotFoundError
-from app.data.records import MacroObservation, Security
+from app.data.records import MacroObservation, PriceBar, Security
 from app.data.sources.alfred import SERIES, Series
 from app.data.store import TableSpec, connect, sql_timestamp, store_dir, table_source
 from app.data.tables import TABLES
@@ -273,6 +276,61 @@ class PointInTimeView:
             return _sec_security(rows[0])
         raise NotFoundError("ticker", ticker)
 
+    def get_price_as_of(
+        self, ticker: str, session: date | None = None
+    ) -> PriceBar | None:
+        """A security's latest daily bar whose session had closed by the knowledge time.
+
+        At 09:30 ET on June 5, 2020, AAPL's latest bar is June 4's: June 5's isn't
+        known until that session closes at 16:00. With `session`, it's that session's
+        bar instead: a session that hadn't closed yet raises LookAheadError, and a day
+        without a session raises CalendarError. None if no bar is known, such as before
+        the security's first session.
+
+        The ticker is resolved at the knowledge time (see `resolve_ticker`), so FB in
+        2020 reads Facebook's bars.
+        """
+        security = self.resolve_ticker(ticker)
+        where = "security_id = ?"
+        params: list[object] = [security.security_id]
+        if session is not None:
+            self._require_known_by(
+                calendar.session_close(session),
+                f"{security.ticker}'s bar for {session.isoformat()}",
+            )
+            where += " AND session_date = ?"
+            params.append(session)
+        rows = self._select(
+            "price_bars",
+            where=where,
+            params=params,
+            latest_per_key=True,
+            order_by="session_date DESC",
+            limit=1,
+        )
+        return _price_bar(security, rows[0]) if rows else None
+
+    def get_price_history_as_of(self, ticker: str, lookback: int) -> list[PriceBar]:
+        """The last `lookback` daily bars known at the knowledge time, oldest first.
+
+        For signals such as momentum: at 09:30 ET on June 5, 2020, a lookback of 3 gives
+        AAPL's bars for June 2, 3, and 4. If fewer bars are known, fewer come back, and a
+        session without a bar is skipped, not filled. The ticker is resolved as for
+        `get_price_as_of`.
+        """
+        if lookback < 1:
+            raise ValueError(f"lookback must be at least 1 session, not {lookback}")
+        security = self.resolve_ticker(ticker)
+        rows = self._select(
+            "price_bars",
+            where="security_id = ?",
+            params=[security.security_id],
+            latest_per_key=True,
+            order_by="session_date DESC",
+            limit=lookback,
+        )
+        return [_price_bar(security, row) for row in reversed(rows)]
+
     def close(self) -> None:
         """Close the view's DuckDB connection."""
         self._connection.close()
@@ -324,6 +382,26 @@ def _sec_security(row: Mapping[str, Any]) -> Security:
         cik=row["cik"],
         share_class=None,
         effective_date=None,
+        available_at=row["available_at"],
+        time_assumed=row["time_assumed"],
+        source=row["source"],
+        source_ref=row["source_ref"],
+    )
+
+
+def _price_bar(security: Security, row: Mapping[str, Any]) -> PriceBar:
+    """A `price_bars` row as a record, under the ticker and CIK the security had at
+    the knowledge time."""
+    return PriceBar(
+        security_id=security.security_id,
+        ticker=security.ticker,
+        cik=security.cik,
+        session_date=row["session_date"],
+        open=row["open"],
+        high=row["high"],
+        low=row["low"],
+        close=row["close"],
+        volume=row["volume"],
         available_at=row["available_at"],
         time_assumed=row["time_assumed"],
         source=row["source"],
