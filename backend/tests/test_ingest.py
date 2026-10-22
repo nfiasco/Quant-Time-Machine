@@ -11,7 +11,7 @@ from app.config import BACKEND_DIR, Settings
 from app.data import ingest
 from app.data.http import FetchError, RateLimitExceeded
 from app.data.ingest import INGESTERS, IngestContext, main
-from app.data.sources import IngestError, alfred
+from app.data.sources import IngestError, alfred, securities
 
 
 @pytest.fixture
@@ -41,8 +41,10 @@ def test_runs_the_sources_ingester(
 
 
 def test_a_source_without_an_ingester_exits_2(
-    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    monkeypatch.delitem(INGESTERS, "sec")
+
     assert main(["sec"]) == 2
     assert "No ingester for sec yet" in capsys.readouterr().err
 
@@ -116,6 +118,10 @@ def test_request_urls_with_keys_are_never_logged(
 
 def test_fred_runs_the_alfred_ingester() -> None:
     assert INGESTERS["fred"] is alfred.ingest
+
+
+def test_sec_runs_the_securities_ingester() -> None:
+    assert INGESTERS["sec"] is securities.ingest
 
 
 def test_unknown_sources_are_usage_errors() -> None:

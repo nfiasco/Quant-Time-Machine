@@ -21,13 +21,17 @@ from app.data.http import (
     RateLimitExceeded,
     client_for,
 )
-from app.data.sources import IngestContext, IngestError, alfred
+from app.data.sources import IngestContext, IngestError, alfred, securities
 from app.data.store import store_dir
 
 __all__ = ["INGESTERS", "IngestContext", "main"]
 
-INGESTERS: dict[str, Callable[[IngestContext], None]] = {"fred": alfred.ingest}
-"""Each source's ingester, by source name. S5.3 (sec) and S6.2 (tiingo) add theirs.
+INGESTERS: dict[str, Callable[[IngestContext], None]] = {
+    "fred": alfred.ingest,
+    "sec": securities.ingest,
+}
+"""Each source's ingester, by source name. S5.3 adds filings to sec, and S6.2 adds
+tiingo.
 
 The map is written out here rather than filled in by each source module when it's
 imported: `python -m app.data.ingest` runs this file as `__main__`, so a module that

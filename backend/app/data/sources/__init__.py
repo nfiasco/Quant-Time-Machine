@@ -5,6 +5,7 @@ Each module has an `ingest(context)` function, and app/data/ingest.py maps the c
 source names to them:
 
 - `alfred`: every vintage of the starter macro series (`ingest fred`, S4.2)
+- `securities`: who used which ticker when, curated and from SEC (`ingest sec`, S5.2)
 """
 
 from dataclasses import dataclass

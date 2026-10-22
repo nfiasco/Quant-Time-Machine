@@ -224,7 +224,9 @@ The pitfalls table in [roadmap §2.4](roadmap.md#24-where-look-ahead-bias-creeps
    - **Not every vintage date is a scheduled release.** A vintage dated on another day, such as a FRED correction, still gets its release's time, unless it's listed as an exception. For example, PAYEMS has a vintage dated Monday, May 11, 2020, three days after the April 2020 jobs report, that changed three observations (April from 131,072 to 131,045 thousand). It counts as known at 08:30 that day.
 
    A release without a time in the table uses the end-of-day rule and is flagged.
-4. **Ticker history.** SEC's ticker file lists only current tickers, so historical tickers need a curated overrides file (S5.2).
+4. **Ticker history.** SEC's ticker file lists only current tickers, so ticker history comes from a curated file, [`securities.toml`](../backend/app/data/sources/securities.toml) (S5.2).
+   - It covers the starter set plus tickers that changed hands: FB became META, GOOG moved from Google's Class A to its Class C shares, and WB went from Wachovia to Weibo. Each change cites its source.
+   - A ticker that only SEC's file lists is known only from when that file was downloaded, so it can't be used for earlier dates.
 
 ## Named test cases for S3.6
 
