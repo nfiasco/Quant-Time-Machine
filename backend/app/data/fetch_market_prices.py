@@ -1,3 +1,18 @@
+"""Fetch historical market prices from yfinance for testing purposes.
+
+LIMITATIONS (see issue #64):
+- auto_adjust=True applies split and dividend adjustments retroactively.
+  These are NOT the raw prices observed on each trading day. Historical
+  price levels may change as future corporate actions occur.
+- The production pipeline will use Tiingo, which provides raw prices and
+  separate corporate-action fields.
+- get_prices_as_of() is a coarse date filter for testing only. It does
+  not enforce publication-time correctness (e.g. a daily close is not
+  known until 4pm ET, not at market open). Do not promote this into the
+  supported pipeline without timezone-aware available_at timestamps and
+  PointInTimeView.
+"""
+
 import os
 
 import pandas as pd
@@ -41,6 +56,12 @@ def fetch_market_prices(tickers, start, end):
 
 
 def get_prices_as_of(df, ticker, as_of_date):
+    """Coarse date filter for testing only.
+
+    Filters by date but does NOT enforce publication-time correctness.
+    A daily close is not public until ~4pm ET; this filter cannot
+    distinguish a morning query from an afternoon publication.
+    """
     return df[(df["ticker"] == ticker) & (df["available_date"] <= as_of_date)]
 
 
