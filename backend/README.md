@@ -7,7 +7,7 @@ The Quant Time Machine API, built with [FastAPI](https://fastapi.tiangolo.com). 
 - the NYSE calendar;
 - the ingestion client and CLI.
 
-Macro vintages from ALFRED (S4.2–S4.4), company identity (S5.2), and raw daily prices (S6.2) are in. Price reads, filings, and their endpoints come next (S6.3, S5.3, S8.2).
+Macro vintages from ALFRED (S4.2–S4.4), company identity (S5.2), and raw daily prices (S6.2, S6.3) are in. Filings and the endpoints come next (S5.3, S5.4, S8.2).
 
 ## Getting started
 
@@ -133,6 +133,8 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | `get_macro_as_of(series_id, period=None)` | A `MacroObservation`: the latest observation published by then, or the given period's latest version; `None` if nothing was published yet (S4.4) |
 | `get_macro_series_as_of(series_id, start=None, end=None)` | The whole series as it looked then, each observation at its latest version, oldest first (S4.4) |
 | `resolve_ticker(ticker)` | The `Security` that used the ticker then: FB in 2020 is Facebook, and WB is Wachovia in 2005 but Weibo in 2020 (S5.2) |
+| `get_price_as_of(ticker, session=None)` | A `PriceBar`: the latest raw daily bar whose session had closed by then, so at 09:30 ET a bar from the day before; or one session's bar, raising `LookAheadError` if that session hadn't closed yet (S6.3) |
+| `get_price_history_as_of(ticker, lookback)` | The last `lookback` bars known then, oldest first, for signals (S6.3) |
 
 ```python
 from app.data.timeutil import parse_knowledge_time

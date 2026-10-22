@@ -35,6 +35,30 @@ class MacroObservation:
 
 
 @dataclass(frozen=True)
+class PriceBar:
+    """One raw daily bar, as known at the knowledge time (S6.3).
+
+    Prices are as traded, never adjusted for later splits or dividends.
+    """
+
+    security_id: str
+    ticker: str
+    """The ticker at the knowledge time: FB for Facebook's bars in 2020."""
+    cik: int | None
+    session_date: date
+    open: float | None
+    high: float | None
+    low: float | None
+    close: float | None
+    volume: int | None
+    available_at: datetime
+    """The session's close."""
+    time_assumed: bool
+    source: str
+    source_ref: str
+
+
+@dataclass(frozen=True)
 class Security:
     """A security as identified at the knowledge time (S5.2)."""
 
