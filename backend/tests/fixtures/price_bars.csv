@@ -1,0 +1,13 @@
+security_id,session_date,open,high,low,close,volume,source,source_ref,available_at,time_assumed
+apple,2020-06-01,100.0,101.0,99.0,100.5,1000000,tiingo,made up: AAPL 2020-06-01,2020-06-01T20:00:00Z,false
+apple,2020-06-02,100.5,102.0,100.0,101.5,1100000,tiingo,made up: AAPL 2020-06-02,2020-06-02T20:00:00Z,false
+apple,2020-06-03,101.5,103.0,101.0,102.5,1200000,tiingo,made up: AAPL 2020-06-03,2020-06-03T20:00:00Z,false
+apple,2020-06-04,102.5,103.5,101.5,102.0,1300000,tiingo,made up: AAPL 2020-06-04,2020-06-04T20:00:00Z,false
+apple,2020-06-05,102.0,104.0,101.8,103.8,1400000,tiingo,made up: AAPL 2020-06-05,2020-06-05T20:00:00Z,false
+apple,2020-07-02,110.0,111.0,109.0,110.5,900000,tiingo,made up: AAPL 2020-07-02,2020-07-02T20:00:00Z,false
+apple,2020-07-06,110.5,112.0,110.0,111.5,950000,tiingo,made up: AAPL 2020-07-06,2020-07-06T20:00:00Z,false
+apple,2020-11-25,120.0,121.0,119.0,120.5,800000,tiingo,made up: AAPL 2020-11-25,2020-11-25T21:00:00Z,false
+apple,2020-11-27,120.5,121.5,120.0,121.0,400000,tiingo,made up: AAPL 2020-11-27 (early close),2020-11-27T18:00:00Z,false
+meta,2020-06-04,230.0,232.0,229.0,231.0,2000000,tiingo,made up: META 2020-06-04,2020-06-04T20:00:00Z,false
+meta,2020-06-05,231.0,234.0,230.5,233.5,2100000,tiingo,made up: META 2020-06-05,2020-06-05T20:00:00Z,false
+apple,2020-06-05,999.0,999.0,999.0,999.0,1,tiingo,canary: no query before 2099 may return this row,2099-01-01T00:00:00Z,false
