@@ -59,6 +59,35 @@ class PriceBar:
 
 
 @dataclass(frozen=True)
+class Filing:
+    """An SEC filing that EDGAR had accepted by the knowledge time (S5.4)."""
+
+    security_id: str
+    ticker: str
+    """The ticker at the knowledge time."""
+    cik: int
+    """The filer: for Alphabet, Google Inc.'s CIK on filings before its 2015
+    reorganization."""
+    company_name: str
+    """The company's name at the knowledge time."""
+    accession_number: str
+    form: str
+    is_amendment: bool
+    amends: str | None
+    """The accession number of the filing an amendment changes, when it's known."""
+    period_of_report: date | None
+    filing_date: date
+    """For display only: filings accepted after 5:30 PM ET get the next business day."""
+    available_at: datetime
+    """EDGAR's acceptance time, corrected (doc/time-model.md, rule 5)."""
+    time_assumed: bool
+    document_url: str | None
+    index_url: str
+    source: str
+    source_ref: str
+
+
+@dataclass(frozen=True)
 class Security:
     """A security as identified at the knowledge time (S5.2)."""
 
