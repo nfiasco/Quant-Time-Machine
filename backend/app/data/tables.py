@@ -87,6 +87,28 @@ per old share, such as 7.000007 for Apple's 7-for-1 in 2014; S6.4 rounds it), or
 "dividend", where `value` is the cash paid per share. Each is part of its ex-date's
 bar, so it's known at that session's close."""
 
+FILINGS = TableSpec(
+    name="filings",
+    key=("cik", "accession_number"),
+    columns={
+        "cik": "BIGINT",
+        "accession_number": "VARCHAR",
+        "form": "VARCHAR",
+        "filing_date": "DATE",
+        "period_of_report": "DATE",
+        "is_amendment": "BOOLEAN",
+        "amends": "VARCHAR",
+        "primary_document": "VARCHAR",
+        "items": "VARCHAR",
+        "acceptance_raw": "VARCHAR",
+    },
+)
+"""Each company's 10-K, 10-Q, and 8-K filings and their amendments, from EDGAR (S5.3).
+
+`available_at` is the filing's acceptance time, corrected (doc/time-model.md, rule 5),
+never its filing date. `acceptance_raw` keeps EDGAR's uncorrected value for auditing.
+`amends` is the accession number of the filing an amendment changes, when it's known."""
+
 TABLES: dict[str, TableSpec] = {
     spec.name: spec
     for spec in (
@@ -95,5 +117,6 @@ TABLES: dict[str, TableSpec] = {
         SEC_TICKERS,
         PRICE_BARS,
         CORPORATE_ACTIONS,
+        FILINGS,
     )
 }
