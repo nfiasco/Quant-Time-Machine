@@ -14,9 +14,9 @@ app/data/records.py:
 - `resolve_ticker`: the security that used a ticker at the time (S5.2)
 - `get_price_as_of` and `get_price_history_as_of`: daily bars whose sessions had
   closed (S6.3)
+- `get_latest_filing_as_of` and `list_filings_as_of`: filings EDGAR had accepted (S5.4)
 
-Filings (S5.4) follow. Callers use one view per request or backtest decision, and close
-it when done:
+Callers use one view per request or backtest decision, and close it when done:
 
     with PointInTimeView(parse_knowledge_time("2020-06-05")) as view:
         view.get_macro_as_of("UNRATE")  # May 2020's first print, 13.3%
@@ -34,8 +34,9 @@ from typing import Any, Self
 from app.config import get_settings
 from app.data import calendar
 from app.data.errors import LookAheadError, NotFoundError
-from app.data.records import MacroObservation, PriceBar, Security
+from app.data.records import Filing, MacroObservation, PriceBar, Security
 from app.data.sources.alfred import SERIES, Series
+from app.data.sources.edgar import FORM_FAMILIES
 from app.data.store import TableSpec, connect, sql_timestamp, store_dir, table_source
 from app.data.tables import TABLES
 from app.data.timeutil import to_utc
@@ -331,6 +332,83 @@ class PointInTimeView:
         )
         return [_price_bar(security, row) for row in reversed(rows)]
 
+    def get_latest_filing_as_of(
+        self, ticker: str, form: str = "10-Q", include_amendments: bool = False
+    ) -> Filing | None:
+        """The latest filing of a form that EDGAR had accepted by the knowledge time.
+
+        It counts from the acceptance time, never the period end or the filing date: at
+        09:30 ET on June 5, 2020, Apple's latest 10-Q is the one for the quarter ended
+        March 28 (accepted at 18:03 ET on April 30), and the next one, accepted on July
+        30, isn't visible. `form` is a family, "10-K", "10-Q", or "8-K"; "10-K" also
+        covers 10-K405 and 10-KT. Amendments, such as a 10-Q/A, count only with
+        `include_amendments`. None if no such filing was accepted yet, as for a fund
+        like SPY, which files none.
+
+        The ticker is resolved at the knowledge time (see `resolve_ticker`), and the
+        filings of every CIK the security had by then are searched.
+        """
+        filings = self._filings(ticker, [form], include_amendments, limit=1)
+        return filings[0] if filings else None
+
+    def list_filings_as_of(
+        self,
+        ticker: str,
+        forms: Sequence[str] = ("10-K", "10-Q", "8-K"),
+        include_amendments: bool = False,
+        limit: int = 100,
+    ) -> list[Filing]:
+        """A security's filings accepted by the knowledge time, newest first.
+
+        The form families and amendments work as in `get_latest_filing_as_of`, and at
+        most `limit` filings come back. `forms` can also be one family, such as "10-Q".
+        """
+        if isinstance(forms, str):
+            forms = [forms]
+        return self._filings(ticker, forms, include_amendments, limit)
+
+    def _filings(
+        self,
+        ticker: str,
+        forms: Sequence[str],
+        include_amendments: bool,
+        limit: int,
+    ) -> list[Filing]:
+        if limit < 1:
+            raise ValueError(f"limit must be at least 1, not {limit}")
+        members = []
+        for family in forms:
+            if family.upper() not in FORM_FAMILIES:
+                raise ValueError(
+                    f"unknown form {family!r}; expected one of "
+                    f"{', '.join(FORM_FAMILIES)}"
+                )
+            members += FORM_FAMILIES[family.upper()]
+        if include_amendments:
+            members += [f"{form}/A" for form in members]
+
+        security = self.resolve_ticker(ticker)
+        versions = self._select(
+            "securities", where="security_id = ?", params=[security.security_id]
+        )
+        ciks = {row["cik"] for row in versions if row["cik"] is not None}
+        if not versions and security.cik is not None:
+            ciks = {security.cik}  # a ticker only SEC's file knows
+        if not ciks:
+            return []
+        rows = self._select(
+            "filings",
+            where=(
+                f"cik IN ({', '.join('?' * len(ciks))}) "
+                f"AND form IN ({', '.join('?' * len(members))})"
+            ),
+            params=[*sorted(ciks), *members],
+            latest_per_key=True,
+            order_by="available_at DESC, accession_number DESC",
+            limit=limit,
+        )
+        return [_filing(security, row) for row in rows]
+
     def close(self) -> None:
         """Close the view's DuckDB connection."""
         self._connection.close()
@@ -384,6 +462,34 @@ def _sec_security(row: Mapping[str, Any]) -> Security:
         effective_date=None,
         available_at=row["available_at"],
         time_assumed=row["time_assumed"],
+        source=row["source"],
+        source_ref=row["source_ref"],
+    )
+
+
+def _filing(security: Security, row: Mapping[str, Any]) -> Filing:
+    """A `filings` row as a record, with links to the filing on EDGAR and the
+    security's name and ticker at the knowledge time."""
+    cik, accession = row["cik"], row["accession_number"]
+    folder = (
+        f"https://www.sec.gov/Archives/edgar/data/{cik}/{accession.replace('-', '')}"
+    )
+    document = row["primary_document"]
+    return Filing(
+        security_id=security.security_id,
+        ticker=security.ticker,
+        cik=cik,
+        company_name=security.name,
+        accession_number=accession,
+        form=row["form"],
+        is_amendment=row["is_amendment"],
+        amends=row["amends"],
+        period_of_report=row["period_of_report"],
+        filing_date=row["filing_date"],
+        available_at=row["available_at"],
+        time_assumed=row["time_assumed"],
+        document_url=f"{folder}/{document}" if document else None,
+        index_url=f"{folder}/{accession}-index.htm",
         source=row["source"],
         source_ref=row["source_ref"],
     )
