@@ -143,6 +143,22 @@ The `recent` block holds at least a year of filings, or the latest 1,000 if that
 
 **What ingestion (S5.3) must do:** subtract the Eastern UTC offset from the JSON value, or read `ACCEPTANCE-DATETIME` from the SGML header, which is Eastern time. Lock this in with the test `test_edgar_acceptance_time_correction` from the [time model](time-model.md#named-test-cases-for-s36). EDGAR accepts filings only on weekdays, 6 AM to 10 PM ET, and daylight-saving switches happen at 2 AM on Sundays, so the offset is never ambiguous.
 
+**Finding (S5.3, retrieved 2026-10-23): the shift depends on the company's file.** A sample of 36 filings against their index pages:
+
+| Company | Filings checked | JSON minus the index page's "Accepted" |
+| --- | --- | --- |
+| Apple, Microsoft, JPMorgan, Meta | 30, from 2006 to 2026, morning and evening | +4 h (EDT) or +5 h (EST), every one |
+| Twitter | 6, from 2014 to 2022 | 0: true UTC |
+
+Twitter's file has no shift, perhaps because Twitter stopped filing in 2022. Subtracting the offset anyway puts its early-morning 8-Ks at 02:00 to 04:00 ET, when EDGAR is closed, and an evening one on the wrong filing date. So [`sources/edgar.py`](../backend/app/data/sources/edgar.py) checks each company's file. Each filing whose filing date only one reading explains, given EDGAR's hours and the 5:30 PM rule, is a vote. The majority decides, and a file with no votes is treated as shifted. Every file in the starter set is lopsided: Apple 281 to 0, Microsoft 323 to 0, JPMorgan 1,059 to 0, and Meta 191 to 0 for the shift, Twitter 51 to 1 against.
+
+Two more traps:
+
+- **Date-only placeholders.** Many filings from 1994 to 2002 have a time exactly on the hour that corrects to midnight ET: EDGAR kept only the date. There are 228 in the starter set (Apple 51, Microsoft 40, JPMorgan 137).
+- **Acceptance after the filing date.** Five JPMorgan 10-K/As from 2004 to 2006 were accepted days after their filing dates.
+
+Ingestion keeps these filings but flags their times as assumed. It uses the end of the filing date in Eastern time, or the acceptance time if that's later (time-model rule 11).
+
 **Limits.**
 
 - **Access policy:** no key, but every request must carry a User-Agent naming who you are and a contact email (SEC's example: "Sample Company Name AdminContact@<sample company domain>.com"). Requests without one get HTTP 403. The maximum is 10 requests per second ([SEC: accessing EDGAR data](https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data)).
@@ -298,7 +314,7 @@ Loading all six takes six Tiingo requests, against the free plan's 50 per hour a
 | **Ticker history.** SEC's ticker file lists only current tickers. | Old or reused tickers resolve to the wrong company | A curated, cited history for the starter universe and reused tickers, in [`securities.toml`](../backend/app/data/sources/securities.toml) (S5.2). A ticker only in SEC's file resolves only from when the file was downloaded. |
 | **Release times.** ALFRED has dates, not times. | A release could be visible too early, or too late | A release-time table plus the end-of-day default, flagged (S4.3). |
 | **ALFRED vintages start late** for some series. | Early values have no first-release record | Treat values before the first vintage as unknown (S4.3). The spike prints each starter series' first vintage. |
-| **EDGAR's acceptance time is shifted** by the Eastern UTC offset. | Filings would appear 4 to 5 hours late (or early, if read as Eastern time) | Correct in ingestion, with a golden test (S5.3, S3.6). |
+| **EDGAR's acceptance time is shifted** by the Eastern UTC offset in most companies' files, but not all (Twitter's isn't). | Filings would appear 4 to 5 hours late, or early if the shift is removed where there's none | Detect the shift for each company's file and correct it in ingestion, with golden tests (S5.3, S3.6). Placeholder and impossible times fall back to the end of the filing date, flagged. |
 | **Corporate actions beyond splits and cash dividends** (spin-offs, mergers, special dividends). | Wrong total returns around those events | Check what Tiingo's `divCash` and `splitFactor` cover in S6.2. Reconcile returns against Tiingo's `adjClose` in S6.4, rounding split ratios such as 7.000007. |
 
 ## What the public app may show

@@ -114,6 +114,8 @@ The acceptance time is when EDGAR accepted the filing, which is effectively when
 So the fiscal Q2 10-Q is usable from 18:03 ET on April 30 (a 09:30 decision first sees it on May 1). The fiscal Q3 10-Q doesn't exist yet on June 5.
 
 > **Data trap (found in S5.1).** In EDGAR's submissions JSON, `acceptanceDateTime` ends in "Z" but is **neither UTC nor Eastern time**: it runs ahead of the true acceptance time by the Eastern UTC offset. The fiscal Q2 10-Q shows `2020-05-01T02:03:10.000Z`; the true time is `2020-04-30T22:03:10Z`. Ingestion must subtract 4 hours (EDT) or 5 hours (EST), or read `ACCEPTANCE-DATETIME` from the filing's SGML header, which is Eastern time. With that correction, 360 of Apple's 361 10-K, 10-Q, and 8-K filings get exactly the filing date the 5:30 PM rule predicts. See [data-sources.md](data-sources.md#sec-edgar-filing-history-submissions-api).
+>
+> **Not every company's file runs ahead (found in S5.3).** EDGAR's index pages confirm the shift for Apple, Microsoft, JPMorgan, and Meta from 2006 to 2026, but Twitter's file holds true UTC times. Subtracting the offset there would make its filings visible 4 to 5 hours early. So ingestion checks each company's file: a filing's date follows from its acceptance time, and EDGAR is open only from 06:00 to 22:00 ET, so filings whose date only one reading explains vote, and the majority decides (Apple 281 to 0 for the shift, Twitter 51 to 1 against).
 
 ### 6. An XBRL fact is known when the filing that reported it was accepted
 
@@ -187,7 +189,7 @@ A decision at 09:30 ET on Monday, June 1, 2020 sees prices through Friday, May 2
 When a time is missing or ambiguous, choose the latest time it could plausibly have been, so the system errs toward knowing *less*, and flag the row so results can show the assumption. Examples:
 
 - a macro release without a known time (rule 7);
-- an old EDGAR filing without an acceptance time, which gets the end of its filing date in Eastern time;
+- an old EDGAR filing without an acceptance time, which gets the end of its filing date in Eastern time. So does a filing from 1994 to 2002 whose time is a midnight placeholder, because EDGAR kept only the date, or one whose time falls outside EDGAR's hours;
 - a vintage that predates our release-time table.
 
 ## June 5, 2020, at 09:30 ET (13:30Z)

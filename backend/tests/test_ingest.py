@@ -11,7 +11,7 @@ from app.config import BACKEND_DIR, Settings
 from app.data import ingest
 from app.data.http import FetchError, RateLimitExceeded
 from app.data.ingest import INGESTERS, IngestContext, main
-from app.data.sources import IngestError, alfred, securities
+from app.data.sources import IngestError, alfred, edgar
 
 
 @pytest.fixture
@@ -120,8 +120,8 @@ def test_fred_runs_the_alfred_ingester() -> None:
     assert INGESTERS["fred"] is alfred.ingest
 
 
-def test_sec_runs_the_securities_ingester() -> None:
-    assert INGESTERS["sec"] is securities.ingest
+def test_sec_runs_the_edgar_ingester() -> None:
+    assert INGESTERS["sec"] is edgar.ingest
 
 
 def test_unknown_sources_are_usage_errors() -> None:
