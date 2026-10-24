@@ -22,7 +22,8 @@ Callers use one view per request or backtest decision, and close it when done:
         view.get_macro_as_of("UNRATE")  # May 2020's first print, 13.3%
         view.access_log  # what was read, and when each row became known
 
-A view isn't thread-safe; don't share one between threads.
+A view isn't thread-safe: never use one from two threads at once. Handing it from one
+thread to the next, as the API's worker threads do within a request, is fine.
 """
 
 from collections.abc import Iterable, Mapping, Sequence
@@ -275,7 +276,7 @@ class PointInTimeView:
         )
         if len(rows) == 1:
             return _sec_security(rows[0])
-        raise NotFoundError("ticker", ticker)
+        raise NotFoundError("ticker", ticker, knowledge_time=self.knowledge_time)
 
     def get_price_as_of(
         self, ticker: str, session: date | None = None

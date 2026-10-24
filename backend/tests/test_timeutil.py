@@ -5,6 +5,7 @@ import pytest
 from app.data.timeutil import (
     ET,
     KnowledgeTimeError,
+    describe_time,
     market_time,
     parse_knowledge_time,
     to_utc,
@@ -27,11 +28,22 @@ def test_no_offset_timestamp_means_eastern() -> None:
 
 
 def test_no_offset_timestamp_in_dst_change_hours() -> None:
-    # 01:30 happened twice on 2020-11-01, at 05:30Z (EDT) and 06:30Z (EST): the later one wins.
-    assert parse_knowledge_time("2020-11-01T01:30") == utc(2020, 11, 1, 6, 30)
     # Clocks jumped from 02:00 to 03:00 on 2020-03-08, so 02:30 never happened.
-    with pytest.raises(KnowledgeTimeError, match="doesn't exist"):
+    with pytest.raises(KnowledgeTimeError, match="2:30 AM on March 8, 2020 never"):
         parse_knowledge_time("2020-03-08T02:30")
+    # 01:30 happened twice on 2020-11-01, at 05:30Z (EDT) and 06:30Z (EST).
+    with pytest.raises(
+        KnowledgeTimeError, match="twice.*-04:00 for the first, -05:00 for the second"
+    ):
+        parse_knowledge_time("2020-11-01T01:30")
+    # With an offset, either one is fine.
+    assert parse_knowledge_time("2020-11-01T01:30-04:00") == utc(2020, 11, 1, 5, 30)
+    assert parse_knowledge_time("2020-11-01T01:30-05:00") == utc(2020, 11, 1, 6, 30)
+
+
+def test_market_time_takes_the_later_repeated_instant() -> None:
+    # Ingestion never gets to ask, so it errs toward knowing less (rule 11).
+    assert market_time(date(2020, 11, 1), time(1, 30)) == utc(2020, 11, 1, 6, 30)
 
 
 @pytest.mark.parametrize(
@@ -92,6 +104,21 @@ def test_decoded_plus_sign_gets_a_hint() -> None:
     # In a URL query string, an unencoded "+00:00" arrives as " 00:00".
     with pytest.raises(KnowledgeTimeError, match="%2B"):
         parse_knowledge_time("2020-06-05T13:30:00 00:00")
+
+
+@pytest.mark.parametrize(
+    ("instant", "text"),
+    [
+        (utc(2020, 6, 5, 13, 30), "June 5, 2020, 9:30 AM ET"),
+        (utc(2012, 5, 21, 13, 30), "May 21, 2012, 9:30 AM ET"),
+        (utc(2020, 1, 15, 14, 30), "January 15, 2020, 9:30 AM ET"),  # EST
+        (utc(2020, 4, 30, 22, 3, 10), "April 30, 2020, 6:03:10 PM ET"),
+        (utc(2020, 6, 5, 4), "June 5, 2020, 12:00 AM ET"),
+        (utc(2020, 6, 5, 16), "June 5, 2020, 12:00 PM ET"),
+    ],
+)
+def test_describe_time_reads_like_a_person_would(instant: datetime, text: str) -> None:
+    assert describe_time(instant) == text
 
 
 def test_market_time_follows_daylight_saving() -> None:
