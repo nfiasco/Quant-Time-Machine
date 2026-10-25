@@ -636,37 +636,37 @@ Every story in one table, like the Project's table view. Select an ID to jump to
 | [S1.2](#s12-set-up-the-github-project-board) | Set up the GitHub Project board | E1 | P0 | S | 1 | M1 | Ready |
 | [S1.3](#s13-make-the-repository-public-safely) | Make the repository public safely | E1 | P0 | S | 1 | M1 | In progress |
 | [S1.4](#s14-contribution-templates-and-branch-protection) | Contribution templates and branch protection | E1 | P1 | S | 1 | M1 | In progress |
-| [S1.5](#s15-configuration-and-secrets) | Configuration and secrets | E1 | P0 | S | 1 | M1 | In review |
-| [S1.6](#s16-spike-choose-backend-and-data-hosting) | Spike: choose backend and data hosting | E1 | P0 | S | 2 | M2 | Backlog |
+| [S1.5](#s15-configuration-and-secrets) | Configuration and secrets | E1 | P0 | S | 1 | M1 | ✅ Done |
+| [S1.6](#s16-spike-choose-backend-and-data-hosting) | Spike: choose backend and data hosting | E1 | P0 | S | 2 | M2 | ✅ Done |
 | [S2.1](#s21-interview-target-users) | Interview target users | E2 | P0 | L | 1–3 | M3 | Ready |
 | [S2.2](#s22-compare-existing-tools) | Compare existing tools | E2 | P1 | M | 1–2 | M2 | Ready |
-| [S2.3](#s23-data-sources-and-terms-memo) | Data sources and terms memo | E2 | P0 | M | 1 | M1 | In review |
+| [S2.3](#s23-data-sources-and-terms-memo) | Data sources and terms memo | E2 | P0 | M | 1 | M1 | ✅ Done |
 | [S2.4](#s24-success-measures-and-evaluation-plan) | Success measures and evaluation plan | E2 | P1 | S | 2 | M2 | Backlog |
 | [S2.5](#s25-research-how-an-ai-assistant-could-introduce-hindsight) | Research: how an AI assistant could introduce hindsight | E2 | P1 | M | 7 | M6 | Backlog |
-| [S3.1](#s31-ratify-the-time-model) | Ratify the time model | E3 | P0 | S | 1 | M1 | In review |
-| [S3.2](#s32-spike-choose-the-storage-engine) | Spike: choose the storage engine | E3 | P0 | S | 1 | M1 | In review |
-| [S3.3](#s33-pointintimeview-the-only-way-to-read-data) | `PointInTimeView`: the only way to read data | E3 | P0 | M | 2 | M2 | Backlog |
-| [S3.4](#s34-raw-cache-provenance-and-ingestion-cli) | Raw cache, provenance, and ingestion CLI | E3 | P0 | M | 2 | M2 | Backlog |
-| [S3.5](#s35-trading-calendar) | Trading calendar | E3 | P0 | S | 2 | M2 | Backlog |
-| [S3.6](#s36-fixtures-and-golden-test-cases) | Fixtures and golden test cases | E3 | P0 | M | 2–3 | M3 | Backlog |
+| [S3.1](#s31-ratify-the-time-model) | Ratify the time model | E3 | P0 | S | 1 | M1 | ✅ Done |
+| [S3.2](#s32-spike-choose-the-storage-engine) | Spike: choose the storage engine | E3 | P0 | S | 1 | M1 | ✅ Done |
+| [S3.3](#s33-pointintimeview-the-only-way-to-read-data) | `PointInTimeView`: the only way to read data | E3 | P0 | M | 2 | M2 | ✅ Done |
+| [S3.4](#s34-raw-cache-provenance-and-ingestion-cli) | Raw cache, provenance, and ingestion CLI | E3 | P0 | M | 2 | M2 | ✅ Done |
+| [S3.5](#s35-trading-calendar) | Trading calendar | E3 | P0 | S | 2 | M2 | ✅ Done |
+| [S3.6](#s36-fixtures-and-golden-test-cases) | Fixtures and golden test cases | E3 | P0 | M | 2–3 | M3 | In progress |
 | [S3.7](#s37-data-versions-for-reproducible-runs) | Data versions for reproducible runs | E3 | P0 | S | 3 | M3 | Backlog |
-| [S4.1](#s41-spike-explore-the-alfred-api) | Spike: explore the ALFRED API | E4 | P0 | S | 1 | M1 | In review |
-| [S4.2](#s42-ingest-vintage-history-for-the-starter-series) | Ingest vintage history for the starter series | E4 | P0 | M | 2 | M2 | Backlog |
-| [S4.3](#s43-model-release-times) | Model release times | E4 | P0 | S | 2 | M2 | Backlog |
-| [S4.4](#s44-get_macro_as_of) | `get_macro_as_of` | E4 | P0 | M | 2 | M2 | Backlog |
+| [S4.1](#s41-spike-explore-the-alfred-api) | Spike: explore the ALFRED API | E4 | P0 | S | 1 | M1 | ✅ Done |
+| [S4.2](#s42-ingest-vintage-history-for-the-starter-series) | Ingest vintage history for the starter series | E4 | P0 | M | 2 | M2 | ✅ Done |
+| [S4.3](#s43-model-release-times) | Model release times | E4 | P0 | S | 2 | M2 | ✅ Done |
+| [S4.4](#s44-get_macro_as_of) | `get_macro_as_of` | E4 | P0 | M | 2 | M2 | ✅ Done |
 | [S4.5](#s45-revision-history) | Revision history | E4 | P1 | S | 3 | M3 | Backlog |
 | [S4.6](#s46-expand-the-series-catalog) | Expand the series catalog | E4 | P2 | M | 7 | M6 | Backlog |
-| [S5.1](#s51-spike-explore-the-edgar-apis) | Spike: explore the EDGAR APIs | E5 | P0 | S | 1 | M1 | In review |
-| [S5.2](#s52-company-identity-cik-tickers-share-classes) | Company identity: CIK, tickers, share classes | E5 | P0 | M | 2 | M2 | Backlog |
-| [S5.3](#s53-ingest-filing-histories) | Ingest filing histories | E5 | P0 | M | 2 | M2 | Backlog |
-| [S5.4](#s54-get_latest_filing_as_of) | `get_latest_filing_as_of` | E5 | P0 | S | 2 | M2 | Backlog |
+| [S5.1](#s51-spike-explore-the-edgar-apis) | Spike: explore the EDGAR APIs | E5 | P0 | S | 1 | M1 | ✅ Done |
+| [S5.2](#s52-company-identity-cik-tickers-share-classes) | Company identity: CIK, tickers, share classes | E5 | P0 | M | 2 | M2 | ✅ Done |
+| [S5.3](#s53-ingest-filing-histories) | Ingest filing histories | E5 | P0 | M | 2 | M2 | ✅ Done |
+| [S5.4](#s54-get_latest_filing_as_of) | `get_latest_filing_as_of` | E5 | P0 | S | 2 | M2 | ✅ Done |
 | [S5.5](#s55-ingest-xbrl-company-facts) | Ingest XBRL company facts | E5 | P0 | M | 3 | M3 | Backlog |
 | [S5.6](#s56-map-xbrl-tags-to-standard-metrics) | Map XBRL tags to standard metrics | E5 | P0 | M | 3 | M3 | Backlog |
 | [S5.7](#s57-quarterly-fundamentals-as-known-at-a-time) | Quarterly fundamentals as known at a time | E5 | P0 | L | 3 | M3 | Backlog |
 | [S5.8](#s58-bulk-backfill-from-sec-bulk-files) | Bulk backfill from SEC bulk files | E5 | P2 | M | 7 | M6 | Backlog |
-| [S6.1](#s61-spike-choose-a-daily-price-source) | Spike: choose a daily price source | E6 | P0 | S | 1 | M1 | In review |
-| [S6.2](#s62-ingest-raw-prices-and-corporate-actions) | Ingest raw prices and corporate actions | E6 | P0 | M | 2 | M2 | Backlog |
-| [S6.3](#s63-get_price_as_of) | `get_price_as_of` | E6 | P0 | S | 2 | M2 | Backlog |
+| [S6.1](#s61-spike-choose-a-daily-price-source) | Spike: choose a daily price source | E6 | P0 | S | 1 | M1 | ✅ Done |
+| [S6.2](#s62-ingest-raw-prices-and-corporate-actions) | Ingest raw prices and corporate actions | E6 | P0 | M | 2 | M2 | ✅ Done |
+| [S6.3](#s63-get_price_as_of) | `get_price_as_of` | E6 | P0 | S | 2 | M2 | ✅ Done |
 | [S6.4](#s64-total-returns-without-look-ahead) | Total returns without look-ahead | E6 | P0 | M | 3 | M3 | Backlog |
 | [S6.5](#s65-point-in-time-universe-v1) | Point-in-time universe v1 | E6 | P0 | M | 2–3 | M3 | Backlog |
 | [S6.6](#s66-universe-v2-top-n-by-market-cap-as-of-each-date) | Universe v2: top N by market cap as of each date | E6 | P1 | L | 7 | M6 | Backlog |
@@ -679,13 +679,13 @@ Every story in one table, like the Project's table view. Select an ID to jump to
 | [S7.6](#s76-metrics-and-benchmark-comparison) | Metrics and benchmark comparison | E7 | P0 | M | 4 | M4 | Backlog |
 | [S7.7](#s77-run-records-determinism-and-audit-log) | Run records, determinism, and audit log | E7 | P0 | M | 4 | M4 | Backlog |
 | [S7.8](#s78-run-the-canonical-example-end-to-end) | Run the canonical example end to end | E7 | P0 | S | 4 | M4 | Backlog |
-| [S8.1](#s81-api-conventions) | API conventions | E8 | P0 | S | 2 | M2 | Backlog |
-| [S8.2](#s82-as-of-data-endpoints) | As-of data endpoints | E8 | P0 | M | 2–3 | M3 | Backlog |
+| [S8.1](#s81-api-conventions) | API conventions | E8 | P0 | S | 2 | M2 | ✅ Done |
+| [S8.2](#s82-as-of-data-endpoints) | As-of data endpoints | E8 | P0 | M | 2–3 | M3 | In progress |
 | [S8.3](#s83-knowledge-snapshot-endpoint) | Knowledge snapshot endpoint | E8 | P0 | M | 3 | M3 | Backlog |
 | [S8.4](#s84-backtest-endpoints) | Backtest endpoints | E8 | P0 | M | 4 | M4 | Backlog |
 | [S8.5](#s85-catalog-endpoints) | Catalog endpoints | E8 | P0 | S | 3 | M3 | Backlog |
 | [S8.6](#s86-typed-client-and-response-caching) | Typed client and response caching | E8 | P2 | S | 5 | M5 | Backlog |
-| [S9.1](#s91-app-shell-and-api-client) | App shell and API client | E9 | P0 | S | 2 | M2 | Backlog |
+| [S9.1](#s91-app-shell-and-api-client) | App shell and API client | E9 | P0 | S | 2 | M2 | In progress |
 | [S9.2](#s92-time-machine-explorer) | Time Machine explorer | E9 | P0 | L | 3 | M3 | Backlog |
 | [S9.3](#s93-macro-revision-viewer) | Macro revision viewer | E9 | P1 | M | 4 | M4 | Backlog |
 | [S9.4](#s94-company-filing-timeline) | Company filing timeline | E9 | P2 | M | 5 | M5 | Backlog |
@@ -847,7 +847,7 @@ Each story starts with a metadata line: priority, size, sprint, milestone, area,
 
 #### S1.5 Configuration and secrets
 
-**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** infra · **Depends on:** — · **Reqs:** NFR-8, NFR-11 · **Status:** In review
+**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** infra · **Depends on:** — · **Reqs:** NFR-8, NFR-11 · **Status:** Done
 
 **Story:** As a developer, I want one documented place for settings and API keys, so that I can run everything locally without committing secrets.
 
@@ -866,7 +866,7 @@ Each story starts with a metadata line: priority, size, sprint, milestone, area,
 
 #### S1.6 Spike: choose backend and data hosting
 
-**Priority:** P0 · **Size:** S · **Sprint:** 2 · **Milestone:** M2 · **Area:** infra · **Depends on:** S3.2 · **Reqs:** NFR-6
+**Priority:** P0 · **Size:** S · **Sprint:** 2 · **Milestone:** M2 · **Area:** infra · **Depends on:** S3.2 · **Reqs:** NFR-6 · **Status:** Done
 
 **Story:** As a team, we want to know early where the API and its data will run, so that storage and job choices fit the host.
 
@@ -878,10 +878,10 @@ Each story starts with a metadata line: priority, size, sprint, milestone, area,
 
 **Tasks**
 
-- [ ] Estimate the data size for the starter universe
-- [ ] Deploy the `/health` app to the top candidate
-- [ ] Check how long-running backtests would work there
-- [ ] Record the decision and next steps for S15.1
+- [x] Estimate the data size for the starter universe: 65,829 rows in 1.2 MB of Parquet for the M2 set, and well under 1 GB for 100 securities with XBRL facts
+- [x] Deploy the `/health` app to the top candidate: the whole API runs on Fly.io at <https://quant-time-machine-api.fly.dev>, on the free trial until the team adds a card
+- [x] Check how long-running backtests would work there: minutes at full speed and over an hour on a throttled shared CPU, so they run in the background (S8.4) with batched reads
+- [x] Record the decision and next steps for S15.1, in [`doc/hosting.md`](hosting.md)
 
 ### E2. Discovery and validation
 
@@ -932,7 +932,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 #### S2.3 Data sources and terms memo
 
-**Priority:** P0 · **Size:** M · **Sprint:** 1 · **Milestone:** M1 · **Area:** research · **Depends on:** S4.1, S5.1, S6.1 · **Reqs:** NFR-6, NFR-7 · **Status:** In review
+**Priority:** P0 · **Size:** M · **Sprint:** 1 · **Milestone:** M1 · **Area:** research · **Depends on:** S4.1, S5.1, S6.1 · **Reqs:** NFR-6, NFR-7 · **Status:** Done
 
 **Story:** As a team, we want one document describing every data source, so that we know what each covers, when its data became public, and what we're allowed to do with it.
 
@@ -992,7 +992,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 #### S3.1 Ratify the time model
 
-**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** NFR-4, FR-B9 · **Status:** In review
+**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** NFR-4, FR-B9 · **Status:** Done
 
 **Story:** As a developer, I want written rules for how time works in the system, so that every data source and the engine treat "known at time *T*" the same way.
 
@@ -1011,7 +1011,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 #### S3.2 Spike: choose the storage engine
 
-**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** NFR-5 · **Status:** In review
+**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** NFR-5 · **Status:** Done
 
 **Story:** As a developer, I want to pick the database for point-in-time data from a quick test, so that as-of queries are simple and fast.
 
@@ -1129,7 +1129,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 #### S4.1 Spike: explore the ALFRED API
 
-**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** FR-D3 · **Status:** In review
+**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** FR-D3 · **Status:** Done
 
 **Story:** As a developer, I want to see how vintages work in practice, so that we model them correctly before writing ingestion.
 
@@ -1245,7 +1245,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 #### S5.1 Spike: explore the EDGAR APIs
 
-**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** FR-D4, FR-D5 · **Status:** In review
+**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** FR-D4, FR-D5 · **Status:** Done
 
 **Story:** As a developer, I want to see real EDGAR responses and their timestamps, so that we pick the right "available at" field.
 
@@ -1400,7 +1400,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 #### S6.1 Spike: choose a daily price source
 
-**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** FR-D6, NFR-7 · **Status:** In review
+**Priority:** P0 · **Size:** S · **Sprint:** 1 · **Milestone:** M1 · **Area:** data · **Depends on:** — · **Reqs:** FR-D6, NFR-7 · **Status:** Done
 
 **Story:** As a team, we want a price source we can trust and are allowed to use, so that returns are right and the app can display them.
 
@@ -1710,7 +1710,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 #### S8.2 As-of data endpoints
 
-**Priority:** P0 · **Size:** M · **Sprint:** 2–3 · **Milestone:** M3 · **Area:** api · **Depends on:** S8.1, S4.4, S5.4, S6.3, S5.7 · **Reqs:** FR-A1
+**Priority:** P0 · **Size:** M · **Sprint:** 2–3 · **Milestone:** M3 · **Area:** api · **Depends on:** S8.1, S4.4, S5.4, S6.3, S5.7 · **Reqs:** FR-A1 · **Status:** In progress (the Sprint 2 endpoints are done)
 
 **Story:** As a frontend developer, I want HTTP endpoints for each as-of query, so that the web app can show point-in-time data.
 
@@ -2770,7 +2770,7 @@ Review this table at every milestone.
 | R7 | The assistant mistranslates questions or states wrong numbers | High | High | Schema-validated specs, user confirmation, numbers only from the engine, and an eval suite | S11.2, S11.3, S11.4, S11.7 |
 | R8 | The model's training data leaks hindsight into experiments | Medium | Medium | The AI translates rather than picks; time-locked tools; variant logging; research memo | S2.5, S10.3, S11.8 |
 | R9 | The scope is too big for two semesters | High | High | Walking skeleton by October 25; a P0-only demo path; the cut order in [§5.5](#55-if-we-fall-behind); re-plan at every milestone | All epics |
-| R10 | Hosting limits (timeouts, bundle or disk size) block long backtests | Medium | Medium | Hosting spike in Sprint 2 (S1.6); background runs (S8.4); performance baseline (S15.2) | S1.6, S8.4, S15.2 |
+| R10 | Hosting limits (timeouts, bundle or disk size) block long backtests | Medium | Medium | Hosting spike in Sprint 2 (S1.6); background runs (S8.4); performance baseline (S15.2). *Oct 23:* measured in S1.6. With one query per ticker, a canonical-size backtest takes minutes at full speed and over an hour on Fly's throttled shared CPU. So runs go in the background, the engine batches its reads, and heavy runs can use a dedicated CPU ([`doc/hosting.md`](hosting.md)). | S1.6, S8.4, S15.2 |
 | R11 | AI costs grow with public use | Medium | Medium | Access control, rate limits, spend caps, and prompt caching | S11.6, S15.6 |
 | R12 | Team capacity dips around midterms, Thanksgiving, and finals | High | Medium | Lighter sprints where expected, small pull requests, pairing on critical stories, and a current board | S1.2 |
 | R13 | Knowledge silos: one person is the only one who understands XBRL or the engine | Medium | Medium | Rotate reviewers, write module docs, and pair on L-sized stories | S1.4 |
@@ -2786,7 +2786,7 @@ Open decisions, each owned by a story. When one is made, record the outcome and 
 | D1 | Point-in-time storage | DuckDB + Parquet, PostgreSQL, SQLite | **Parquet files queried with DuckDB, in-process.** On 1M rows it was about 10× faster than PostgreSQL for snapshots and about 18× for backtest-style as-of joins, with no server to run. Accounts and user data are a separate store in Supabase (PostgreSQL and Auth; D9, D10). See [`doc/storage.md`](storage.md). | Sprint 1 | S3.2 | Decided 2026-10-11 (pending team review) |
 | D2 | Daily price source | Tiingo, Stooq, yfinance, Alpha Vantage, WRDS/CRSP | **Tiingo end-of-day API**: raw closes plus split and dividend fields on every bar (confirmed: AAPL's raw $702.10 close on 2012-09-19). Delisted coverage is partial. Yahoo returns split-adjusted closes and no delisted tickers; Stooq blocks scripts; Alpha Vantage's free tier has no history. CRSP through UD is for internal validation only. Display rights need settling before M5. See [`doc/data-sources.md`](data-sources.md#daily-prices-decision-d2). | Sprint 1 | S6.1 | Decided 2026-10-11; the test pull on 2026-10-12 confirmed it (pending team review) |
 | D3 | Universe v1 | Curated list with history, Dow 30 history, reconstructed S&P 500, top N by market cap | A small curated list with documented history, including companies that left. *Interim for M2 (2026-10-19):* AAPL, MSFT, JPM, META, and TWTR, plus SPY as the benchmark; see [`doc/data-sources.md`](data-sources.md#m2-ticker-set). | Sprint 3 (moved from early Sprint 2; the M2 set unblocks ingestion) | S6.5 | Open |
-| D4 | Backend and data hosting | Vercel, Render, Railway, Fly.io, object storage for data | Whatever fits the data size and long backtests | Sprint 2 | S1.6 | Open |
+| D4 | Backend and data hosting | Vercel, Render, Railway, Fly.io, object storage for data | **Fly.io:** a container with the store on a 1 GB volume, at most about $4 a month. It has a disk and a long-lived process for backtests, and no seat fees for five people. The store is 1.2 MB for the M2 set. Shared CPUs throttle sustained work, so backtests run in the background with batched reads. Running on the free trial until the team adds a card. See [`doc/hosting.md`](hosting.md). | Sprint 2 | S1.6 | Decided 2026-10-23 (pending team review) |
 | D5 | Default decision and fill timing | 09:30 ET decision with same-day close fill, or next-day open fill | **09:30 ET decision, same-day close fill**, configurable per spec; next-day open is a robustness check (S14.3). See [`doc/time-model.md`](time-model.md#10-fills-strictly-after-the-decision-by-default-the-decision-days-close-d5). | Sprint 1 | S3.1 | Decided 2026-10-11 (pending team review) |
 | D6 | Model, API, and where the agent loop runs | Claude through the Anthropic API (default candidate) or alternatives; backend or frontend | Claude through the Anthropic API, with the loop in the Python backend | Sprint 7 | S11.1 | Open |
 | D7 | How the assistant reaches the tools | Same-process calls, MCP over Streamable HTTP, or both | The same functions behind both; decide in the spike | Sprint 7 | S10.1 | Open |
