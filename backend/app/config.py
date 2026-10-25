@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     # with commas, for example "http://localhost:3000,https://example.vercel.app".
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
 
+    # Whether GET /v1/prices serves raw Tiingo prices. Tiingo's terms allow internal use
+    # only (D2), so it's off unless turned on, and it stays off on any deployment other
+    # people can reach until display rights are settled. Off, the endpoint answers 403.
+    serve_raw_prices: bool = False
+
     @field_validator("sec_user_agent")
     @classmethod
     def _require_contact_email(cls, value: str | None) -> str | None:

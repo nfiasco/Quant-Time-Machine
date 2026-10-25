@@ -1,10 +1,14 @@
-"""Shared test fixtures: temporary point-in-time stores, loaded from tests/fixtures/."""
+"""Shared test fixtures: temporary point-in-time stores, loaded from tests/fixtures/, and
+API clients that read them."""
 
 from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
+from app.config import Settings
 from app.data.tables import TABLES
+from app.main import create_app
 from tests.fixture_loader import FIXTURES, TEST_TABLES, load_fixture
 
 
@@ -24,3 +28,24 @@ def fixture_store(store_dir: Path) -> Path:
             pytest.fail(f"{path.name} matches no table in app/data/tables.py")
         load_fixture(store_dir, spec, path)
     return store_dir
+
+
+def api_client(store: Path, *, serve_raw_prices: bool) -> TestClient:
+    """The API reading `store`, built from known settings, so a developer's
+    backend/.env can't change the results."""
+    settings = Settings(
+        _env_file=None, data_dir=store.parent, serve_raw_prices=serve_raw_prices
+    )
+    return TestClient(create_app(settings))
+
+
+@pytest.fixture
+def client(fixture_store: Path) -> TestClient:
+    """The API reading the fixture store, with raw prices on, as on your own machine."""
+    return api_client(fixture_store, serve_raw_prices=True)
+
+
+@pytest.fixture
+def restricted_client(fixture_store: Path) -> TestClient:
+    """The API as a public deployment runs it: raw prices off (D2)."""
+    return api_client(fixture_store, serve_raw_prices=False)

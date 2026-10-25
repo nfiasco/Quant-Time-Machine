@@ -11,6 +11,7 @@ ENV_VARS = (
     "TIINGO_API_KEY",
     "DATA_DIR",
     "CORS_ORIGINS",
+    "SERVE_RAW_PRICES",
 )
 
 
@@ -30,6 +31,8 @@ def test_defaults_need_no_keys() -> None:
     assert settings.tiingo_api_key is None
     assert settings.data_dir == BACKEND_DIR / "data"
     assert settings.cors_origins == ["http://localhost:3000"]
+    # Raw Tiingo prices are internal use only (D2): off unless turned on.
+    assert settings.serve_raw_prices is False
 
 
 def test_environment_variables_override_defaults(
@@ -107,3 +110,9 @@ def test_cors_origins_are_comma_separated(monkeypatch: pytest.MonkeyPatch) -> No
         "http://localhost:3000",
         "https://example.vercel.app",
     ]
+
+
+def test_raw_prices_turn_on_only_when_asked(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SERVE_RAW_PRICES", "true")
+
+    assert Settings(_env_file=None).serve_raw_prices is True
