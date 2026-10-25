@@ -109,7 +109,7 @@ As Parquet, that is tens of megabytes.
 
 Sources: [Vercel Functions limits](https://vercel.com/docs/functions/limitations), [Render free instances](https://render.com/docs/free), [Supabase pricing](https://supabase.com/pricing), all retrieved 2026-10-11.
 
-S1.6 still makes the hosting decision (D4). Nothing here rules out any of its options.
+S1.6 made the hosting decision (D4) in [`hosting.md`](hosting.md), with the store's real size measured: 65,829 rows in 1.2 MB of Parquet for the M2 set, about 17.5 bytes per row.
 
 ## Two stores: point-in-time data and accounts
 
@@ -148,14 +148,13 @@ uv run --python 3.12 spikes/storage_benchmark.py --postgres-dsn postgresql://pos
 
 ## What this means for M2
 
-- **Layout.** Raw responses go under `DATA_DIR/raw/<source>/` (S3.4). Normalized, append-only tables go under `DATA_DIR/store/<table>/` as Parquet, for example:
+- **Layout.** Raw responses go under `DATA_DIR/raw/<source>/` (S3.4). Normalized, append-only tables go under `DATA_DIR/store/<table>/` as Parquet. As of Sprint 2 they are:
   - `macro_observations`
+  - `securities` and `sec_tickers`
+  - `price_bars` and `corporate_actions`
   - `filings`
-  - `xbrl_facts`
-  - `price_bars`
-  - `corporate_actions`
 
-  `DATA_DIR` is git-ignored.
+  XBRL facts get their table in S5.5. `DATA_DIR` is git-ignored, and [`backend/README.md`](../backend/README.md#data-layout) shows the layout file by file.
 - **Columns.** Every table carries `available_at` and `ingested_at` (`TIMESTAMPTZ`, UTC), plus `source`, `source_ref`, and `time_assumed`, which flags an `available_at` that was assumed rather than published (time model, rule 11). Write files sorted by key and `available_at`, so DuckDB can skip what a query doesn't need.
 - **Reads.** `PointInTimeView` (S3.3) opens one DuckDB connection with views over the Parquet files. Every read filters `available_at <= knowledge_time`, and `ingested_at <= data_version` when a run is pinned (S3.7).
   - **Dependencies.** The backend depends on `duckdb` and `pytz`; DuckDB's Python API needs `pytz` to return `TIMESTAMPTZ` values as `datetime` objects.

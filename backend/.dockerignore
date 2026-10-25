@@ -1,0 +1,18 @@
+# What `fly deploy` (or `docker build`) must never send to the builder. The build context
+# isn't filtered by git, so without these lines the local data, including Tiingo's raw
+# prices, and the API keys in .env would be uploaded.
+data/
+*.duckdb
+.env
+.env.*
+
+# Not needed in the image.
+.venv/
+**/__pycache__/
+.pytest_cache/
+.ruff_cache/
+tests/
+backtesting/
+app/data/samples/
+spikes/*
+!spikes/hosting.py
