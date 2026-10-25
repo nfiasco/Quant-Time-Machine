@@ -1,6 +1,6 @@
 # Research API v1: response contract
 
-> **Stories S8.1 and S8.2.** Drafted 2026-10-19 as the contract for S9.1's M2 demo page, pending the frontend's review. The backend implements it in Sprint 2. Until then, build against the examples below. Once the API is live, its OpenAPI docs at `/docs` are the reference, and S8.6 generates TypeScript types from them. To change the contract, update this file and the backend in the same pull request, and tell the frontend.
+> **Stories S8.1 and S8.2.** Drafted 2026-10-19 as the contract for S9.1's M2 demo page, and implemented in Sprint 2. The API's own docs at `/docs` show the examples below, each labeled with the request that produces it. A test replays every one against the test fixtures, so they can't drift. S8.6 will generate TypeScript types from the OpenAPI schema. To change the contract, update this file and the backend in the same pull request, and tell the frontend.
 
 ## Conventions
 
@@ -10,7 +10,7 @@
   - A bare date, such as `2020-06-05`, means 09:30 ET that day.
   - A time without an offset, such as `2020-06-05T08:00`, is New York time. Seconds are optional.
   - A time with an offset or `Z`, such as `2020-06-05T13:30:00Z`, is used as given.
-  - A New York time that never happened or happened twice (the daylight-saving hours, such as `2020-03-08T02:30` or `2020-11-01T01:30`) gets a 422.
+  - A New York time that never happened or happened twice (the daylight-saving hours, such as `2020-03-08T02:30` or `2020-11-01T01:30`) gets a 422. Its message says which offset picks which instant.
 - **Timestamps in responses** are ISO 8601 in New York time with the offset, such as `2020-06-05T09:30:00-04:00`.
   - Seconds are always included; fractions only when they aren't zero.
   - The first 16 characters are the ET wall-clock time, so `parseAsOf(knowledge_time.slice(0, 16))` from `frontend/lib/time.ts` turns one into an `EtDateTime`.
@@ -42,6 +42,12 @@ Every successful response has the same four fields:
 
 "Nothing was known yet" is not an error: it's a 200 with a reason.
 
+`GET /v1/knowledge-time?as_of=…` is the one exception. It only resolves an `as_of` value, so it returns just the first two fields:
+
+```json
+{ "knowledge_time": "2020-06-05T09:30:00-04:00", "data_version": null }
+```
+
 ## Fields on every record
 
 | Field | Type | Meaning |
@@ -60,7 +66,7 @@ A series' latest observation as it was published at the knowledge time, or the v
 | Parameter | Required | Meaning |
 | --- | --- | --- |
 | `as_of` | Yes | Knowledge time |
-| `period` | No | An observation date (`YYYY-MM-DD`, such as `2020-04-01` for April 2020). Default: the latest period known. |
+| `period` | No | An observation date, written exactly `YYYY-MM-DD`, such as `2020-04-01` for April 2020. Default: the latest period known. |
 
 `GET /v1/macro/UNRATE?as_of=2020-06-05`, after the 08:30 jobs report:
 
@@ -114,6 +120,8 @@ A series' latest observation as it was published at the knowledge time, or the v
 
 `value` can be `null` when the source published the observation as missing (FRED's `.`).
 
+A period that wasn't published yet gives `data: null`. For example, `GET /v1/macro/UNRATE?as_of=2020-06-05&period=2020-06-01` has the reason "No UNRATE value for 2020-06-01 had been published by June 5, 2020, 9:30 AM ET." June's figure came out on July 2.
+
 ### `GET /v1/prices/{ticker}`
 
 The latest daily bar whose session had closed by the knowledge time.
@@ -122,7 +130,7 @@ The latest daily bar whose session had closed by the knowledge time.
 | --- | --- | --- |
 | `as_of` | Yes | Knowledge time |
 
-`GET /v1/prices/AAPL?as_of=2020-06-05` returns the June 4 bar, because June 5's bar isn't known until 16:00. **The numbers below are made up.** Tiingo's terms don't allow sharing its data, so examples and test fixtures use synthetic prices.
+`GET /v1/prices/AAPL?as_of=2020-06-05` returns the June 4 bar, because June 5's bar isn't known until 16:00. **The numbers below are made up**, from the test fixtures. Tiingo's terms don't allow sharing its data, so examples and fixtures use synthetic prices. A real `source_ref` looks like `tiingo AAPL 2020-06-04`.
 
 ```json
 {
@@ -132,23 +140,27 @@ The latest daily bar whose session had closed by the knowledge time.
     "ticker": "AAPL",
     "cik": 320193,
     "session_date": "2020-06-04",
-    "open": 100.0,
-    "high": 101.5,
-    "low": 99.25,
-    "close": 101.0,
-    "volume": 1000000,
+    "open": 102.5,
+    "high": 103.5,
+    "low": 101.5,
+    "close": 102.0,
+    "volume": 1300000,
     "available_at": "2020-06-04T16:00:00-04:00",
     "time_assumed": false,
     "source": "tiingo",
-    "source_ref": "AAPL 2020-06-04"
+    "source_ref": "made up: AAPL 2020-06-04"
   },
   "reason": null
 }
 ```
 
-`cik` is `null` for securities without one. On an early-close day, `available_at` is 13:00 ET.
+- `cik` is `null` for securities without one.
+- The prices and `volume` can be `null` when the vendor sent none.
+- On an early-close day, `available_at` is 13:00 ET.
 
-**Display rights.** Until Tiingo display rights are settled (D2), a deployment can turn raw prices off with a backend setting. This endpoint then returns 403 `prices_restricted`, so the page should show the reason rather than an error.
+When no bar is known, as for SPY in our test data, `data` is `null` with a reason such as "Our data has no daily bar for SPY from a session that had closed by June 5, 2020, 9:30 AM ET."
+
+**Display rights.** Until Tiingo display rights are settled (D2), raw prices are off unless the backend setting `SERVE_RAW_PRICES` is `true`. Turn it on only on your own machine. When it's off, this endpoint returns 403 `prices_restricted` before checking any parameter, so the page should show that message rather than a generic error.
 
 ### `GET /v1/filings/{ticker}/latest`
 
@@ -157,7 +169,7 @@ The latest filing of one form type that EDGAR had accepted by the knowledge time
 | Parameter | Required | Meaning |
 | --- | --- | --- |
 | `as_of` | Yes | Knowledge time |
-| `form` | No | `10-K`, `10-Q`, or `8-K`. Default: `10-Q`. |
+| `form` | No | `10-K`, `10-Q`, or `8-K`, exactly. Default: `10-Q`. `10-K` also covers 10-K405 and 10-KT, and `10-Q` covers 10-QT. |
 | `include_amendments` | No | `true` to also count amendments, such as 10-Q/A. Default: `false`. |
 
 `GET /v1/filings/AAPL/latest?as_of=2020-06-05&form=10-Q`:
@@ -198,9 +210,11 @@ When nothing was filed yet, `data` is `null`. Facebook went public on May 18, 20
   "knowledge_time": "2012-05-21T09:30:00-04:00",
   "data_version": null,
   "data": null,
-  "reason": "No 10-Q from Facebook Inc had been accepted by EDGAR by May 21, 2012, 9:30 AM ET."
+  "reason": "No 10-Q from Facebook, Inc. had been accepted by EDGAR by May 21, 2012, 9:30 AM ET."
 }
 ```
+
+The company's name is the one it had at the knowledge time.
 
 ### `GET /v1/filings/{ticker}`
 
@@ -259,6 +273,8 @@ The filing history up to the knowledge time, newest first.
 }
 ```
 
+A company that filed nothing yet gives `data: []` with a reason. SPY, a fund, files no 10-K, 10-Q, or 8-K, so `GET /v1/filings/SPY?as_of=2020-06-05` gives "No 10-K, 10-Q, or 8-K filings from SPDR S&P 500 ETF Trust had been accepted by EDGAR by June 5, 2020, 9:30 AM ET."
+
 ## Errors
 
 Every error has the same shape, which replaces FastAPI's default `{"detail": ...}`:
@@ -279,22 +295,35 @@ Every error has the same shape, which replaces FastAPI's default `{"detail": ...
 | --- | --- | --- |
 | 404 | `unknown_ticker` | No security in our data used the ticker at the knowledge time |
 | 404 | `unknown_series` | The series isn't in our catalog |
+| 404 | `not_found` | No endpoint has that path |
+| 405 | `method_not_allowed` | The endpoint doesn't accept that method |
 | 422 | `invalid_request` | A parameter is missing or invalid, including `as_of` (bad format, or a time that never happened or happened twice). `details` lists each field. |
 | 403 | `prices_restricted` | Raw prices are turned off on this deployment (D2) |
 | 500 | `internal_error` | A bug. The message is generic and never includes internals. |
 
-`message` is a sentence the page can show as is. `details` is `[]` except for `invalid_request`.
+- **`message`** is a sentence the page can show as is.
+  - An unknown ticker names the moment: "No security in our data used the ticker META as of June 5, 2020, 9:30 AM ET." Facebook traded as FB until June 2022.
+  - For several invalid fields, it joins their messages.
+- **`details`** is `[]` except for `invalid_request`, where each entry names a parameter, such as `as_of`, `form`, or `limit`.
+- **Every error carries the CORS headers**, a 500 included, so the browser can read the body.
 
 ## TypeScript types
 
 Until S8.6 generates them from OpenAPI, the frontend can copy these:
 
 ```ts
+// Use V1Response<Filing | null> for a single item and V1Response<Filing[]> for a list,
+// where [] means nothing was known yet.
 export type V1Response<T> = {
   knowledge_time: string;
   data_version: string | null;
-  data: T | null; // for lists, T is an array, and [] means nothing was known yet
+  data: T;
   reason: string | null;
+};
+
+export type KnowledgeTime = {
+  knowledge_time: string;
+  data_version: string | null;
 };
 
 type Provenance = {
@@ -320,11 +349,11 @@ export type PriceBar = Provenance & {
   ticker: string;
   cik: number | null;
   session_date: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number | null;
+  volume: number | null;
 };
 
 export type Filing = Provenance & {
@@ -337,7 +366,7 @@ export type Filing = Provenance & {
   amends: string | null;
   period_of_report: string | null;
   filing_date: string;
-  document_url: string;
+  document_url: string | null;
   index_url: string;
 };
 
@@ -348,6 +377,8 @@ export type V1Error = {
       | "unknown_ticker"
       | "unknown_series"
       | "prices_restricted"
+      | "not_found"
+      | "method_not_allowed"
       | "internal_error";
     message: string;
     details: { field: string; message: string }[];
@@ -359,7 +390,7 @@ With `apiFetch` from `frontend/lib/api/client.ts`, a failed call throws `ApiErro
 
 ## Browser access (CORS)
 
-The backend allows requests from the local dev server (`http://localhost:3000`) and the Vercel deployments, configured by a backend setting (S8.1). Until that ships, call the API from the server, as `getApiHealth` does.
+The backend allows requests from the origins in its `CORS_ORIGINS` setting: by default the local dev server (`http://localhost:3000`), plus the Vercel site where it's deployed. Pages can call the API from the browser or from the server, as `getApiHealth` does.
 
 ## Coming after M2
 

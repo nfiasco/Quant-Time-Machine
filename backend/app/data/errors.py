@@ -20,9 +20,16 @@ class LookAheadError(Exception):
 
 
 class NotFoundError(LookupError):
-    """An unknown ticker, series, or other identifier. The API answers with 404."""
+    """An unknown ticker, series, or other identifier. The API answers with 404.
 
-    def __init__(self, kind: str, ident: str) -> None:
+    `knowledge_time` is set when the answer depends on it: a ticker can belong to no one
+    at one time and to a security at another.
+    """
+
+    def __init__(
+        self, kind: str, ident: str, *, knowledge_time: datetime | None = None
+    ) -> None:
         super().__init__(f"unknown {kind}: {ident}")
         self.kind = kind
         self.ident = ident
+        self.knowledge_time = knowledge_time
