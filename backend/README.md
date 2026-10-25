@@ -1,13 +1,18 @@
 # Quant Time Machine — Backend
 
-The Quant Time Machine API, built with [FastAPI](https://fastapi.tiangolo.com). It will serve point-in-time data and run backtests. So far it has the foundations of the point-in-time data layer and the conventions every `/v1` endpoint follows:
+The Quant Time Machine API, built with [FastAPI](https://fastapi.tiangolo.com). It serves point-in-time data and will run backtests. So far it has:
 
-- the store and its writer;
-- `PointInTimeView`;
-- the NYSE calendar;
-- the ingestion client and CLI.
+- the point-in-time data layer: the store and its writer, `PointInTimeView`, and the NYSE calendar;
+- the ingestion client and CLI;
+- the `/v1` as-of endpoints for macro series, prices, and filings, with their conventions.
 
-Three sources are in, each ingested and readable as of any moment: macro vintages from ALFRED (S4.2–S4.4), raw daily prices from Tiingo (S6.2, S6.3), and filing histories from SEC EDGAR (S5.3, S5.4), with company identity tying tickers to securities over time (S5.2). The `/v1` endpoints come next (S8.2).
+Three sources are in, each ingested and readable as of any moment:
+
+- macro vintages from ALFRED (S4.2–S4.4);
+- raw daily prices from Tiingo (S6.2, S6.3);
+- filing histories from SEC EDGAR (S5.3, S5.4).
+
+Company identity ties tickers to securities over time (S5.2), and the as-of endpoints serve all of it (S8.2).
 
 ## Getting started
 
@@ -21,8 +26,10 @@ uv run fastapi dev  # start the dev server with auto-reload
 Then open:
 
 - http://localhost:8000/health returns `{"status": "ok"}`
-- http://localhost:8000/v1/knowledge-time?as_of=2020-06-05 returns `{"knowledge_time": "2020-06-05T13:30:00Z", "data_version": null}`
-- http://localhost:8000/docs is the interactive API docs (Swagger UI), generated automatically
+- http://localhost:8000/v1/knowledge-time?as_of=2020-06-05 returns `{"knowledge_time": "2020-06-05T09:30:00-04:00", "data_version": null}`
+- http://localhost:8000/docs is the interactive API docs (Swagger UI), with an example for every endpoint
+
+The data endpoints need a local store. With keys in `.env`, [ingest](#ingestion) the three sources once, which takes under a minute. Then http://localhost:8000/v1/macro/UNRATE?as_of=2020-06-05 returns May 2020's first print, 13.3%.
 
 `uv run <command>` runs a command inside the project's virtual environment, so you don't need to activate it first.
 
@@ -30,15 +37,16 @@ Then open:
 
 Settings and API keys load through one typed module, [`app/config.py`](app/config.py) (built on [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/)). Copy [`.env.example`](.env.example) to `.env` and fill it in. `.env` is git-ignored, and real environment variables take precedence over it.
 
-| Variable         | Needed for                                    | Notes                                                                                                                      |
-| ---------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `FRED_API_KEY`   | Downloading economic data from FRED/ALFRED    | Free: sign in at [fredaccount.stlouisfed.org](https://fredaccount.stlouisfed.org/apikeys) and request a key                |
-| `SEC_USER_AGENT` | Downloading filings from SEC EDGAR            | Your name or the project's plus a contact email; SEC refuses requests without one. Validated to contain an email address. |
-| `TIINGO_API_KEY` | Downloading daily prices from Tiingo (D2)     | Free: create a Tiingo account and copy the token from [its API token page](https://www.tiingo.com/account/api/token)      |
-| `DATA_DIR`       | Where downloads and the local store live      | Default `data/` (that is, `backend/data/`, git-ignored). Relative paths are resolved from `backend/`.                      |
-| `CORS_ORIGINS`   | Browser access to the API (CORS)              | Exact origins, comma-separated, no trailing slash. Default `http://localhost:3000`; add the deployed site.                 |
+| Variable           | Needed for                                    | Notes                                                                                                                      |
+| ------------------ | --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `FRED_API_KEY`     | Downloading economic data from FRED/ALFRED    | Free: sign in at [fredaccount.stlouisfed.org](https://fredaccount.stlouisfed.org/apikeys) and request a key                |
+| `SEC_USER_AGENT`   | Downloading filings from SEC EDGAR            | Your name or the project's plus a contact email; SEC refuses requests without one. Validated to contain an email address. |
+| `TIINGO_API_KEY`   | Downloading daily prices from Tiingo (D2)     | Free: create a Tiingo account and copy the token from [its API token page](https://www.tiingo.com/account/api/token)      |
+| `DATA_DIR`         | Where downloads and the local store live      | Default `data/` (that is, `backend/data/`, git-ignored). Relative paths are resolved from `backend/`.                      |
+| `CORS_ORIGINS`     | Browser access to the API (CORS)              | Exact origins, comma-separated, no trailing slash. Default `http://localhost:3000`; add the deployed site.                 |
+| `SERVE_RAW_PRICES` | `GET /v1/prices` answering at all             | Default `false`, so the endpoint answers 403. Tiingo's prices are internal use only (D2): set `true` on your own machine, never on a deployment others can reach. |
 
-In code, call `get_settings()` from `app.config`. API keys are `SecretStr` values, so they never show up in logs; use `.get_secret_value()` where the real value is needed. The tests don't need any of these: they build `Settings(_env_file=None)` and use fixtures instead of live APIs.
+In code, call `get_settings()` from `app.config`. API keys are `SecretStr` values, so they never show up in logs; use `.get_secret_value()` where the real value is needed. Route handlers don't call `get_settings()`. They read the settings the app was built with, through the `AppSettings` dependency, so a test can build an app with its own settings: `create_app(Settings(_env_file=None, data_dir=...))`. The tests don't need any keys: they use fixtures instead of live APIs.
 
 ## Tests and linting
 
@@ -50,9 +58,9 @@ uv run ruff format          # format code
 
 CI runs `ruff check`, `ruff format --check`, and `pytest` on every pull request.
 
-The tests read small committed tables from [`tests/fixtures/`](tests/fixtures/), loaded into a temporary store; that folder's README explains the format.
+The tests read small committed tables from [`tests/fixtures/`](tests/fixtures/), loaded into a temporary store; that folder's README explains the format. The `client` fixture in [`tests/conftest.py`](tests/conftest.py) is the API reading that store.
 
-Tests that call real APIs are marked `network`. They're skipped by default, so CI never runs them. To run them, put keys in `.env` and use `uv run pytest -m network`. Each makes one request, and Tiingo's counts against its limit of 50 an hour.
+Tests that call real APIs are marked `network`. They're skipped by default, so CI never runs them. To run them, put keys in `.env` and use `uv run pytest -m network`. There are seven, each making a request or a few. Two call Tiingo, and they count against its limit of 50 an hour.
 
 ## Managing dependencies
 
@@ -73,44 +81,75 @@ backend/
 │   ├── api/            # HTTP route handlers (thin; they call into data/ and backtest/)
 │   │   ├── health.py   # GET /health
 │   │   ├── v1.py       # The /v1 router
-│   │   ├── conventions.py    # as_of parsing, response envelope, error handlers
-│   │   └── knowledge_time.py # GET /v1/knowledge-time
+│   │   ├── conventions.py    # as_of, the per-request view, the response envelope
+│   │   ├── errors.py         # The error body and the handlers that produce it
+│   │   ├── examples.py       # The example responses shown in /docs
+│   │   ├── knowledge_time.py # GET /v1/knowledge-time
+│   │   ├── macro.py          # GET /v1/macro/{series_id}
+│   │   ├── prices.py         # GET /v1/prices/{ticker}
+│   │   └── filings.py        # GET /v1/filings/{ticker} and /latest
 │   ├── data/           # Point-in-time data layer (see below)
 │   └── backtest/       # Backtesting engine (placeholder)
-├── spikes/             # Sprint 1 experiments behind the data and storage decisions (not app code)
+├── spikes/             # Experiments behind the data, storage, and hosting decisions (not app code)
 ├── tests/              # pytest tests, plus fixtures/ (small committed tables)
 ├── data/               # DATA_DIR: downloads and the local store (git-ignored; created when needed)
+├── Dockerfile          # The deployed image (S1.6); fly.toml configures Fly.io
 ├── .env.example        # Template for .env (copy it; never commit .env)
 ├── pyproject.toml      # Project metadata, dependencies, and tool settings
 └── uv.lock             # Locked dependency versions (generated by uv; commit it)
 ```
 
-To add an endpoint, create a router module in `app/api/` (see `knowledge_time.py`) and include it in `app/api/v1.py`, so it's served under `/v1`.
-
 ## API conventions (`/v1`)
 
-Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) (S8.1):
+Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) and the contract in [`doc/api-v1.md`](../doc/api-v1.md) (S8.1):
 
 - **`as_of` is required.** It's the knowledge time: the moment to answer as of. The rules are in [`doc/time-model.md`](../doc/time-model.md), rule 3.
 
-  | `as_of`                | Means                                    | Instant used           |
-  | ---------------------- | ---------------------------------------- | ---------------------- |
-  | `2020-06-05`           | 09:30 ET that day, even on a weekend     | `2020-06-05T13:30:00Z` |
-  | `2020-06-05T09:30`     | New York time                            | `2020-06-05T13:30:00Z` |
-  | `2020-06-05T13:30:00Z` | Used as given (encode `+` as `%2B`)      | `2020-06-05T13:30:00Z` |
+  | `as_of`                | Means                                    | Echoed as `knowledge_time`  |
+  | ---------------------- | ---------------------------------------- | --------------------------- |
+  | `2020-06-05`           | 09:30 ET that day, even on a weekend     | `2020-06-05T09:30:00-04:00` |
+  | `2020-06-05T09:30`     | New York time                            | `2020-06-05T09:30:00-04:00` |
+  | `2020-06-05T13:30:00Z` | Used as given (encode `+` as `%2B`)      | `2020-06-05T09:30:00-04:00` |
+  | `2020-03-08T02:30`     | Never happened (clocks jumped an hour)   | 422; add an offset          |
 
-- **Every response echoes** `knowledge_time` (the exact instant used, in UTC) and `data_version` (`null` until data versions exist, S3.7).
-- **Errors:**
-  - 404 for an unknown ticker or series (raise `NotFoundError`);
-  - 422 for invalid input;
-  - 200 with `value: null` and a `reason` when nothing was known yet (raise `LookAheadError`).
-- **CORS:** only the origins in `CORS_ORIGINS` may call the API from a browser.
+- **Every timestamp in a response** is New York time with its offset (D12), and every response echoes `knowledge_time` and `data_version` (`null` until data versions exist, S3.7).
+- **Data endpoints answer with a `DataResponse`.** `data` is the answer, or `null` (`[]` for a list) when nothing was known yet. In that case `reason` is a sentence the page can show, and it's still a 200.
+- **Errors** share one body, `{"error": {"code", "message", "details"}}` ([`app/api/errors.py`](app/api/errors.py)):
+
+  | Status | `code` | When |
+  | --- | --- | --- |
+  | 422 | `invalid_request` | A missing or invalid parameter; `details` names each one |
+  | 404 | `unknown_ticker`, `unknown_series` | Raise `NotFoundError` |
+  | 403 | `prices_restricted` | `SERVE_RAW_PRICES` is off |
+  | 404, 405 | `not_found`, `method_not_allowed` | No such path or method |
+  | 500 | `internal_error` | A bug; the message is generic |
+
+- **CORS:** only the origins in `CORS_ORIGINS` may call the API from a browser. Errors carry the CORS headers too, so a page can read them.
+
+**Adding an endpoint:**
+
+1. Create a router module in `app/api/` (see `macro.py`), and include it in `app/api/v1.py`, so it's served under `/v1`.
+2. Take `view: View` to read the store: one `PointInTimeView` per request, bound to `as_of`.
+3. Return a named subclass of `DataResponse`, whose `data` is a model built on `Provenance`.
+4. Add its examples to `app/api/examples.py`, each labeled with the request that produces it. `tests/test_api_examples.py` replays every one against the fixtures.
+
+## Endpoints
+
+| Endpoint | Answers with | Reads |
+| --- | --- | --- |
+| `GET /v1/knowledge-time?as_of` | The exact instant an `as_of` means | — |
+| `GET /v1/macro/{series_id}?as_of&period` | A series' latest observation as published then, or one period's latest version | `get_macro_as_of` |
+| `GET /v1/prices/{ticker}?as_of` | The latest daily bar whose session had closed; 403 unless `SERVE_RAW_PRICES` is on | `get_price_as_of` |
+| `GET /v1/filings/{ticker}/latest?as_of&form&include_amendments` | The latest 10-K, 10-Q, or 8-K accepted by EDGAR then | `get_latest_filing_as_of` |
+| `GET /v1/filings/{ticker}?as_of&form&include_amendments&limit` | The filings accepted by then, newest first | `list_filings_as_of` |
+
+`/revisions`, `/fundamentals`, and `/snapshot` follow in Sprint 3 ([`doc/api-v1.md`](../doc/api-v1.md#coming-after-m2)).
 
 ## Point-in-time data layer
 
 | Module | What it does |
 | --- | --- |
-| [`timeutil.py`](app/data/timeutil.py) | The market clock and `parse_knowledge_time` |
+| [`timeutil.py`](app/data/timeutil.py) | The market clock, `parse_knowledge_time`, and `describe_time` ("June 5, 2020, 9:30 AM ET") |
 | [`calendar.py`](app/data/calendar.py) | The NYSE calendar: sessions, open and close times (with early closes), previous and next session, and the first trading day of a month (S3.5) |
 | [`store.py`](app/data/store.py) | The Parquet store: `TableSpec` and `write_rows` (S3.4) |
 | [`tables.py`](app/data/tables.py) | Every table in the store |
@@ -120,7 +159,7 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | [`ingest.py`](app/data/ingest.py) | The ingestion command |
 | [`sources/`](app/data/sources/) | One ingester per source, with its config files |
 
-**Store.** Each table is a folder of Parquet files under `DATA_DIR/store/<table>/`, defined by a `TableSpec` in `tables.py`:
+**Store.** Each table is a folder of Parquet files under `DATA_DIR/store/<table>/`, defined by a `TableSpec` in `tables.py` (see [Data layout](#data-layout)):
 
 - **Provenance.** Every row carries `source`, `source_ref`, `available_at`, `ingested_at` (in UTC), and `time_assumed`.
 - **Append-only.** `write_rows` adds rows and never changes stored ones. A row whose key and `available_at` are already stored is skipped, so re-running ingestion adds nothing twice. A revision is a new row with a later `available_at`.
@@ -150,23 +189,45 @@ A series outside the catalog in `alfred_series.toml`, or a ticker no security in
 
 ## Ingestion
 
+From `backend/`, run each source once, one after another:
+
 ```bash
-uv run python -m app.data.ingest <source> [--refresh]   # source: fred, sec, or tiingo
+uv run python -m app.data.ingest fred     # macro vintages (ALFRED)
+uv run python -m app.data.ingest sec      # company identity, then filing histories (EDGAR)
+uv run python -m app.data.ingest tiingo   # raw daily prices and corporate actions
 ```
 
-Each source's ingester lives in [`app/data/sources/`](app/data/sources/) and is listed in `INGESTERS` in [`app/data/ingest.py`](app/data/ingest.py).
+From another folder, use `uv run --directory <path to backend> python -m app.data.ingest <source>`. Add `--refresh` to download again instead of answering from the raw cache.
 
-| Source | Ingester | What it loads |
-| --- | --- | --- |
-| `fred` | [`sources/alfred.py`](app/data/sources/alfred.py) | Every vintage of the series in [`sources/alfred_series.toml`](app/data/sources/alfred_series.toml), UNRATE first, into `macro_observations` (S4.2). Each request asks for ALFRED's whole real-time range, because FRED's defaults return today's revised values. |
-| `sec` | [`sources/securities.py`](app/data/sources/securities.py), then [`sources/edgar.py`](app/data/sources/edgar.py) | First, identity: the curated ticker history in [`sources/securities.toml`](app/data/sources/securities.toml) into `securities`, and a snapshot of SEC's ticker file into `sec_tickers` (S5.2). It warns when a curated security's current ticker isn't in SEC's file. Then the starter set's filing histories, AAPL first, older pages included, into `filings` (S5.3). Only 10-K, 10-Q, and 8-K filings and their amendments are kept. Each filing is known at its EDGAR acceptance time, corrected for the Eastern-offset shift where the company's file has one (see [`doc/data-sources.md`](../doc/data-sources.md#sec-edgar-filing-history-submissions-api)), and each amendment is linked to the filing it amends. |
-| `tiingo` | [`sources/tiingo.py`](app/data/sources/tiingo.py), through [`sources/prices.py`](app/data/sources/prices.py) | Raw daily bars for the starter set, SPY included, into `price_bars`, and the splits and dividends they report into `corporate_actions` (S6.2). A first run loads each security from 2005. Later runs ask only for sessions after its last stored bar, through the last one Tiingo has settled (20:00 ET), and log any session that comes back without a bar. Adjusted prices are never stored. |
+Each command loads its whole catalog: there's no option for a single series or ticker. Run them one at a time, never in parallel, because the store expects one writer per table. A first run on 2026-10-23 took:
 
-Each vintage counts as known on its date at its release's time, New York time: 08:30 for BLS's and BEA's releases, 16:15 for the Fed's H.15 (S4.3). The times and their sources are in `alfred_series.toml`, and [`doc/time-model.md`](../doc/time-model.md) (rule 7) summarizes them. A release whose time isn't known (`time = "unknown"`) makes its vintages known at the end of their date, flagged `time_assumed`.
+| Source | Requests | Time | What it loads |
+| --- | ---: | ---: | --- |
+| `fred` | 18 | 6 s | Every vintage of the series in [`sources/alfred_series.toml`](app/data/sources/alfred_series.toml), UNRATE first, into `macro_observations` (S4.2). Each request asks for ALFRED's whole real-time range, because FRED's defaults return today's revised values. |
+| `sec` | 84 | 13 s | First, identity: the curated ticker history in [`sources/securities.toml`](app/data/sources/securities.toml) into `securities`, and a snapshot of SEC's ticker file into `sec_tickers` (S5.2). It warns when a curated security's current ticker isn't in SEC's file. Then the starter set's filing histories, AAPL first, older pages included, into `filings` (S5.3). Only 10-K, 10-Q, and 8-K filings and their amendments are kept. Each filing is known at its EDGAR acceptance time, corrected for the Eastern-offset shift where the company's file has one (see [`doc/data-sources.md`](../doc/data-sources.md#sec-edgar-filing-history-submissions-api)), and each amendment is linked to the filing it amends. |
+| `tiingo` | 6 | 3 s | The curated `securities`, then raw daily bars for the starter set, SPY included, into `price_bars`, and the splits and dividends they report into `corporate_actions` (S6.2). A first run loads each security from 2005. Later runs ask only for sessions after its last stored bar, through the last one Tiingo has settled (20:00 ET), and log any session that comes back without a bar. Adjusted prices are never stored. |
+
+Each ingester lives in [`app/data/sources/`](app/data/sources/) and is listed in `INGESTERS` in [`app/data/ingest.py`](app/data/ingest.py).
+
+**Release times.** Each vintage counts as known on its date at its release's time, New York time: 08:30 for BLS's and BEA's releases, 16:15 for the Fed's H.15 (S4.3). The times and their sources are in `alfred_series.toml`, and [`doc/time-model.md`](../doc/time-model.md) (rule 7) summarizes them. A release whose time isn't known (`time = "unknown"`) makes its vintages known at the end of their date, flagged `time_assumed`.
 
 To add a macro series, add it to `alfred_series.toml` with FRED's metadata and its release, then run `ingest fred` again. A new release needs its time and a source for it.
 
-**Raw cache.** Every response is saved as it arrived under `DATA_DIR/raw/<source>/`, with a metadata file: the URL without secrets, the status, and the fetch time. A re-run answers from the cache, and `--refresh` downloads again. API keys are never written to disk or to the command's log. Every source answers in JSON, so a page that isn't JSON (FRED serves an HTML page with status 200 while it's down for maintenance) counts as a failed request and isn't cached.
+**Picking up new data.**
+
+- **`tiingo`** asks for new sessions on every run.
+- **`fred` and `sec`** request the same URLs every time, so a plain re-run answers from the raw cache and adds nothing. Run them with `--refresh` to fetch new vintages and filings.
+- **`sec --refresh`** also stores a new snapshot of SEC's ticker file.
+
+**Exit codes.**
+
+| Code | Meaning |
+| --- | --- |
+| 0 | Success |
+| 1 | A rate limit, a failed download, or data the ingester refused. The message says why, and for a rate limit, when to run again. |
+| 2 | A missing setting, such as `SEC_USER_AGENT`, or an unknown source |
+
+**Raw cache.** Every response is saved as it arrived, with a metadata file: the URL without secrets, the status, and the fetch time. A re-run answers from the cache, and `--refresh` downloads again. API keys are never written to disk or to the command's log. Every source answers in JSON, so a page that isn't JSON (FRED serves an HTML page with status 200 while it's down for maintenance) counts as a failed request and isn't cached.
 
 **Rate limits.** The client stays within each source's limits and retries failures with backoff:
 
@@ -178,9 +239,40 @@ To add a macro series, add it to `alfred_series.toml` with FRED's metadata and i
 
 When a limit would mean waiting more than a minute, the command stops and says when to run it again. The re-run reuses the cache, so it picks up where it stopped.
 
+## Data layout
+
+Everything lives under `DATA_DIR` (`backend/data/` by default), which git ignores. Nothing in it may be committed: Tiingo's terms forbid sharing its data.
+
+```
+data/
+├── raw/<source>/<ab>/<sha256>.body   # each response exactly as received (fred, sec, tiingo)
+│                    <sha256>.json    # its metadata: the URL without keys, status, fetch time
+└── store/<table>/part-<ingested_at>-<id>.parquet   # zstd, sorted by key, then available_at
+```
+
+- **Raw cache.** `<sha256>` hashes the method and the URL, with its query sorted and its keys removed; `<ab>` is the hash's first two characters.
+- **Store.** Every write that adds rows creates a new Parquet file, so files accumulate. For example, `fred` writes one per series on each run that finds new vintages. Every file carries the provenance columns.
+
+| Table | Key | Holds |
+| --- | --- | --- |
+| `macro_observations` | `series_id`, `observation_date` | Every published version of each observation, from ALFRED |
+| `securities` | `security_id` | Each curated security's ticker, name, and CIK over time |
+| `sec_tickers` | `cik`, `ticker` | Snapshots of SEC's ticker file |
+| `price_bars` | `security_id`, `session_date` | Raw daily bars, as traded |
+| `corporate_actions` | `security_id`, `ex_date`, `action` | Splits and cash dividends by ex-date |
+| `filings` | `cik`, `accession_number` | 10-K, 10-Q, and 8-K filings and their amendments, from EDGAR |
+
+After the first runs above, the store held 65,829 rows in 24 files, 1.2 MB in all, and the raw cache 42 MB, mostly EDGAR's submission files. Only the store is needed to serve the API. `uv run python -m spikes.hosting` reports both by table and source.
+
+## Deployment
+
+The API runs on Fly.io at <https://quant-time-machine-api.fly.dev>, as a container built from [`Dockerfile`](Dockerfile) and configured by [`fly.toml`](fly.toml), with the store on a volume (D4). It's on Fly's free trial until the team adds a card. [`doc/hosting.md`](../doc/hosting.md) has the decision, the steps to deploy and to upload the store, and what's still to do for S15.1. The deployment never sets `SERVE_RAW_PRICES`, so its `/v1/prices` answers 403.
+
+`.dockerignore` keeps `data/` and `.env` out of the build, because flyctl sends whatever isn't excluded there, git-ignored or not. Keep it that way.
+
 ## Spikes
 
-[`spikes/`](spikes/) holds the Sprint 1 experiments: the ALFRED, EDGAR, and price-source explorations and the storage benchmark. Each is a self-contained script with its own pinned dependencies, run with `uv run spikes/<name>.py`. See [`spikes/README.md`](spikes/README.md) for what each needs. Their findings are written up in [`doc/data-sources.md`](../doc/data-sources.md) and [`doc/storage.md`](../doc/storage.md).
+[`spikes/`](spikes/) holds the experiments behind the data, storage, and hosting decisions: the ALFRED, EDGAR, and price-source explorations, the storage benchmark, and the hosting measurements. See [`spikes/README.md`](spikes/README.md) for what each needs and how to run it. Their findings are written up in [`doc/data-sources.md`](../doc/data-sources.md), [`doc/storage.md`](../doc/storage.md), and [`doc/hosting.md`](../doc/hosting.md).
 
 ## Design principles (draft)
 
