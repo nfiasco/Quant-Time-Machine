@@ -1,0 +1,39 @@
+# Fly.io configuration for the API (S1.6, D4). The deploy steps are in doc/hosting.md.
+# Run flyctl from backend/, for example `fly deploy`.
+
+app = "quant-time-machine-api"
+primary_region = "iad" # Ashburn, Virginia, next to Vercel's default region (iad1)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  DATA_DIR = "/data"
+  # The web app's origins. SERVE_RAW_PRICES is deliberately not set, so this public
+  # deployment never serves raw Tiingo prices (D2).
+  CORS_ORIGINS = "http://localhost:3000,https://quant-time-machine-uy5f.vercel.app"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Stop the machine when idle, and start it on the next request, a few seconds later.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    grace_period = "15s"
+    interval = "30s"
+    method = "GET"
+    path = "/health"
+    timeout = "5s"
+
+# The point-in-time store (DATA_DIR/store) lives on this volume, uploaded separately.
+[[mounts]]
+  source = "qtm_data"
+  destination = "/data"
+  initial_size = "1gb"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
