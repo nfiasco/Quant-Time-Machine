@@ -247,7 +247,8 @@ Everything lives under `DATA_DIR` (`backend/data/` by default), which git ignore
 data/
 ├── raw/<source>/<ab>/<sha256>.body   # each response exactly as received (fred, sec, tiingo)
 │                    <sha256>.json    # its metadata: the URL without keys, status, fetch time
-└── store/<table>/part-<ingested_at>-<id>.parquet   # zstd, sorted by key, then available_at
+├── store/<table>/part-<ingested_at>-<id>.parquet   # zstd, sorted by key, then available_at
+└── samples/<name>.csv                # output of the sample-data scripts (testing only)
 ```
 
 - **Raw cache.** `<sha256>` hashes the method and the URL, with its query sorted and its keys removed; `<ab>` is the hash's first two characters.
@@ -273,6 +274,19 @@ The API runs on Fly.io at <https://quant-time-machine-api.fly.dev>, as a contain
 ## Spikes
 
 [`spikes/`](spikes/) holds the experiments behind the data, storage, and hosting decisions: the ALFRED, EDGAR, and price-source explorations, the storage benchmark, and the hosting measurements. See [`spikes/README.md`](spikes/README.md) for what each needs and how to run it. Their findings are written up in [`doc/data-sources.md`](../doc/data-sources.md), [`doc/storage.md`](../doc/storage.md), and [`doc/hosting.md`](../doc/hosting.md).
+
+## Sample-data scripts
+
+Four scripts in [`app/data/`](app/data/) pull a small sample (five tickers, 2010–2015) for testing, apart from ingestion. They aren't the supported pipeline. Their CSVs carry a date-only `available_date`, and their `get_*_as_of` helpers are coarse date filters that don't enforce the publication times in [`doc/time-model.md`](../doc/time-model.md); real reads go through `PointInTimeView`. The packages they need aren't backend dependencies, so `uv run --with` adds them for one run. From `backend/`:
+
+| Script | Pulls | Needs | Command |
+| --- | --- | --- | --- |
+| [`fetch_market_prices.py`](app/data/fetch_market_prices.py) | Daily bars from Yahoo via yfinance, adjusted for later splits and dividends | Nothing | `uv run --with yfinance python -m app.data.fetch_market_prices` |
+| [`fetch_economic_data.py`](app/data/fetch_economic_data.py) | ALFRED vintages of UNRATE, CPIAUCSL, and GDP | `FRED_API_KEY` | `uv run --with requests python -m app.data.fetch_economic_data` |
+| [`fetch_sec_filings.py`](app/data/fetch_sec_filings.py) | Revenue and net income from EDGAR's XBRL company facts | `SEC_USER_AGENT` | `uv run --with requests python -m app.data.fetch_sec_filings` |
+| [`upload_to_supabase.py`](app/data/upload_to_supabase.py) | Copies the three CSVs into Supabase tables of the same names | `SUPABASE_URL`, `SUPABASE_KEY` | `uv run --with supabase python -m app.data.upload_to_supabase` |
+
+The CSVs go to `DATA_DIR/samples/`, which git ignores; never commit them. Each script's docstring lists its fields and limitations. The yfinance prices are not as traded: AAPL's close on 2012-09-19 comes out as 21.09, against $702.10 as traded.
 
 ## Design principles (draft)
 

@@ -1,13 +1,26 @@
-import os
+"""Fetch revenue and net income from SEC EDGAR's XBRL company facts, for testing purposes.
+
+Run from backend/: `uv run --with requests python -m app.data.fetch_sec_filings`.
+It reads SEC_USER_AGENT through app.config (set it in backend/.env) and writes
+company_filings.csv to DATA_DIR/samples/, which git ignores.
+
+LIMITATIONS (see issue #64):
+- available_date is the fact's `filed` date, with no time of day. A filing is
+  public from its EDGAR acceptance time, which the supported pipeline uses (S5.4).
+- A value appears once for every filing that reported it (a 10-Q repeats the
+  same quarter a year earlier), so one period_end can have several rows.
+- get_filings_as_of() is a coarse date filter for testing only. It does not
+  enforce publication-time correctness. Do not promote this into the supported
+  pipeline without timezone-aware available_at timestamps and PointInTimeView.
+"""
+
 import time
 
 import pandas as pd
 import requests
-from dotenv import load_dotenv
 
-load_dotenv()
+from app.config import get_settings
 
-HEADERS = {"User-Agent": os.getenv("SEC_USER_AGENT", "Quant-Time-Machine contact@example.com")}
 # Same 5 companies, need their CIK numbers
 COMPANIES = {
     "AAPL": "0000320193",
@@ -21,13 +34,23 @@ COMPANIES = {
 METRICS = {"Revenues": "revenue", "NetIncomeLoss": "net_income"}
 
 
+def sec_headers():
+    # SEC refuses automated requests that don't name who is asking.
+    user_agent = get_settings().sec_user_agent
+    if not user_agent:
+        raise SystemExit(
+            "SEC_USER_AGENT isn't set. SEC refuses requests without a name "
+            "and contact email; see backend/.env.example."
+        )
+    return {"User-Agent": user_agent}
+
 
 def fetch_company_filings(ticker, cik, metrics):
     print(f"  Pulling {ticker}...")
     url = f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
 
     try:
-        r = requests.get(url, headers=HEADERS)
+        r = requests.get(url, headers=sec_headers())
         r.raise_for_status()
         facts = r.json()
     except requests.RequestException as e:
@@ -64,7 +87,7 @@ def fetch_company_filings(ticker, cik, metrics):
                     "metric": metric_name,
                     "period_end": period_end,
                     "filed_date": filed_date,
-                    "available_date": filed_date,  # same thing — when it hit EDGAR
+                    "available_date": filed_date,  # a date, not EDGAR's acceptance time
                     "value": value,
                     "form": form,
                 }
@@ -84,9 +107,11 @@ def fetch_all_filings(companies, metrics):
 
 
 def get_filings_as_of(df, ticker, metric, as_of_date):
-    """
-    Point-in-time filter.
-    Returns only filings that were publicly available on or before as_of_date.
+    """Coarse date filter for testing only.
+
+    Returns filings whose filed date is on or before as_of_date. It compares
+    dates, not EDGAR acceptance times, so it does NOT enforce publication-time
+    correctness.
     """
     return df[
         (df["ticker"] == ticker)
@@ -99,16 +124,15 @@ if __name__ == "__main__":
     print("Fetching SEC EDGAR filings...")
     df = fetch_all_filings(COMPANIES, METRICS)
 
-    output_path = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "samples", "company_filings.csv"
-    )
+    output_path = get_settings().data_dir / "samples" / "company_filings.csv"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(output_path, index=False)
     print(f"\nSaved {len(df)} rows to {output_path}")
     print(df.head(5).to_string())
 
-    # Prove the filter works
-    print("\n--- Point-in-time filter test ---")
-    print("Question: What AAPL revenue was known on April 15, 2020?")
+    # Check the coarse date filter
+    print("\n--- Coarse date filter check ---")
+    print("Question: Which AAPL revenue figures had been filed by 2015-12-31?")
     result = get_filings_as_of(df, "AAPL", "revenue", "2015-12-31")
     print(
         result[["ticker", "metric", "period_end", "filed_date", "value"]]
