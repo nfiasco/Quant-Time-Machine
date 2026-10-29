@@ -1,12 +1,12 @@
 # Backend and data hosting (decision D4)
 
-> **Spike S1.6.** Decided 2026-10-23, pending team review. The measurements come from [`backend/spikes/hosting.py`](../backend/spikes/hosting.py), run on the real M2 store (ingested 2026-10-23) on a laptop and on the deployed machine. Prices and limits were checked on 2026-10-23. They change, so check them again before S15.1.
+> **Spike S1.6.** Decided 2026-10-23, pending team review. The measurements come from [`backend/spikes/hosting.py`](../backend/spikes/hosting.py), run on the real M2 store (ingested 2026-10-23) on a laptop and on the deployed machine. Prices and limits were checked on 2026-10-23. They change, so check them again before S15.1. Updated 2026-10-29: a card is on file, so the free trial's limits no longer apply.
 
 ## Decision
 
 **The API runs on Fly.io.** It's a container built from [`backend/Dockerfile`](../backend/Dockerfile), on one shared-CPU machine in Ashburn, Virginia (`iad`), with the point-in-time store on a 1 GB volume at `/data`. The configuration is [`backend/fly.toml`](../backend/fly.toml).
 
-- **Deployed** at <https://quant-time-machine-api.fly.dev> (try `/docs`), on Fly's free trial until the team adds a card ([Cost and the trial](#cost-and-the-trial)).
+- **Deployed** at <https://quant-time-machine-api.fly.dev> (try `/docs`), with a card on file as of 2026-10-29 ([Cost and the trial](#cost-and-the-trial)).
 - **Why Fly:**
   - **A disk for the store,** which changes only when we ingest. Vercel has no disk, and Render's free tier has none.
   - **A long-lived process,** which backtests need (S8.4). Vercel caps a request at 300 seconds on Hobby, and background work there needs extra services.
@@ -14,7 +14,7 @@
   - **The cheapest always-available option with a disk:** at most about $4 a month, and less with auto-stop.
   - **A container,** so production runs our exact Python 3.14 and `uv.lock`. `fly deploy` builds on Fly's servers, so nobody needs Docker installed.
 - **What we accept:**
-  - Fly needs a card; the trial ends after 7 days or 2 hours of machine time.
+  - Fly needs a card. One is on file as of 2026-10-29.
   - Deploys run from the command line until S15.1 adds a GitHub Action.
   - A volume belongs to one machine and isn't replicated. The store can be rebuilt by ingesting again, and Fly snapshots the volume daily.
   - Shared CPUs are throttled under sustained load, which shapes how backtests run (below).
@@ -62,7 +62,7 @@ The spike opens one `PointInTimeView` per month's first trading day from 2010 to
 - **Mac:** measured with 100 tickers, using about 3.2 cores, since DuckDB runs in parallel.
 - **Fly, bursting:** measured with 10 tickers, just after the deploy.
 - **Fly, throttled:** measured with 2 tickers, on a machine that had just woken up.
-- **The full 100-ticker run couldn't finish on Fly,** because the trial stops a machine after 5 minutes, so its times are extrapolated per read.
+- **The full 100-ticker run couldn't finish on Fly,** because the trial stopped a machine after 5 minutes, so its times are extrapolated per read. With a card on file it can run in full; do that once the universe (S6.5) is loaded, so S8.4 has measured numbers.
 
 **Why the throttled column exists.** A `shared-cpu-1x` machine is guaranteed 6.25% of a CPU (5 ms of every 80 ms). It runs at full speed only while it has a burst balance. The balance grows from unused time while the machine idles, up to 500 seconds, but a machine that just started, as auto-stop machines do on every wake, begins with 5 seconds of it ([Fly CPU performance](https://docs.fly.io/machines/cpu-performance)). Throttled, the same reads ran about 10 times slower.
 
@@ -101,15 +101,13 @@ Lookups are fine as ordinary requests, even after a cold start. A canonical-size
 
 ## Cost and the trial
 
-- **The trial** started 2026-10-24 (UTC). It ends after 7 days or 2 hours of machine time, whichever comes first, and it stops each machine after 5 minutes of running.
-  - The API keeps answering, because the next request restarts the machine.
-  - Anything longer than 5 minutes, such as the full workload, can't finish.
-- **With a card** the deployment costs at most about $3.84 a month:
+- **The trial** started 2026-10-24 (UTC). It would have ended after 7 days or 2 hours of machine time, and it stopped each machine after 5 minutes of running. A card is on file as of 2026-10-29, so those limits no longer apply.
+- **With the card** the deployment costs at most about $3.84 a month:
   - $3.69 for the machine, if it never stopped;
   - $0.15 for the volume;
   - $0.15 per GB-month for a stopped machine's root filesystem.
 
-  The team decides whether to add one. Add it at <https://fly.io/trial> before the trial ends, or the URL stops working.
+  Anything beyond that, such as a dedicated machine for backtests (S8.4) or a bigger volume, is billed to the same card, so agree on it as a team first.
 
 ## The deployment
 
@@ -153,7 +151,8 @@ fly ssh console -C "sh -c 'cd /data && rm -rf store.new && mkdir store.new && ta
 
 ## Next steps for S15.1
 
-- [ ] Add a card, or move hosts, before the trial ends (a team decision).
+- [x] Add a card, or move hosts, before the trial ends: a card was added by 2026-10-29.
+- [ ] Before S8.4 (Sprint 4) builds background backtests on Fly, confirm D4 with the team. Moving to another host, such as Render or AWS Lambda, needs its measurements here and a new decision-log entry first.
 - [ ] Deploy from GitHub Actions on merges to `main`, with a deploy token (`fly tokens create deploy`) as a repository secret and `flyctl deploy --remote-only`.
 - [ ] Set `NEXT_PUBLIC_API_URL` on Vercel to the Fly URL, and add any preview origins the frontend needs to `CORS_ORIGINS`.
 - [ ] Write a smoke test for after each deploy: `/health`, a macro value, a filing, and prices answering 403.

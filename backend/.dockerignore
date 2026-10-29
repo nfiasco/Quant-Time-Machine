@@ -12,7 +12,6 @@ data/
 .pytest_cache/
 .ruff_cache/
 tests/
-backtesting/
 app/data/samples/
 spikes/*
 !spikes/hosting.py
