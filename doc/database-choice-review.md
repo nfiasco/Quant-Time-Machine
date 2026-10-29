@@ -46,3 +46,12 @@ Two storage pitfalls matter:
 3. Measure the intended deployment against the **300 ms lookup** and **60-second backtest** targets, including concurrency, memory, and operating cost.
 
 Switch when another design demonstrably improves correctness, meets an unmet requirement, or reduces total effort. The current evidence favors keeping DuckDB while completing dataset versioning.
+
+**Outcome for Sprint 3 (2026-10-29, pending team review).** D1 stays: Parquet files queried with DuckDB. Data versions (S3.7) use the small immutable manifest the roadmap already specifies, not DuckLake. The manifest design takes on the requirements above:
+
+- **One manifest per completed ingestion run.** It lists the sources, row counts, each Parquet file with its content hash, and the latest `ingested_at`. The `data_version` names that manifest.
+- **Written last.** A run that fails part way writes no manifest, so no data version points to a partial batch.
+- **A pinned view reads only its manifest's files**, filtered to `ingested_at` at or before the manifest's. If a listed file is missing or its hash differs, the view raises an error instead of answering from different data.
+- **Files a manifest lists are never deleted or rewritten.** A correction or rebuild writes new files and a new manifest, so old runs replay unchanged. Compacting files would follow the same rule.
+
+DuckLake and ClickHouse remain later comparisons (steps 1 and 2 above). Revisit them if the manifest can't meet these rules, if ingestion needs more than one writer, or if a backtest misses the 60-second target because of storage.

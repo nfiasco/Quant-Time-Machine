@@ -21,7 +21,7 @@ The spike scripts that produced the evidence are in [`backend/spikes/`](../backe
 | Daily prices, splits, dividends | [Tiingo end-of-day API](#daily-prices-decision-d2) (D2) | The session's close (rule 4 of the [time model](time-model.md)) | Free tier: 50 requests per hour, 1,000 per day, 500 symbols per month | **Not without permission or a license**: free and paid individual plans are internal use only | Chosen. Verified 2026-10-12: raw prices ✓, splits and dividends ✓, delisted companies only partly |
 | Survivorship-free reference prices | [WRDS (CRSP) through UD](#wrds-crsp-at-the-university-of-delaware) | Session close; delisting dates and returns | Through UD's subscription | No: internal academic use only | Not requested yet |
 | Trading calendar | [`exchange_calendars`](#trading-calendar) | Not applicable | Open source (Apache-2.0) | Yes | Chosen (S3.5) |
-| Universe membership | [To be curated](#universe-membership) (D3) | The effective date of each change | Varies | Depends on the source | Gap. An interim [M2 ticker set](#m2-ticker-set) is chosen; the full universe is decided in Sprint 3 |
+| Universe membership | [A curated list, `starter_large_caps`](#universe-v1-starter_large_caps-decision-d3) (D3), dated by S&P's public announcements | The effective date of each change | Free | Yes: we cite public announcements and store only our members' dates | Chosen 2026-10-29 (D3); the list is being built (S6.5). Until then, ingestion loads the [M2 ticker set](#m2-ticker-set) |
 
 ## FRED and ALFRED (economic data and its revisions)
 
@@ -287,11 +287,41 @@ Record the answers here.
 
 Official index membership (for example, the S&P 500's history) is proprietary. S&P Dow Jones Indices licenses it, and public reconstructions are incomplete. Compustat, through UD's WRDS, has historical index constituents, but the same internal-use limits as CRSP apply.
 
-The plan stays as in the roadmap: v1 is a small, documented, curated universe that deliberately includes companies that later left or were delisted (D3, decided in Sprint 3; S6.5). Universe v2 is rules-based, the top N by market cap computed from our own data (S6.6).
+The plan stays as in the roadmap: v1 is a small, documented, curated universe that deliberately includes companies that later left or were delisted (D3, S6.5). Universe v2 is rules-based, the top N by market cap computed from our own data (S6.6).
+
+### Universe v1: `starter_large_caps` (decision D3)
+
+> **Decided 2026-10-29, pending team review.** It follows the roadmap's leaning for D3: a small curated list with documented history. The name is the one the canonical spec uses (roadmap §3.4).
+
+**What it is.** A curated list of 50 to 100 large US companies. v1 aims for 50, the low end of the roadmap's range, and can grow toward 100 once the pipeline handles 50.
+
+**When a company is a member.** From the effective date it joined the S&P 500 until the effective date it left (rule 8 of the [time model](time-model.md#8-universe-membership-applies-from-its-effective-date)). Each date comes from S&P Dow Jones Indices' public announcement of the change, and each one is cited.
+
+- **Stored as** (security, added, removed, source), one row per membership spell. A company that left and later rejoined gets two rows.
+- **History starts on 2010-01-01**, the start of the canonical period. A company already in the index then gets `added = 2010-01-01`, citing a source that shows it was a member by that date. Before 2010 the universe is empty, so the engine warns about earlier periods.
+- **SPY is the benchmark, not a member.** The [M2 ticker set](#m2-ticker-set) stays as the test set.
+
+**What v1 must include.** It deliberately includes companies that left, so a backtest doesn't see only today's survivors:
+
+- **At least 10 that left between 2010 and 2025:** removed from the index, acquired, taken private, or bankrupt. Twitter, from the M2 set, is one.
+- **At least 10 that joined after 2010-01-01**, including Tesla, so rule 8's golden test (`test_universe_change_applies_from_effective_date`) works as written. Meta (Facebook) is another.
+- **The rest were members throughout.** Spread them across sectors, with at least two banks, because banks tag revenue differently (S5.6).
+
+**Every member must:**
+
+1. File 10-K and 10-Q reports with the SEC, so XBRL fundamentals exist (S5.5). Foreign companies that file 20-F reports don't qualify.
+2. Have Tiingo prices covering its whole membership spell, checked before it's added (R1). Coverage thins out before 2015.
+3. Have its ticker and CIK history, with sources, in [`securities.toml`](../backend/app/data/sources/securities.toml) (S5.2).
+
+A company we'd want but can't cover, such as Lehman Brothers, which Tiingo has no prices for, goes in a coverage-gaps table in this section with the reason. It isn't dropped silently, and the methodology page (S9.7) states the gap.
+
+**Why the S&P 500's dates.** Membership was public at the time, because S&P announces each change before it takes effect. The dates can be cited, and rule 8's example works unchanged. We record the announced dates for our members only. This is a curated subset, not a copy of S&P's licensed constituent data or a reconstruction of the index.
+
+**Its limits, for the methodology page.** Choosing which companies to curate still uses hindsight. Including companies that left on purpose reduces survivorship bias but doesn't remove it. Universe v2 (S6.6) replaces hand-picking with a rule computed from our own data.
 
 ### M2 ticker set
 
-Until D3 picks the full universe, Sprint 2 ingestion and the walking skeleton (M2) load these five companies plus the benchmark. Each one is there to exercise a specific rule. It's a test set, not a universe for backtests. Checked against SEC EDGAR and Tiingo's metadata on 2026-10-19:
+Until the `starter_large_caps` list is built (S6.5), ingestion and the walking skeleton (M2) load these five companies plus the benchmark. Each one is there to exercise a specific rule. It's a test set, not a universe for backtests. Checked against SEC EDGAR and Tiingo's metadata on 2026-10-19:
 
 | Ticker | Company | CIK | Tiingo prices | Why it's in the set |
 | --- | --- | --- | --- | --- |

@@ -167,6 +167,8 @@ On November 16, 2020, S&P announced that Tesla would join the S&P 500 before the
 
 The announcement was public on November 16, but membership itself starts on the effective date.
 
+Universe v1, `starter_large_caps` (D3), dates its members exactly this way: each company joins and leaves on the effective dates in S&P's announcements ([data-sources.md](data-sources.md#universe-v1-starter_large_caps-decision-d3)). Tesla is one of its members, so this example is its golden test.
+
 ### 9. Decisions: the first trading day of each month, at 09:30 ET
 
 | Month | Decision time | Note |

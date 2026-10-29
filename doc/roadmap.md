@@ -226,7 +226,7 @@ Folder names are suggestions. Keep the existing rule that API handlers stay thin
 | Reported financials | SEC XBRL company facts API (`data.sec.gov/api/xbrl/companyfacts/`) | `filed` date and accession number, joined to the filing's acceptance time | Same as above | XBRL starts in 2009–2011 depending on filer size; tags vary by company and year; the frames API returns last-filed values, so it isn't point-in-time |
 | Bulk backfill (optional) | SEC nightly bulk archives or Financial Statement Data Sets | Acceptance time of each submission | Free downloads | Large files; only needed beyond the starter universe |
 | Daily prices, splits, dividends | Tiingo end-of-day API (D2; see [`doc/data-sources.md`](data-sources.md#daily-prices-decision-d2)). WRDS (CRSP) through UD's Lerner College, for internal validation only | Bar date and session close | Free key: 50 requests per hour, 1,000 per day, 500 symbols per month | Free and Power plans are internal use only, so displaying prices needs permission or a license; delisted coverage is partial (recent delistings yes, few before 2010) |
-| Universe membership | Chosen in S6.5 | Effective date of each change | Varies | Official index membership is proprietary; public reconstructions are incomplete |
+| Universe membership | A curated list, `starter_large_caps` (D3; see [`doc/data-sources.md`](data-sources.md#universe-v1-starter_large_caps-decision-d3)), dated by S&P's public announcements | Effective date of each change | Free | Official index membership is proprietary, so we cite announcements for our members only; choosing the members still uses hindsight |
 | Trading calendar | `exchange_calendars` (or `pandas_market_calendars`) | Not applicable | Open-source library | Early closes and unscheduled closures |
 
 ### 3.4 The experiment spec: where the AI stops and code starts
@@ -668,7 +668,7 @@ Every story in one table, like the Project's table view. Select an ID to jump to
 | [S6.2](#s62-ingest-raw-prices-and-corporate-actions) | Ingest raw prices and corporate actions | E6 | P0 | M | 2 | M2 | ✅ Done |
 | [S6.3](#s63-get_price_as_of) | `get_price_as_of` | E6 | P0 | S | 2 | M2 | ✅ Done |
 | [S6.4](#s64-total-returns-without-look-ahead) | Total returns without look-ahead | E6 | P0 | M | 3 | M3 | Backlog |
-| [S6.5](#s65-point-in-time-universe-v1) | Point-in-time universe v1 | E6 | P0 | M | 2–3 | M3 | Backlog |
+| [S6.5](#s65-point-in-time-universe-v1) | Point-in-time universe v1 | E6 | P0 | M | 2–3 | M3 | In progress |
 | [S6.6](#s66-universe-v2-top-n-by-market-cap-as-of-each-date) | Universe v2: top N by market cap as of each date | E6 | P1 | L | 7 | M6 | Backlog |
 | [S6.7](#s67-delistings-and-coverage-report) | Delistings and coverage report | E6 | P1 | M | 4 | M4 | Backlog |
 | [S7.1](#s71-experiment-spec-v1) | Experiment spec v1 | E7 | P0 | M | 3 | M3 | Backlog |
@@ -879,7 +879,7 @@ Each story starts with a metadata line: priority, size, sprint, milestone, area,
 **Tasks**
 
 - [x] Estimate the data size for the starter universe: 65,829 rows in 1.2 MB of Parquet for the M2 set, and well under 1 GB for 100 securities with XBRL facts
-- [x] Deploy the `/health` app to the top candidate: the whole API runs on Fly.io at <https://quant-time-machine-api.fly.dev>, on the free trial until the team adds a card
+- [x] Deploy the `/health` app to the top candidate: the whole API runs on Fly.io at <https://quant-time-machine-api.fly.dev>, with a card on file as of 2026-10-29
 - [x] Check how long-running backtests would work there: minutes at full speed and over an hour on a throttled shared CPU, so they run in the background (S8.4) with batched reads
 - [x] Record the decision and next steps for S15.1, in [`doc/hosting.md`](hosting.md)
 
@@ -1480,13 +1480,13 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 **Acceptance criteria**
 
 - Universe membership is stored as (security, added, removed, source).
-- v1 is small and documented (D3, decided in Sprint 3; until then, Sprint 2 ingestion uses the [M2 ticker set](data-sources.md#m2-ticker-set)): for example, a curated set of 50–100 large companies with membership history, deliberately including companies that later left or were delisted.
+- v1 is small and documented (D3, decided 2026-10-29: [`starter_large_caps`](data-sources.md#universe-v1-starter_large_caps-decision-d3); until it's built, ingestion uses the [M2 ticker set](data-sources.md#m2-ticker-set)): a curated set of 50–100 large companies with membership history, deliberately including companies that later left or were delisted.
 - `universe_as_of(name, knowledge_time)` returns the members at that time.
 - Tests: a company removed in year X is a member before X and not after.
 
 **Tasks**
 
-- [ ] Choose and document v1 (D3)
+- [x] Choose and document v1 (D3): `starter_large_caps`, 50 to 100 large US companies, each a member while it was in the S&P 500, dated and cited from S&P's announcements; see [`doc/data-sources.md`](data-sources.md#universe-v1-starter_large_caps-decision-d3)
 - [ ] Build the membership history with sources
 - [ ] Write the query and tests
 
@@ -2785,8 +2785,8 @@ Open decisions, each owned by a story. When one is made, record the outcome and 
 | --- | --- | --- | --- | --- | --- | --- |
 | D1 | Point-in-time storage | DuckDB + Parquet, PostgreSQL, SQLite | **Parquet files queried with DuckDB, in-process.** On 1M rows it was about 10× faster than PostgreSQL for snapshots and about 18× for backtest-style as-of joins, with no server to run. Accounts and user data are a separate store in Supabase (PostgreSQL and Auth; D9, D10). See [`doc/storage.md`](storage.md). | Sprint 1 | S3.2 | Decided 2026-10-11 (pending team review) |
 | D2 | Daily price source | Tiingo, Stooq, yfinance, Alpha Vantage, WRDS/CRSP | **Tiingo end-of-day API**: raw closes plus split and dividend fields on every bar (confirmed: AAPL's raw $702.10 close on 2012-09-19). Delisted coverage is partial. Yahoo returns split-adjusted closes and no delisted tickers; Stooq blocks scripts; Alpha Vantage's free tier has no history. CRSP through UD is for internal validation only. Display rights need settling before M5. See [`doc/data-sources.md`](data-sources.md#daily-prices-decision-d2). | Sprint 1 | S6.1 | Decided 2026-10-11; the test pull on 2026-10-12 confirmed it (pending team review) |
-| D3 | Universe v1 | Curated list with history, Dow 30 history, reconstructed S&P 500, top N by market cap | A small curated list with documented history, including companies that left. *Interim for M2 (2026-10-19):* AAPL, MSFT, JPM, META, and TWTR, plus SPY as the benchmark; see [`doc/data-sources.md`](data-sources.md#m2-ticker-set). | Sprint 3 (moved from early Sprint 2; the M2 set unblocks ingestion) | S6.5 | Open |
-| D4 | Backend and data hosting | Vercel, Render, Railway, Fly.io, object storage for data | **Fly.io:** a container with the store on a 1 GB volume, at most about $4 a month. It has a disk and a long-lived process for backtests, and no seat fees for five people. The store is 1.2 MB for the M2 set. Shared CPUs throttle sustained work, so backtests run in the background with batched reads. Running on the free trial until the team adds a card. See [`doc/hosting.md`](hosting.md). | Sprint 2 | S1.6 | Decided 2026-10-23 (pending team review) |
+| D3 | Universe v1 | Curated list with history, Dow 30 history, reconstructed S&P 500, top N by market cap | **A curated list, `starter_large_caps`:** 50 to 100 large US companies (v1 aims for 50). Each is a member from the effective date it joined the S&P 500 until the date it left, cited from S&P's public announcements, from 2010-01-01 on. It deliberately includes at least 10 companies that left and 10 that joined, Tesla among them for rule 8's test. Every member files 10-Ks and 10-Qs and has Tiingo prices for its whole membership; gaps are listed, not dropped. Until the list is built, ingestion loads the M2 ticker set. See [`doc/data-sources.md`](data-sources.md#universe-v1-starter_large_caps-decision-d3). | Sprint 3 (moved from early Sprint 2; the M2 set unblocks ingestion) | S6.5 | Decided 2026-10-29 (pending team review) |
+| D4 | Backend and data hosting | Vercel, Render, Railway, Fly.io, object storage for data | **Fly.io:** a container with the store on a 1 GB volume, at most about $4 a month. It has a disk and a long-lived process for backtests, and no seat fees for five people. The store is 1.2 MB for the M2 set. Shared CPUs throttle sustained work, so backtests run in the background with batched reads. A card is on file as of 2026-10-29, so the trial's limits no longer apply. Switching hosts means a new entry here, with measurements, before S8.4 (Sprint 4) builds background backtests on this one. See [`doc/hosting.md`](hosting.md). | Sprint 2 | S1.6 | Decided 2026-10-23 (pending team review) |
 | D5 | Default decision and fill timing | 09:30 ET decision with same-day close fill, or next-day open fill | **09:30 ET decision, same-day close fill**, configurable per spec; next-day open is a robustness check (S14.3). See [`doc/time-model.md`](time-model.md#10-fills-strictly-after-the-decision-by-default-the-decision-days-close-d5). | Sprint 1 | S3.1 | Decided 2026-10-11 (pending team review) |
 | D6 | Model, API, and where the agent loop runs | Claude through the Anthropic API (default candidate) or alternatives; backend or frontend | Claude through the Anthropic API, with the loop in the Python backend | Sprint 7 | S11.1 | Open |
 | D7 | How the assistant reaches the tools | Same-process calls, MCP over Streamable HTTP, or both | The same functions behind both; decide in the spike | Sprint 7 | S10.1 | Open |
