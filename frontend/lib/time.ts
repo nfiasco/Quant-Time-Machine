@@ -79,3 +79,8 @@ export function formatEtTime(t: EtDateTime): string {
 export function formatEtDateTime(t: EtDateTime): string {
   return `${formatEtDate(t)}, ${formatEtTime(t)}`;
 }
+
+/** Compact ET calendar label for chart ticks, for example "Jun 20". */
+export function formatEtMonthYear(t: Pick<EtDateTime, "year" | "month">): string {
+  return MONTHS[t.month - 1].slice(0, 3) + " " + String(t.year).slice(-2);
+}

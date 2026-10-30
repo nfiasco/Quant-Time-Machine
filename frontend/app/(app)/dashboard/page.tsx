@@ -4,7 +4,7 @@ import { CalendarClockIcon, PlusIcon } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import { routes } from "@/config/navigation";
+import { routeMetadata, routes } from "@/config/navigation";
 import { siteConfig } from "@/config/site";
 import {
   ApiOfflineHint,
@@ -15,6 +15,8 @@ import { FeaturedExperimentCard } from "@/features/dashboard/featured-experiment
 import { HowItWorks } from "@/features/dashboard/how-it-works";
 import { QuickStartCard } from "@/features/dashboard/quick-start-card";
 import { RecentRunsCard } from "@/features/dashboard/recent-runs-card";
+
+export const metadata = routeMetadata(routes.dashboard);
 
 export default function DashboardPage() {
   return (
