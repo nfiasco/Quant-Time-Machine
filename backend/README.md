@@ -267,7 +267,7 @@ After the first runs above, the store held 65,829 rows in 24 files, 1.2 MB in al
 
 ## Deployment
 
-The API runs on Fly.io at <https://quant-time-machine-api.fly.dev>, as a container built from [`Dockerfile`](Dockerfile) and configured by [`fly.toml`](fly.toml), with the store on a volume (D4). A card is on file as of 2026-10-29, so the free trial's limits no longer apply. [`doc/hosting.md`](../doc/hosting.md) has the decision, the steps to deploy and to upload the store, and what's still to do for S15.1. The deployment never sets `SERVE_RAW_PRICES`, so its `/v1/prices` answers 403.
+The API was deployed to Fly.io at <https://quant-time-machine-api.fly.dev>, as a container built from [`Dockerfile`](Dockerfile) and configured by [`fly.toml`](fly.toml), with the store on a volume (D4). It ran on Fly's free trial, which lapsed on 2026-10-31, so that URL no longer answers. The team deferred adding a card until a host is needed, before S8.4, so develop against a local backend until then. AWS Lambda is the lead candidate for that host, and a spike before S8.4 decides between it and Fly. [`doc/hosting.md`](../doc/hosting.md) has the decision, the steps to deploy and to upload the store, and what's still to do for S15.1. The deployment never sets `SERVE_RAW_PRICES`, so its `/v1/prices` answers 403.
 
 `.dockerignore` keeps `data/` and `.env` out of the build, because flyctl sends whatever isn't excluded there, git-ignored or not. Keep it that way.
 
