@@ -118,6 +118,8 @@ So the fiscal Q2 10-Q is usable from 18:03 ET on April 30 (a 09:30 decision firs
 >
 > **Not every company's file runs ahead (found in S5.3).** EDGAR's index pages confirm the shift for Apple, Microsoft, JPMorgan, and Meta from 2006 to 2026, but Twitter's file holds true UTC times. Subtracting the offset there would make its filings visible 4 to 5 hours early. So ingestion checks each company's file: a filing's date follows from its acceptance time, and EDGAR is open only from 06:00 to 22:00 ET, so filings whose date only one reading explains vote, and the majority decides (Apple 281 to 0 for the shift, Twitter 51 to 1 against).
 
+> **SEC now serves true UTC (2026-10-31).** EDGAR's JSON gives Apple's fiscal Q2 10-Q as `2020-04-30T22:03:10.000Z`. Files cached before the change still run ahead, so the vote stays. A file without a majority for the shift is read as shown, because that reading can only make filings visible later than they were, never earlier (rule 11). See [data-sources.md](data-sources.md#sec-edgar-filing-history-submissions-api).
+
 ### 6. An XBRL fact is known when the filing that reported it was accepted
 
 Companies repeat numbers: a quarter's revenue appears in its own 10-Q, often in the next 10-K, and again a year later as a comparative. Each appearance is a separate row whose `available_at` is that filing's acceptance time. For each period, an as-of query takes the most recently filed value at or before *T*.
@@ -223,7 +225,7 @@ This is the acceptance test for the snapshot endpoint (S8.3) and the Time Machin
 
 The pitfalls table in [roadmap §2.4](roadmap.md#24-where-look-ahead-bias-creeps-in) lists the traps these rules close. Two more turned up in Sprint 1:
 
-- **Timestamps that lie about their zone.** EDGAR's JSON acceptance times (rule 5).
+- **Timestamps that lie about their zone.** EDGAR's JSON acceptance times (rule 5), until SEC switched them to true UTC in late October 2026.
 - **API defaults that mean "today".** FRED's `realtime_start` and `realtime_end` default to today, so a query without them returns revised data. Our research notebook fell into exactly this: it passed a `vintage_date` parameter, which FRED ignores, and silently got today's values.
 
 ## Known limitations and open questions

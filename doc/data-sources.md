@@ -150,7 +150,14 @@ The `recent` block holds at least a year of filings, or the latest 1,000 if that
 | Apple, Microsoft, JPMorgan, Meta | 30, from 2006 to 2026, morning and evening | +4 h (EDT) or +5 h (EST), every one |
 | Twitter | 6, from 2014 to 2022 | 0: true UTC |
 
-Twitter's file has no shift, perhaps because Twitter stopped filing in 2022. Subtracting the offset anyway puts its early-morning 8-Ks at 02:00 to 04:00 ET, when EDGAR is closed, and an evening one on the wrong filing date. So [`sources/edgar.py`](../backend/app/data/sources/edgar.py) checks each company's file. Each filing whose filing date only one reading explains, given EDGAR's hours and the 5:30 PM rule, is a vote. The majority decides, and a file with no votes is treated as shifted. Every file in the starter set is lopsided: Apple 281 to 0, Microsoft 323 to 0, JPMorgan 1,059 to 0, and Meta 191 to 0 for the shift, Twitter 51 to 1 against.
+Twitter's file has no shift, perhaps because Twitter stopped filing in 2022. Subtracting the offset anyway puts its early-morning 8-Ks at 02:00 to 04:00 ET, when EDGAR is closed, and an evening one on the wrong filing date. So [`sources/edgar.py`](../backend/app/data/sources/edgar.py) checks each company's file. Each filing whose filing date only one reading explains, given EDGAR's hours and the 5:30 PM rule, is a vote. The majority decides; without a majority for the shift, a file is read as shown (see the update below). Every file in the starter set was lopsided: Apple 281 to 0, Microsoft 323 to 0, JPMorgan 1,059 to 0, and Meta 191 to 0 for the shift, Twitter 51 to 1 against.
+
+**Update (2026-10-31): SEC now serves true UTC.**
+
+- **The change.** Apple's 10-Q 0000320193-20-000052 reads `2020-04-30T22:03:10.000Z` in a download on 2026-10-31, against `2020-05-01T02:03:10.000Z` on 2026-10-23, and Apple's file now votes 70 to 1 against the shift.
+- **Old and new files.** Every file downloaded for universe v1 voted the same way, while files cached before the change still vote for the shift.
+- **The vote copes.** The 24,903 filings loaded both from the old form and from the new got identical acceptance times.
+- **The fallback changed.** A file without a majority for the shift, with no votes or a tie, used to be taken to run ahead. It's now read as shown, because that can only make its filings seem later than they were, never earlier (time-model rule 11).
 
 Two more traps:
 
@@ -436,7 +443,7 @@ Loading all six takes six Tiingo requests, against the free plan's 50 per hour a
 | **Ticker history.** SEC's ticker file lists only current tickers. | Old or reused tickers resolve to the wrong company | A curated, cited history for the starter universe and reused tickers, in [`securities.toml`](../backend/app/data/sources/securities.toml) (S5.2). A ticker only in SEC's file resolves only from when the file was downloaded. |
 | **Release times.** ALFRED has dates, not times. | A release could be visible too early, or too late | A release-time table plus the end-of-day default, flagged (S4.3). |
 | **ALFRED vintages start late** for some series. | Early values have no first-release record | Treat values before the first vintage as unknown (S4.3). The spike prints each starter series' first vintage. |
-| **EDGAR's acceptance time is shifted** by the Eastern UTC offset in most companies' files, but not all (Twitter's isn't). | Filings would appear 4 to 5 hours late, or early if the shift is removed where there's none | Detect the shift for each company's file and correct it in ingestion, with golden tests (S5.3, S3.6). Placeholder and impossible times fall back to the end of the filing date, flagged. |
+| **EDGAR's acceptance time was shifted** by the Eastern UTC offset in most companies' files, but not all (Twitter's wasn't), until SEC switched to true UTC in late October 2026. Files cached earlier keep the shift. | Filings would appear 4 to 5 hours late, or early if the shift is removed where there's none | Detect the shift for each company's file and correct it in ingestion, with golden tests (S5.3, S3.6). A file without a majority for the shift is read as shown, the reading that can't make a filing visible early. Placeholder and impossible times fall back to the end of the filing date, flagged. |
 | **Corporate actions beyond splits and cash dividends** (spin-offs, mergers, special dividends). | Wrong total returns around those events | Check what Tiingo's `divCash` and `splitFactor` cover in S6.2. Reconcile returns against Tiingo's `adjClose` in S6.4, rounding split ratios such as 7.000007. |
 
 ## What the public app may show

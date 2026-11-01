@@ -166,8 +166,10 @@ def test_a_company_whose_times_are_true_utc_is_left_alone() -> None:
     ]
 
 
-def test_without_evidence_times_are_taken_to_run_ahead() -> None:
-    # A date-only placeholder can't tell the two readings apart.
+def test_without_a_majority_times_are_read_as_shown() -> None:
+    # Read as shown, a file that really runs ahead only makes its filings seem later
+    # than they were, never earlier (rule 11). A date-only placeholder can't tell the
+    # two readings apart.
     placeholder = (
         "0000912057-01-544436",
         "10-K405",
@@ -176,8 +178,25 @@ def test_without_evidence_times_are_taken_to_run_ahead() -> None:
         "2001-12-21T10:00:00.000Z",
     )
 
-    assert runs_ahead([]) == (True, (0, 0))
-    assert runs_ahead(as_filings(placeholder)) == (True, (0, 0))
+    assert runs_ahead([]) == (False, (0, 0))
+    assert runs_ahead(as_filings(placeholder)) == (False, (0, 0))
+    assert runs_ahead(as_filings(APPLE[0], TWITTER[0])) == (False, (1, 1))
+
+
+def test_either_form_of_a_file_gives_the_same_times() -> None:
+    # By 2026-10-31, SEC serves the acceptance times it used to shift in true UTC.
+    fixed = [
+        (*f[:4], f"{corrected_acceptance(f[4]):%Y-%m-%dT%H:%M:%S}.000Z") for f in APPLE
+    ]
+
+    def times(filings: list[dict[str, str]]) -> list[datetime]:
+        shifted, _ = runs_ahead(filings)
+        return [
+            r["available_at"] for r in filing_rows(320193, filings, shifted=shifted)
+        ]
+
+    assert runs_ahead(as_filings(*fixed)) == (False, (0, 3))
+    assert times(as_filings(*fixed)) == times(as_filings(*APPLE))
 
 
 @pytest.mark.parametrize(
@@ -326,7 +345,9 @@ def test_the_vote_is_logged(tmp_path: Path, caplog: pytest.LogCaptureFixture) ->
 
 @pytest.mark.network
 def test_live_submissions_are_read_the_way_their_file_needs(tmp_path: Path) -> None:
-    # About four requests to SEC: Apple's history runs ahead, and Twitter's doesn't.
+    # About four requests to SEC. Until late October 2026, Apple's file ran ahead by the
+    # Eastern offset and Twitter's didn't; since then SEC serves both in true UTC.
+    # Whichever form SEC serves, the vote must read it right.
     live = get_settings()
     if live.sec_user_agent is None:
         pytest.skip("SEC_USER_AGENT isn't set in backend/.env")
@@ -337,11 +358,10 @@ def test_live_submissions_are_read_the_way_their_file_needs(tmp_path: Path) -> N
 
     apple_shift, _ = runs_ahead(apple)
     twitter_shift, _ = runs_ahead(twitter)
-    assert (apple_shift, twitter_shift) == (True, False)
     known = {
         r["accession_number"]: r["available_at"]
-        for r in filing_rows(320193, apple, shifted=True)
-        + filing_rows(1418091, twitter, shifted=False)
+        for r in filing_rows(320193, apple, shifted=apple_shift)
+        + filing_rows(1418091, twitter, shifted=twitter_shift)
     }
     assert known["0000320193-20-000052"] == utc(2020, 4, 30, 22, 3, 10)
     assert known["0000320193-20-000062"] == utc(2020, 7, 30, 23, 29, 9)
