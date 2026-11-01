@@ -9,6 +9,8 @@ source names to them:
 - `universes`: which securities were in each universe, and when (`ingest sec` and
   `ingest tiingo`, S6.5)
 - `edgar`: each company's filing history, after identity (`ingest sec`, S5.3)
+- `xbrl`: the XBRL facts each company reported in the curated concepts, after its
+  filings (`ingest sec`, S5.5)
 - `prices` and `tiingo`: raw daily bars, splits, and dividends (`ingest tiingo`, S6.2)
 """
 

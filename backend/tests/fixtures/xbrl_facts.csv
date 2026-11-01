@@ -1,0 +1,5 @@
+cik,accession_number,concept,unit,period_start,period_end,duration_days,value,fiscal_year,fiscal_period,form,filed,source,source_ref,available_at,time_assumed
+320193,0000320193-20-000052,us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax,USD,2019-12-29,2020-03-28,91,58313000000,2020,Q2,10-Q,2020-05-01,edgar,0000320193-20-000052,2020-04-30T22:03:10Z,false
+320193,0000320193-20-000096,us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax,USD,2019-12-29,2020-03-28,91,58313000000,2020,FY,10-K,2020-10-30,edgar,0000320193-20-000096,2020-10-29T22:06:25Z,false
+320193,0000320193-21-000056,us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax,USD,2019-12-29,2020-03-28,91,58313000000,2021,Q2,10-Q,2021-04-29,edgar,0000320193-21-000056,2021-04-28T22:02:54Z,false
+320193,0000000000-99-000001,us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax,USD,2098-10-01,2098-12-31,92,1,2099,Q1,10-Q,2099-01-01,edgar,canary: no query before 2099 may return this row,2099-01-01T00:00:00Z,false

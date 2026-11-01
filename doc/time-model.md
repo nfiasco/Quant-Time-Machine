@@ -201,6 +201,7 @@ When a time is missing or ambiguous, choose the latest time it could plausibly h
 
 - a macro release without a known time (rule 7);
 - an old EDGAR filing without an acceptance time, which gets the end of its filing date in Eastern time. So does a filing from 1994 to 2002 whose time is a midnight placeholder, because EDGAR kept only the date, or one whose time falls outside EDGAR's hours;
+- an XBRL fact from a filing that isn't in `filings`, such as a proxy statement's pay-versus-performance table, which gets the end of its filed date in Eastern time (S5.5);
 - a vintage that predates our release-time table.
 
 ## June 5, 2020, at 09:30 ET (13:30Z)

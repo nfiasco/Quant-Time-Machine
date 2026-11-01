@@ -200,6 +200,22 @@ Retrieved 2026-10-11: Apple's revenue for the quarter ended March 28, 2020 (`Rev
 
 **Never use the frames API, or the `frame` field, in a backtest.** SEC describes frames as returning one fact per company "that is last filed". The `CY2020Q1` frame for this revenue cites the 2021 10-Q (0000320193-21-000056), not the original 10-Q from 2020 ([SEC EDGAR APIs](https://www.sec.gov/search-filings/edgar-application-programming-interfaces)). Here the number didn't change. For a restated number, frames would show the restatement as if it had been known all along.
 
+**How ingestion stores them (S5.5).** `ingest sec` downloads each company's company facts right after its filing history, if its submissions list any XBRL filings (`isXBRL`), so SPY, which files none, gets no request. [`sources/xbrl.py`](../backend/app/data/sources/xbrl.py) keeps the curated concepts in every unit SEC gives, in the `xbrl_facts` table:
+
+- **The concepts:**
+  - revenue: `RevenueFromContractWithCustomerExcludingAssessedTax`, `RevenueFromContractWithCustomerIncludingAssessedTax`, `Revenues`, `SalesRevenueNet`, and banks' `RevenuesNetOfInterestExpense`;
+  - net income: `NetIncomeLoss` and `ProfitLoss`;
+  - diluted EPS: `EarningsPerShareDiluted` and `EarningsPerShareBasicAndDiluted`;
+  - operating cash flow: `NetCashProvidedByUsedInOperatingActivities` and its `ContinuingOperations` form;
+  - total assets: `Assets`;
+  - shares outstanding: the cover page's `dei:EntityCommonStockSharesOutstanding`.
+- **When each fact became public.** Its accession number is joined to that filing's corrected acceptance time in `filings`.
+  - A fact from a filing that isn't there, such as a proxy statement's pay-versus-performance table (Microsoft's and JPMorgan's repeat five years of net income), is known from the end of its filed date in Eastern time, flagged `time_assumed` (time-model rule 11).
+  - So is a fact from a filing newer than the cached submissions, until `ingest sec --refresh` brings that filing into `filings`.
+- **`frame` is never stored.**
+- **Only exact duplicates are dropped.** Two values one filing reported for the same period are both kept. None turned up on 2026-11-01 for Apple, Microsoft, JPMorgan, and 11 more companies.
+- **Size.** A company facts file runs to about 5 MB (Microsoft's: 4.9 MB). The store keeps only the curated concepts.
+
 **Limits, cost, and terms:** the same as the submissions API. XBRL data usually updates within a minute of a filing.
 
 ## Daily prices (decision D2)

@@ -1,9 +1,9 @@
 """Every table in the point-in-time store, by name.
 
-Each ingestion task defines its table here (S4.2, S5.3, S6.2), so that every reader
-sees the same list no matter which modules were imported first. `PointInTimeView` reads
-the tables listed in TABLES, and the test fixture loader matches each
-tests/fixtures/<table>.csv to one of them, so a new table needs a fixture file too.
+Each ingestion task defines its table here (S4.2, S5.3, S5.5, S6.2), so that every
+reader sees the same list no matter which modules were imported first.
+`PointInTimeView` reads the tables listed in TABLES, and the test fixture loader matches
+each tests/fixtures/<table>.csv to one of them, so a new table needs a fixture file too.
 """
 
 from app.data.store import TableSpec
@@ -109,6 +109,48 @@ FILINGS = TableSpec(
 never its filing date. `acceptance_raw` keeps EDGAR's uncorrected value for auditing.
 `amends` is the accession number of the filing an amendment changes, when it's known."""
 
+XBRL_FACTS = TableSpec(
+    name="xbrl_facts",
+    key=(
+        "cik",
+        "accession_number",
+        "concept",
+        "unit",
+        "period_end",
+        "duration_days",
+        "value",
+    ),
+    columns={
+        "cik": "BIGINT",
+        "accession_number": "VARCHAR",
+        "concept": "VARCHAR",
+        "unit": "VARCHAR",
+        "period_start": "DATE",
+        "period_end": "DATE",
+        "duration_days": "BIGINT",
+        "value": "DOUBLE",
+        "fiscal_year": "BIGINT",
+        "fiscal_period": "VARCHAR",
+        "form": "VARCHAR",
+        "filed": "DATE",
+    },
+)
+"""Each value a company reported for a curated XBRL concept, from EDGAR (S5.5).
+
+A row is one fact as one filing reported it. A value repeated in a later filing, as a
+comparative or a restatement, is another row, known from that filing's acceptance time
+(doc/time-model.md, rule 6). `available_at` is the acceptance time of the filing
+`accession_number` names, from `filings`; for a filing that isn't there, such as a
+proxy statement, it's the end of `filed` in New York, flagged `time_assumed` (rule 11).
+
+`concept` carries its taxonomy, as in "us-gaap:Revenues". `period_start` is None for an
+instant, such as total assets on a balance-sheet date. `duration_days` counts the
+period's days, both ends included: 91 for a 13-week quarter, 0 for an instant. It's in
+the key because `period_start` can't be, and `value` is too, so only exact duplicates
+collapse. `fiscal_year` and `fiscal_period` are the filing's, as SEC gives them, so a
+comparative carries the later filing's. SEC's `frame` is never stored: it marks the
+last-filed fact for each period, which no one knew at the time."""
+
 UNIVERSE_MEMBERS = TableSpec(
     name="universe_members",
     key=("universe", "security_id", "added"),
@@ -136,6 +178,7 @@ TABLES: dict[str, TableSpec] = {
         PRICE_BARS,
         CORPORATE_ACTIONS,
         FILINGS,
+        XBRL_FACTS,
         UNIVERSE_MEMBERS,
     )
 }
