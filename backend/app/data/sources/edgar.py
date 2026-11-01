@@ -2,21 +2,24 @@
 
 `uv run python -m app.data.ingest sec` loads company identity and universe membership
 first (sources/securities.py and sources/universes.py), then the filing history of each
-universe member and benchmark, AAPL first, into the `filings` table. A history is `submissions/CIK##########.json`, whose
-`recent` block holds the last year or so (at least 1,000 filings), plus every older
-page listed in its `filings.files`. All requests stay within SEC's limit of 10 per
-second. Only 10-K, 10-Q, and 8-K filings and their amendments are kept: JPMorgan alone
-has over 160,000 filings, nearly all structured-note prospectuses.
+universe member and benchmark, AAPL first, into the `filings` table. A history is
+`submissions/CIK##########.json`, whose `recent` block holds the last year or so (at
+least 1,000 filings), plus every older page listed in its `filings.files`. All requests
+stay within SEC's limit of 10 per second. Only 10-K, 10-Q, and 8-K filings and their
+amendments are kept: JPMorgan alone has over 160,000 filings, nearly all structured-note
+prospectuses.
 
 **When a filing became public: its EDGAR acceptance time** (doc/time-model.md, rule 5).
-In most companies' files, `acceptanceDateTime` ends in Z but runs ahead of the true
-time by the Eastern UTC offset: 4 hours in EDT, 5 in EST. EDGAR's index pages confirm
-this for Apple, Microsoft, JPMorgan, and Meta from 2006 to 2026. Twitter's file holds
-true UTC times, though, so each company's file is checked. A filing's date follows from
+`acceptanceDateTime` ends in Z, but until late October 2026 most companies' files ran
+ahead of the true time by the Eastern UTC offset: 4 hours in EDT, 5 in EST. EDGAR's
+index pages confirmed this for Apple, Microsoft, JPMorgan, and Meta from 2006 to 2026,
+while Twitter's file held true UTC. By 2026-10-31 SEC serves true UTC, but files cached
+earlier still run ahead, so each company's file is checked. A filing's date follows from
 its acceptance time (accepted after 5:30 PM ET, it's dated the next business day), and
 EDGAR is open only from 06:00 to 22:00 ET. So every filing whose date only one reading
-explains is a vote, and the majority decides. A file without any votes is taken to run
-ahead, like most.
+explains is a vote, and the majority decides. A file without a majority for the shift
+is read as shown: if it really runs ahead, its filings seem later than they were, never
+earlier (rule 11).
 
 A time that still can't be right is replaced with the end of the filing date in New
 York, or kept if it's later than that, and flagged `time_assumed` (rule 11). That
@@ -121,7 +124,12 @@ def fetch_filings(client: SourceClient, cik: int) -> list[dict[str, Any]]:
 
 def runs_ahead(filings: Iterable[Mapping[str, Any]]) -> tuple[bool, tuple[int, int]]:
     """Whether a company's acceptance times run ahead by the Eastern offset, and the
-    votes: filings that only the shifted reading explains, then only the shown one."""
+    votes: filings that only the shifted reading explains, then only the shown one.
+
+    Only a majority for the shift says they run ahead. Without one, as in a file with no
+    votes or a tie, the times are read as shown, which can only make filings seem later
+    than they were (rule 11).
+    """
     ahead = as_shown = 0
     for filing in filings:
         raw = filing["acceptanceDateTime"]
@@ -135,7 +143,7 @@ def runs_ahead(filings: Iterable[Mapping[str, Any]]) -> tuple[bool, tuple[int, i
         shown_fits = _explains(shown, filed)
         ahead += shifted_fits and not shown_fits
         as_shown += shown_fits and not shifted_fits
-    return ahead >= as_shown, (ahead, as_shown)
+    return ahead > as_shown, (ahead, as_shown)
 
 
 def _explains(accepted: datetime, filed: date) -> bool:
