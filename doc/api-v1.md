@@ -1,6 +1,6 @@
 # Research API v1: response contract
 
-> **Stories S8.1 and S8.2.** Drafted 2026-10-19 as the contract for S9.1's M2 demo page, and implemented in Sprint 2. The API's own docs at `/docs` show the examples below, each labeled with the request that produces it. A test replays every one against the test fixtures, so they can't drift. S8.6 will generate TypeScript types from the OpenAPI schema. To change the contract, update this file and the backend in the same pull request, and tell the frontend. The [snapshot section](#draft-for-sprint-3-get-v1snapshot) is a draft for S8.3 (2026-10-29), ahead of its code.
+> **Stories S8.1 and S8.2.** Drafted 2026-10-19 as the contract for S9.1's M2 demo page, and implemented in Sprint 2. [`GET /v1/fundamentals/{ticker}`](#get-v1fundamentalsticker) followed in Sprint 3 (S5.7, 2026-11-01). The API's own docs at `/docs` show the examples below, each labeled with the request that produces it. A test replays every one against the test fixtures, so they can't drift. S8.6 will generate TypeScript types from the OpenAPI schema. To change the contract, update this file and the backend in the same pull request, and tell the frontend. The [snapshot section](#draft-for-sprint-3-get-v1snapshot) is a draft for S8.3 (2026-10-29), ahead of its code.
 
 ## Conventions
 
@@ -275,6 +275,97 @@ The filing history up to the knowledge time, newest first.
 
 A company that filed nothing yet gives `data: []` with a reason. SPY, a fund, files no 10-K, 10-Q, or 8-K, so `GET /v1/filings/SPY?as_of=2020-06-05` gives "No 10-K, 10-Q, or 8-K filings from SPDR S&P 500 ETF Trust had been accepted by EDGAR by June 5, 2020, 9:30 AM ET."
 
+## Endpoints for M3
+
+### `GET /v1/fundamentals/{ticker}`
+
+A company's last quarters of a standard metric, as filed by the knowledge time, oldest first (S5.7).
+
+| Parameter | Required | Meaning |
+| --- | --- | --- |
+| `as_of` | Yes | Knowledge time |
+| `metric` | No | `revenue`, `net_income`, `eps_diluted`, `operating_cash_flow`, `total_assets`, or `shares_outstanding`, exactly. Default: `revenue`. |
+| `quarters` | No | How many of the latest quarters, from `1` to `40`. Default: `8`. |
+
+`GET /v1/fundamentals/AAPL?as_of=2020-06-05&metric=revenue&quarters=2`:
+
+```json
+{
+  "knowledge_time": "2020-06-05T09:30:00-04:00",
+  "data_version": "20261019T120000Z",
+  "data": [
+    {
+      "ticker": "AAPL",
+      "cik": 320193,
+      "metric": "revenue",
+      "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+      "unit": "USD",
+      "period_start": "2019-09-29",
+      "period_end": "2019-12-28",
+      "fiscal_year": 2020,
+      "fiscal_period": "Q1",
+      "value": 91819000000.0,
+      "derived": false,
+      "accession_numbers": ["0000320193-20-000010"],
+      "available_at": "2020-01-28T18:02:44-05:00",
+      "time_assumed": false,
+      "source": "edgar",
+      "source_ref": "0000320193-20-000010"
+    },
+    {
+      "ticker": "AAPL",
+      "cik": 320193,
+      "metric": "revenue",
+      "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+      "unit": "USD",
+      "period_start": "2019-12-29",
+      "period_end": "2020-03-28",
+      "fiscal_year": 2020,
+      "fiscal_period": "Q2",
+      "value": 58313000000.0,
+      "derived": false,
+      "accession_numbers": ["0000320193-20-000052"],
+      "available_at": "2020-04-30T18:03:10-04:00",
+      "time_assumed": false,
+      "source": "edgar",
+      "source_ref": "0000320193-20-000052"
+    }
+  ],
+  "reason": null
+}
+```
+
+- **Each value is the latest one filed for its quarter** by the knowledge time ([time-model rule 6](time-model.md#6-an-xbrl-fact-is-known-when-the-filing-that-reported-it-was-accepted)). Apple's 10-K and its next year's 10-Q repeat the March quarter's $58,313 million. After each one's acceptance, `accession_numbers` and `available_at` cite it instead.
+- **`derived`.** A quarter no filing reported is computed from two year-to-date totals filed by then, and it cites both filings, the longer total's first. Most fourth quarters are like this, because a 10-K reports the full year. `GET /v1/fundamentals/AAPL?as_of=2021-11-01&quarters=2` ends with:
+
+  ```json
+  {
+    "ticker": "AAPL",
+    "cik": 320193,
+    "metric": "revenue",
+    "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+    "unit": "USD",
+    "period_start": "2021-06-27",
+    "period_end": "2021-09-25",
+    "fiscal_year": 2021,
+    "fiscal_period": "Q4",
+    "value": 83360000000.0,
+    "derived": true,
+    "accession_numbers": ["0000320193-21-000105", "0000320193-21-000065"],
+    "available_at": "2021-10-28T18:04:28-04:00",
+    "time_assumed": false,
+    "source": "edgar",
+    "source_ref": "0000320193-21-000105 minus 0000320193-21-000065"
+  }
+  ```
+
+- **`concept`** is the XBRL concept the value came from. A metric tries its concepts in order for each quarter, so a company whose tag changed keeps one series. Many changed with the 2018 revenue rules (ASC 606).
+- **`fiscal_year` and `fiscal_period`** come from the filing that reported the period as its own. For example, Microsoft's quarter from April to June 2021 is fiscal 2021 `Q4`. Both are `null` when no filing in our data reported the period as its own.
+- **A quarter without a value is skipped, not filled**, so match quarters by `period_end`, not by position.
+- **Instants.** For `total_assets` and `shares_outstanding`, `period_start` is `null`, and the last `quarters` dates come back. Shares outstanding is the count on each filing's cover page, dated shortly before the filing.
+- **Nothing filed yet.** `data` is `[]` with a reason. `GET /v1/fundamentals/SPY?as_of=2020-06-05` gives "No filing EDGAR had accepted from SPDR S&P 500 ETF Trust by June 5, 2020, 9:30 AM ET reported quarterly revenue."
+- **Errors.** An unknown ticker is a 404, and an unknown metric is a 422.
+
 ## Errors
 
 Every error has the same shape, which replaces FastAPI's default `{"detail": ...}`:
@@ -368,6 +459,21 @@ export type Filing = Provenance & {
   filing_date: string;
   document_url: string | null;
   index_url: string;
+};
+
+export type Fundamental = Provenance & {
+  ticker: string;
+  cik: number | null;
+  metric: string; // revenue, net_income, eps_diluted, operating_cash_flow, total_assets, or shares_outstanding
+  concept: string;
+  unit: string;
+  period_start: string | null; // null for an instant
+  period_end: string;
+  fiscal_year: number | null;
+  fiscal_period: "Q1" | "Q2" | "Q3" | "Q4" | null;
+  value: number;
+  derived: boolean;
+  accession_numbers: string[];
 };
 
 export type V1Error = {
@@ -561,7 +667,6 @@ export type Snapshot = {
 | Endpoint | Story | Sprint |
 | --- | --- | --- |
 | `GET /v1/macro/{series_id}/revisions` | S4.5 | 3 |
-| `GET /v1/fundamentals/{ticker}` | S5.7, S8.2 | 3 |
 | `GET /v1/snapshot` | S8.3 ([draft above](#draft-for-sprint-3-get-v1snapshot)) | 3 |
 | `GET /v1/catalog/series`, `/companies`, `/signals` | S8.5 | 3 |
 | `POST /v1/backtests`, `GET /v1/backtests/{id}`, `GET /v1/backtests/{id}/audit` | S8.4 | 4 |

@@ -4,7 +4,7 @@ The Quant Time Machine API, built with [FastAPI](https://fastapi.tiangolo.com). 
 
 - the point-in-time data layer: the store and its writer, `PointInTimeView`, and the NYSE calendar;
 - the ingestion client and CLI;
-- the `/v1` as-of endpoints for macro series, prices, and filings, with their conventions.
+- the `/v1` as-of endpoints for macro series, prices, filings, and fundamentals, with their conventions.
 
 Three sources are in, each ingested and readable as of any moment:
 
@@ -87,7 +87,8 @@ backend/
 │   │   ├── knowledge_time.py # GET /v1/knowledge-time
 │   │   ├── macro.py          # GET /v1/macro/{series_id}
 │   │   ├── prices.py         # GET /v1/prices/{ticker}
-│   │   └── filings.py        # GET /v1/filings/{ticker} and /latest
+│   │   ├── filings.py        # GET /v1/filings/{ticker} and /latest
+│   │   └── fundamentals.py   # GET /v1/fundamentals/{ticker}
 │   ├── data/           # Point-in-time data layer (see below)
 │   └── backtest/       # Backtesting engine (placeholder)
 ├── spikes/             # Experiments behind the data, storage, and hosting decisions (not app code)
@@ -142,8 +143,9 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | `GET /v1/prices/{ticker}?as_of` | The latest daily bar whose session had closed; 403 unless `SERVE_RAW_PRICES` is on | `get_price_as_of` |
 | `GET /v1/filings/{ticker}/latest?as_of&form&include_amendments` | The latest 10-K, 10-Q, or 8-K accepted by EDGAR then | `get_latest_filing_as_of` |
 | `GET /v1/filings/{ticker}?as_of&form&include_amendments&limit` | The filings accepted by then, newest first | `list_filings_as_of` |
+| `GET /v1/fundamentals/{ticker}?as_of&metric&quarters` | A metric's last quarters as filed by then, oldest first, each with its concept and accession numbers; a quarter no filing reported is derived from year-to-date totals | `get_fundamentals_as_of` |
 
-`/revisions`, `/fundamentals`, and `/snapshot` follow in Sprint 3 ([`doc/api-v1.md`](../doc/api-v1.md#coming-after-m2)).
+`/revisions` and `/snapshot` follow in Sprint 3 ([`doc/api-v1.md`](../doc/api-v1.md#coming-after-m2)).
 
 ## Point-in-time data layer
 

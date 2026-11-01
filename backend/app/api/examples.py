@@ -2,9 +2,9 @@
 
 Each example's description is the request that produces it. tests/test_api_examples.py
 replays every one against the test fixtures and requires the same answer, so an example
-can't drift from what the API returns. The macro and filing examples are real SEC and
-FRED values. The price example is made up, because Tiingo's terms don't allow sharing
-its data (D2).
+can't drift from what the API returns. The macro, filing, and fundamentals examples are
+real SEC and FRED values. The price example is made up, because Tiingo's terms don't
+allow sharing its data (D2).
 """
 
 from typing import Any
@@ -310,6 +310,125 @@ FILINGS: Responses = {
 }
 
 
+_APPLE_REVENUE = {
+    "ticker": "AAPL",
+    "cik": 320193,
+    "metric": "revenue",
+    "concept": "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+    "unit": "USD",
+    "time_assumed": False,
+    "source": "edgar",
+}
+
+
+def _apple_quarter(
+    accession: str,
+    period: tuple[str, str],
+    fiscal_quarter: str,
+    value: float,
+    available_at: str,
+) -> dict[str, Any]:
+    """One quarter of Apple's revenue, as its own 10-Q reported it. `fiscal_quarter`
+    is written like "2020 Q1"."""
+    fiscal_year, fiscal_period = fiscal_quarter.split()
+    return {
+        **_APPLE_REVENUE,
+        "period_start": period[0],
+        "period_end": period[1],
+        "fiscal_year": int(fiscal_year),
+        "fiscal_period": fiscal_period,
+        "value": value,
+        "derived": False,
+        "accession_numbers": [accession],
+        "available_at": available_at,
+        "source_ref": accession,
+    }
+
+
+FUNDAMENTALS: Responses = {
+    200: _ok(
+        apple_revenue=example(
+            "/v1/fundamentals/AAPL?as_of=2020-06-05&metric=revenue&quarters=2",
+            "Apple's last two quarters of revenue, each from its own 10-Q",
+            _known_at(
+                JUNE_5_2020,
+                [
+                    _apple_quarter(
+                        "0000320193-20-000010",
+                        ("2019-09-29", "2019-12-28"),
+                        "2020 Q1",
+                        91819000000.0,
+                        "2020-01-28T18:02:44-05:00",
+                    ),
+                    _apple_quarter(
+                        "0000320193-20-000052",
+                        ("2019-12-29", "2020-03-28"),
+                        "2020 Q2",
+                        58313000000.0,
+                        "2020-04-30T18:03:10-04:00",
+                    ),
+                ],
+            ),
+        ),
+        derived_fourth_quarter=example(
+            "/v1/fundamentals/AAPL?as_of=2021-11-01&quarters=2",
+            "The 10-K gave the full year, not Q4: the year minus nine months",
+            _known_at(
+                "2021-11-01T09:30:00-04:00",
+                [
+                    _apple_quarter(
+                        "0000320193-21-000065",
+                        ("2021-03-28", "2021-06-26"),
+                        "2021 Q3",
+                        81434000000.0,
+                        "2021-07-27T18:03:42-04:00",
+                    ),
+                    {
+                        **_APPLE_REVENUE,
+                        "period_start": "2021-06-27",
+                        "period_end": "2021-09-25",
+                        "fiscal_year": 2021,
+                        "fiscal_period": "Q4",
+                        "value": 83360000000.0,
+                        "derived": True,
+                        "accession_numbers": [
+                            "0000320193-21-000105",
+                            "0000320193-21-000065",
+                        ],
+                        "available_at": "2021-10-28T18:04:28-04:00",
+                        "source_ref": "0000320193-21-000105 minus 0000320193-21-000065",
+                    },
+                ],
+            ),
+        ),
+        a_fund_reports_none=example(
+            "/v1/fundamentals/SPY?as_of=2020-06-05",
+            "SPY, an exchange-traded fund, files no 10-Q or 10-K",
+            _known_at(
+                JUNE_5_2020,
+                [],
+                "No filing EDGAR had accepted from SPDR S&P 500 ETF Trust by June 5, "
+                "2020, 9:30 AM ET reported quarterly revenue.",
+            ),
+        ),
+    ),
+    404: _fb_before_its_ipo("/v1/fundamentals/FB"),
+    422: _error(
+        "A parameter is missing or invalid",
+        unknown_metric=example(
+            "/v1/fundamentals/AAPL?as_of=2020-06-05&metric=ebitda",
+            "Only the standard metrics in our catalog",
+            _error_body(
+                "invalid_request",
+                "metric must be 'revenue', 'net_income', 'eps_diluted', "
+                "'operating_cash_flow', 'total_assets' or 'shares_outstanding'.",
+                "metric",
+            ),
+        ),
+    ),
+}
+
+
 def keep_nulls(app: FastAPI) -> None:
     """Make `app.openapi()` keep the nulls in these examples.
 
@@ -320,7 +439,7 @@ def keep_nulls(app: FastAPI) -> None:
     """
     originals = {
         (str(status), example["description"]): example["value"]
-        for responses in (MACRO, PRICES, LATEST_FILING, FILINGS)
+        for responses in (MACRO, PRICES, LATEST_FILING, FILINGS, FUNDAMENTALS)
         for status, response in responses.items()
         for example in _examples_in(response).values()
     }
