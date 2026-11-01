@@ -29,7 +29,7 @@ Then open:
 - http://localhost:8000/v1/knowledge-time?as_of=2020-06-05 returns `{"knowledge_time": "2020-06-05T09:30:00-04:00", "data_version": "20261101T143005Z"}`, with your store's newest [data version](#data-versions), or `null` before your first ingestion run
 - http://localhost:8000/docs is the interactive API docs (Swagger UI), with an example for every endpoint
 
-The data endpoints need a local store. With keys in `.env`, [ingest](#ingestion) the three sources once, which takes under a minute. Then http://localhost:8000/v1/macro/UNRATE?as_of=2020-06-05 returns May 2020's first print, 13.3%.
+The data endpoints need a local store. With keys in `.env`, [ingest](#ingestion) the three sources once. That takes about two minutes, plus a Tiingo rerun an hour later, because universe v1's first price load is one request over Tiingo's hourly limit. Then http://localhost:8000/v1/macro/UNRATE?as_of=2020-06-05 returns May 2020's first print, 13.3%.
 
 `uv run <command>` runs a command inside the project's virtual environment, so you don't need to activate it first.
 
@@ -60,7 +60,7 @@ CI runs `ruff check`, `ruff format --check`, and `pytest` on every pull request.
 
 The tests read small committed tables from [`tests/fixtures/`](tests/fixtures/), loaded into a temporary store; that folder's README explains the format. The `client` fixture in [`tests/conftest.py`](tests/conftest.py) is the API reading that store.
 
-Tests that call real APIs are marked `network`. They're skipped by default, so CI never runs them. To run them, put keys in `.env` and use `uv run pytest -m network`. There are seven, each making a request or a few. Two call Tiingo, and they count against its limit of 50 an hour.
+Tests that call real APIs are marked `network`. They're skipped by default, so CI never runs them. To run them, put keys in `.env` and use `uv run pytest -m network`. There are eight, each making a request or a few. Two call Tiingo's API and count against its limit of 50 an hour; a third downloads Tiingo's public ticker list, which doesn't.
 
 ## Managing dependencies
 
@@ -221,13 +221,13 @@ uv run python -m app.data.ingest tiingo   # raw daily prices and corporate actio
 
 From another folder, use `uv run --directory <path to backend> python -m app.data.ingest <source>`. Add `--refresh` to download again instead of answering from the raw cache.
 
-Each command loads its whole catalog: there's no option for a single series or ticker. Run them one at a time, never in parallel, because the store expects one writer per table. A first run on 2026-10-23 took:
+Each command loads its whole catalog: there's no option for a single series or ticker. Run them one at a time, never in parallel, because the store expects one writer per table. First runs took the times below: `fred` on 2026-10-23, and `sec` and `tiingo` for universe v1 (S6.5) on 2026-10-31:
 
 | Source | Requests | Time | What it loads |
 | --- | ---: | ---: | --- |
 | `fred` | 18 | 6 s | Every vintage of the series in [`sources/alfred_series.toml`](app/data/sources/alfred_series.toml), UNRATE first, into `macro_observations` (S4.2). Each request asks for ALFRED's whole real-time range, because FRED's defaults return today's revised values. |
-| `sec` | 84 | 13 s | First, identity: the curated ticker history in [`sources/securities.toml`](app/data/sources/securities.toml) into `securities`, and a snapshot of SEC's ticker file into `sec_tickers` (S5.2). It warns when a curated security's current ticker isn't in SEC's file. Then the starter set's filing histories, AAPL first, older pages included, into `filings` (S5.3). Only 10-K, 10-Q, and 8-K filings and their amendments are kept. Each filing is known at its EDGAR acceptance time, corrected for the Eastern-offset shift where the company's file has one (see [`doc/data-sources.md`](../doc/data-sources.md#sec-edgar-filing-history-submissions-api)), and each amendment is linked to the filing it amends. |
-| `tiingo` | 6 | 3 s | The curated `securities`, then raw daily bars for the starter set, SPY included, into `price_bars`, and the splits and dividends they report into `corporate_actions` (S6.2). A first run loads each security from 2005. Later runs ask only for sessions after its last stored bar, through the last one Tiingo has settled (20:00 ET), and log any session that comes back without a bar. Adjusted prices are never stored. |
+| `sec` | 312 | 54 s | First, identity and membership: the curated ticker history in [`sources/securities.toml`](app/data/sources/securities.toml) into `securities`, a snapshot of SEC's ticker file into `sec_tickers` (S5.2), and the universes in [`sources/universes.toml`](app/data/sources/universes.toml) into `universe_members` (S6.5). It warns when a curated security's current ticker isn't in SEC's file. Then the filing histories of every universe member and SPY, AAPL first, older pages included, into `filings` (S5.3). The big banks' histories run to dozens of pages each. Only 10-K, 10-Q, and 8-K filings and their amendments are kept. Each filing is known at its EDGAR acceptance time, corrected for the Eastern-offset shift where the company's file has one (see [`doc/data-sources.md`](../doc/data-sources.md#sec-edgar-filing-history-submissions-api)), and each amendment is linked to the filing it amends. |
+| `tiingo` | 51 | 26 s, then a rerun an hour later | The curated `securities` and membership, then raw daily bars for every universe member and SPY into `price_bars`, and the splits and dividends they report into `corporate_actions` (S6.2). A first run loads each security from 2005. Loading universe v1 from scratch takes one request more than Tiingo's 50 an hour, so the first run stops at the limit and a rerun an hour later finishes; only the run that finishes writes a data version. Later runs ask only for sessions after its last stored bar, through the last one Tiingo has settled (20:00 ET), and log any session that comes back without a bar. Adjusted prices are never stored. |
 
 Each ingester lives in [`app/data/sources/`](app/data/sources/) and is listed in `INGESTERS` in [`app/data/ingest.py`](app/data/ingest.py).
 
@@ -290,13 +290,15 @@ data/
 | `filings` | `cik`, `accession_number` | 10-K, 10-Q, and 8-K filings and their amendments, from EDGAR |
 | `universe_members` | `universe`, `security_id`, `added` | Each curated universe's membership spells; a removal is a second version, known from its own date |
 
-After the first runs above, the store held 65,829 rows in 24 files, 1.2 MB in all, and the raw cache 42 MB, mostly EDGAR's submission files. Only the store is needed to serve the API. `uv run python -m spikes.hosting` reports both by table and source.
+After loading universe v1 on 2026-10-31, the store held 305,139 rows in 163 files, 7.5 MB in all, and the raw cache 159 MB, mostly EDGAR's submission files. The M2 set alone had been 65,829 rows in 1.2 MB. Only the store is needed to serve the API. `uv run python -m spikes.hosting` reports both by table and source.
 
 ## Deployment
 
 The API was deployed to Fly.io at <https://quant-time-machine-api.fly.dev>, as a container built from [`Dockerfile`](Dockerfile) and configured by [`fly.toml`](fly.toml), with the store on a volume (D4). It ran on Fly's free trial, which lapsed on 2026-10-31, so that URL no longer answers. The team deferred adding a card until a host is needed, before S8.4, so develop against a local backend until then. AWS Lambda is the lead candidate for that host, and a spike before S8.4 decides between it and Fly. [`doc/hosting.md`](../doc/hosting.md) has the decision, the steps to deploy and to upload the store, and what's still to do for S15.1. The deployment never sets `SERVE_RAW_PRICES`, so its `/v1/prices` answers 403.
 
 `.dockerignore` keeps `data/` and `.env` out of the build, because flyctl sends whatever isn't excluded there, git-ignored or not. Keep it that way.
+
+**Pending: upload the universe v1 store.** Skipped in Sprint 3 until D4 picks the host (AWS Lambda, or Railway once it reopens). The store to deploy is the one ingested for universe v1 (S6.5): all of `DATA_DIR/store`, `_versions/` included, so the host serves the same data versions as the machine that ingested. [`doc/hosting.md`](../doc/hosting.md#next-steps-for-s151) tracks it.
 
 ## Spikes
 
