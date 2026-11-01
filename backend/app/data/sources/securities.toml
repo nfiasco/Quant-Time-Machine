@@ -9,7 +9,11 @@
 # Each [[securities.history]] entry applies from 00:00 ET on its date until the next
 # entry, and cites the source of that date. `name` and `cik` carry over from the entry
 # before when they don't change. `delisted = true` means the security stopped trading:
-# from then on, no ticker resolves to it. Sources were checked on 2026-10-22.
+# from then on, no ticker resolves to it. A history starts when the security began
+# trading, at its IPO, spin-off, or listing. For a company listed long before our price
+# history, it starts on 2005-01-03 instead and cites a filing from then that names the
+# ticker; earlier tickers aren't modeled. Sources were checked on 2026-10-22, and the
+# universe members' on 2026-10-31.
 #
 # `id` is ours and never changes, even when the ticker, name, or CIK does. `symbols` are
 # the codes each price vendor uses for the security's whole history: Tiingo files
@@ -162,8 +166,698 @@ name = "Tesla, Inc."
 source = "https://www.sec.gov/Archives/edgar/data/1318605/000156459017000802/tsla-8k_20170201.htm"
 
 [[securities]]
+id = "amazon"
+share_class = "Common stock"
+symbols = { tiingo = "AMZN" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "AMZN"
+name = "Amazon.com, Inc."
+cik = 1018724
+# History starts on 2005-01-03, with our price history. Its 10-K for 2004: common stock
+# "traded on the Nasdaq National Market under the symbol 'AMZN.'"
+source = "https://www.sec.gov/Archives/edgar/data/1018724/000119312505047032/0001193125-05-047032-index.htm"
+
+[[securities]]
+id = "nvidia"
+share_class = "Common stock"
+symbols = { tiingo = "NVDA" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "NVDA"
+name = "NVIDIA Corporation"
+cik = 1045810
+# History starts on 2005-01-03, with our price history. Its 10-K for fiscal 2005:
+# "traded on the Nasdaq National Market under the symbol NVDA"
+source = "https://www.sec.gov/Archives/edgar/data/1045810/000104581005000008/0001045810-05-000008-index.htm"
+
+[[securities]]
+id = "intel"
+share_class = "Common stock"
+symbols = { tiingo = "INTC" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "INTC"
+name = "Intel Corporation"
+cik = 50863
+# History starts on 2005-01-03, with our price history. Its 10-K for 2004: "Intel's
+# common stock (symbol INTC) trades on The NASDAQ Stock Market"
+source = "https://www.sec.gov/Archives/edgar/data/50863/000119312505033162/0001193125-05-033162-index.htm"
+
+[[securities]]
+id = "cisco"
+share_class = "Common stock"
+symbols = { tiingo = "CSCO" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "CSCO"
+name = "Cisco Systems, Inc."
+cik = 858877
+# History starts on 2005-01-03, with our price history. Its 10-K for fiscal 2005:
+# "traded on the NASDAQ National Market under the symbol CSCO"
+source = "https://www.sec.gov/Archives/edgar/data/858877/000119312505187168/0001193125-05-187168-index.htm"
+
+[[securities]]
+id = "ibm"
+share_class = "Common stock"
+symbols = { tiingo = "IBM" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "IBM"
+name = "International Business Machines Corporation"
+cik = 51143
+# History starts on 2005-01-03, with our price history. Its 8-K of December 8, 2004:
+# "IBM (NYSE: IBM) today announced a definitive agreement"
+source = "https://www.sec.gov/Archives/edgar/data/51143/000110465904038729/0001104659-04-038729-index.htm"
+
+[[securities]]
+id = "mastercard"
+share_class = "Class A common stock"
+symbols = { tiingo = "MA" }
+
+[[securities.history]]
+from = 2006-05-25
+ticker = "MA"
+name = "MasterCard Incorporated"
+cik = 1141391
+# The IPO's final prospectus (424B4), filed the day trading began.
+source = "https://www.sec.gov/Archives/edgar/data/1141391/000119312506119247/0001193125-06-119247-index.htm"
+
+[[securities.history]]
+from = 2016-09-29
+ticker = "MA"
+name = "Mastercard Incorporated"
+# 8-K: "Effective September 29, 2016, MasterCard Incorporated ... change its name to
+# 'Mastercard Incorporated'."
+source = "https://www.sec.gov/Archives/edgar/data/1141391/000114139116000220/form8-knamechangeandproxya.htm"
+
+[[securities]]
+id = "bank-of-america"
+share_class = "Common stock"
+symbols = { tiingo = "BAC" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "BAC"
+name = "Bank of America Corporation"
+cik = 70858
+# History starts on 2005-01-03, with our price history. Its 8-K of January 18, 2005:
+# "Bank of America Corporation stock (ticker: BAC) is listed on the New York Stock
+# Exchange"
+source = "https://www.sec.gov/Archives/edgar/data/70858/000119312505007318/0001193125-05-007318-index.htm"
+
+[[securities]]
+id = "wells-fargo"
+share_class = "Common stock"
+symbols = { tiingo = "WFC" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "WFC"
+name = "Wells Fargo & Company"
+cik = 72971
+# History starts on 2005-01-03, with our price history. Its 8-K of January 18, 2005:
+# "Wells Fargo & Company (NYSE:WFC) reported record diluted earnings"
+source = "https://www.sec.gov/Archives/edgar/data/72971/000095014905000006/0000950149-05-000006-index.htm"
+
+[[securities]]
+id = "citigroup"
+share_class = "Common stock"
+symbols = { tiingo = "C" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "C"
+name = "Citigroup Inc."
+cik = 831001
+# History starts on 2005-01-03, with our price history. Its 10-K for 2004: listed on the
+# NYSE and the Pacific Exchange "under the ticker symbol 'C.'"
+source = "https://www.sec.gov/Archives/edgar/data/831001/000104746905004988/0001047469-05-004988-index.htm"
+
+[[securities]]
+id = "goldman-sachs"
+share_class = "Common stock"
+symbols = { tiingo = "GS" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "GS"
+name = "The Goldman Sachs Group, Inc."
+cik = 886982
+# History starts on 2005-01-03, with our price history. Its 8-K of March 17, 2005: "The
+# Goldman Sachs Group, Inc. (NYSE:GS) today reported net earnings"
+source = "https://www.sec.gov/Archives/edgar/data/886982/000095012305003273/0000950123-05-003273-index.htm"
+
+[[securities]]
+id = "johnson-johnson"
+share_class = "Common stock"
+symbols = { tiingo = "JNJ" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "JNJ"
+name = "Johnson & Johnson"
+cik = 200406
+# History starts on 2005-01-03, with our price history. Its 10-K for 2004: "listed on
+# the New York Stock Exchange under the symbol JNJ"
+source = "https://www.sec.gov/Archives/edgar/data/200406/000095012305003140/0000950123-05-003140-index.htm"
+
+[[securities]]
+id = "unitedhealth"
+share_class = "Common stock"
+symbols = { tiingo = "UNH" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "UNH"
+name = "UnitedHealth Group Incorporated"
+cik = 731766
+# History starts on 2005-01-03, with our price history. Its 10-K for 2004: "traded on
+# the New York Stock Exchange under the symbol UNH"
+source = "https://www.sec.gov/Archives/edgar/data/731766/000119312505039947/0001193125-05-039947-index.htm"
+
+[[securities]]
+id = "pfizer"
+share_class = "Common stock"
+symbols = { tiingo = "PFE" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "PFE"
+name = "Pfizer Inc."
+cik = 78003
+# History starts on 2005-01-03, with our price history. Its 10-K for 2004: "record
+# holders of our common stock (symbol PFE)"
+source = "https://www.sec.gov/Archives/edgar/data/78003/000095012305002379/0000950123-05-002379-index.htm"
+
+[[securities]]
+id = "eli-lilly"
+share_class = "Common stock"
+symbols = { tiingo = "LLY" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "LLY"
+name = "Eli Lilly and Company"
+cik = 59478
+# History starts on 2005-01-03, with our price history. Its 8-K of January 26, 2005:
+# "Eli Lilly and Company (NYSE: LLY) announced financial results"
+source = "https://www.sec.gov/Archives/edgar/data/59478/000095013705000725/0000950137-05-000725-index.htm"
+
+[[securities]]
+id = "procter-gamble"
+share_class = "Common stock"
+symbols = { tiingo = "PG" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "PG"
+name = "The Procter & Gamble Company"
+cik = 80424
+# History starts on 2005-01-03, with our price history. Its 8-K of January 11, 2005:
+# "The Procter & Gamble Company (NYSE:PG) declared a quarterly dividend"
+source = "https://www.sec.gov/Archives/edgar/data/80424/000008042405000002/0000080424-05-000002-index.htm"
+
+[[securities]]
+id = "coca-cola"
+share_class = "Common stock"
+symbols = { tiingo = "KO" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "KO"
+name = "The Coca-Cola Company"
+cik = 21344
+# History starts on 2005-01-03, with our price history. Its 8-K of April 18, 2005:
+# "trades on the New York Stock Exchange under the symbol KO"
+source = "https://www.sec.gov/Archives/edgar/data/21344/000002134405000048/0000021344-05-000048-index.htm"
+
+[[securities]]
+id = "pepsico"
+share_class = "Common stock"
+symbols = { tiingo = "PEP" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "PEP"
+name = "PepsiCo, Inc."
+cik = 77476
+# History starts on 2005-01-03, with our price history. Its 10-K for 2004: "Stock
+# Trading Symbol – PEP"
+source = "https://www.sec.gov/Archives/edgar/data/77476/000119312505037811/0001193125-05-037811-index.htm"
+
+[[securities]]
+id = "walmart"
+share_class = "Common stock"
+symbols = { tiingo = "WMT" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "WMT"
+name = "Wal-Mart Stores, Inc."
+cik = 104169
+# History starts on 2005-01-03, with our price history. Its 10-K for fiscal 2005 lists
+# "Listings—Stock Symbol: WMT".
+source = "https://www.sec.gov/Archives/edgar/data/104169/000119312505066992/0001193125-05-066992-index.htm"
+
+[[securities.history]]
+from = 2018-02-01
+ticker = "WMT"
+name = "Walmart Inc."
+# 8-K: the legal name changed "from Wal-Mart Stores, Inc. to Walmart Inc., effective as
+# of February 1, 2018."
+source = "https://www.sec.gov/Archives/edgar/data/104169/000010416918000013/form8-kx212018.htm"
+
+[[securities]]
+id = "mcdonalds"
+share_class = "Common stock"
+symbols = { tiingo = "MCD" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "MCD"
+name = "McDonald's Corporation"
+cik = 63908
+# History starts on 2005-01-03, with our price history. Its 10-K for 2004: "The
+# Company's common stock trades under the symbol MCD"
+source = "https://www.sec.gov/Archives/edgar/data/63908/000119312505042609/0001193125-05-042609-index.htm"
+
+[[securities]]
+id = "home-depot"
+share_class = "Common stock"
+symbols = { tiingo = "HD" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "HD"
+name = "The Home Depot, Inc."
+cik = 354950
+# History starts on 2005-01-03, with our price history. Its 10-K for fiscal 2004:
+# "listed on the New York Stock Exchange, trading under the symbol 'HD.'"
+source = "https://www.sec.gov/Archives/edgar/data/354950/000104746905009783/0001047469-05-009783-index.htm"
+
+[[securities]]
+id = "exxon-mobil"
+share_class = "Common stock"
+symbols = { tiingo = "XOM" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "XOM"
+name = "Exxon Mobil Corporation"
+cik = 34088
+# History starts on 2005-01-03, with our price history. Its 8-K of March 17, 2005 names
+# "Exxon Mobil Corporation common stock (symbol XOM)".
+source = "https://www.sec.gov/Archives/edgar/data/34088/000095013405005336/0000950134-05-005336-index.htm"
+
+[[securities.history]]
+from = 2026-07-02
+ticker = "XOM"
+name = "ExxonMobil Holdings Corporation"
+cik = 2115436
+# 8-K12B: after the Texas redomiciliation on July 1, 2026, "shares of ExxonMobil
+# Holdings Corporation Common Stock will commence trading under the current ExxonMobil
+# ticker symbol 'XOM'" on July 2.
+source = "https://www.sec.gov/Archives/edgar/data/2115436/000119312526291990/d71068d8k12b.htm"
+
+[[securities]]
+id = "boeing"
+share_class = "Common stock"
+symbols = { tiingo = "BA" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "BA"
+name = "The Boeing Company"
+cik = 12927
+# History starts on 2005-01-03, with our price history. Its 8-K of May 4, 2005: "The
+# Boeing Company (NYSE: BA) and Lockheed Martin Corporation"
+source = "https://www.sec.gov/Archives/edgar/data/12927/000089383805000096/0000893838-05-000096-index.htm"
+
+[[securities]]
+id = "caterpillar"
+share_class = "Common stock"
+symbols = { tiingo = "CAT" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "CAT"
+name = "Caterpillar Inc."
+cik = 18230
+# History starts on 2005-01-03, with our price history. Its 10-K for 2004: "Common Stock
+# (NYSE: CAT)"
+source = "https://www.sec.gov/Archives/edgar/data/18230/000001823005000218/0000018230-05-000218-index.htm"
+
+[[securities]]
+id = "verizon"
+share_class = "Common stock"
+symbols = { tiingo = "VZ" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "VZ"
+name = "Verizon Communications Inc."
+cik = 732712
+# History starts on 2005-01-03, with our price history. Its 8-K of January 27, 2005:
+# "Verizon Communications Inc. (NYSE:VZ) today reported"
+source = "https://www.sec.gov/Archives/edgar/data/732712/000119312505012767/0001193125-05-012767-index.htm"
+
+[[securities]]
+id = "paypal"
+share_class = "Common stock"
+symbols = { tiingo = "PYPL" }
+
+[[securities.history]]
+from = 2015-07-20
+ticker = "PYPL"
+name = "PayPal Holdings, Inc."
+cik = 1633917
+# 8-K: after eBay's distribution on July 17, 2015, PayPal's "common stock is listed
+# under the symbol 'PYPL' on The NASDAQ Stock Market"; regular-way trading began the
+# next session.
+source = "https://www.sec.gov/Archives/edgar/data/1633917/000119312515257108/d31081d8k.htm"
+
+[[securities]]
+id = "abbvie"
+share_class = "Common stock"
+symbols = { tiingo = "ABBV" }
+
+[[securities.history]]
+from = 2013-01-02
+ticker = "ABBV"
+name = "AbbVie Inc."
+cik = 1551152
+# 8-K: after Abbott's distribution on January 1, 2013, "AbbVie is now an independent
+# public company trading under the symbol 'ABBV' on the New York Stock Exchange."
+source = "https://www.sec.gov/Archives/edgar/data/1551152/000104746913000017/a2212291z8-k.htm"
+
+[[securities]]
+id = "uber"
+share_class = "Common stock"
+symbols = { tiingo = "UBER" }
+
+[[securities.history]]
+from = 2019-05-10
+ticker = "UBER"
+name = "Uber Technologies, Inc."
+cik = 1543151
+# Uber's IPO pricing release: "The shares are expected to begin trading on the New York
+# Stock Exchange on May 10, 2019".
+source = "https://investor.uber.com/news-events/news/press-release-details/2019/Uber-Announces-Pricing-of-Initial-Public-Offering/default.aspx"
+
+[[securities]]
+id = "airbnb"
+share_class = "Class A common stock"
+symbols = { tiingo = "ABNB" }
+
+[[securities.history]]
+from = 2020-12-10
+ticker = "ABNB"
+name = "Airbnb, Inc."
+cik = 1559720
+# Airbnb's IPO pricing release: shares "expected to begin trading on the Nasdaq Global
+# Select Market on December 10, 2020".
+source = "https://investors.airbnb.com/press-releases/news-details/2020/Airbnb-Announces-Pricing-of-Initial-Public-Offering/default.aspx"
+
+[[securities]]
+id = "lululemon"
+share_class = "Common stock"
+symbols = { tiingo = "LULU" }
+
+[[securities.history]]
+from = 2007-07-27
+ticker = "LULU"
+name = "lululemon athletica inc."
+cik = 1397187
+# The IPO's final prospectus (424B4), filed the day trading began.
+source = "https://www.sec.gov/Archives/edgar/data/1397187/000095012307010402/0000950123-07-010402-index.htm"
+
+[[securities]]
+id = "crowdstrike"
+share_class = "Class A common stock"
+symbols = { tiingo = "CRWD" }
+
+[[securities.history]]
+from = 2019-06-12
+ticker = "CRWD"
+name = "CrowdStrike Holdings, Inc."
+cik = 1535527
+# CrowdStrike's IPO pricing release: shares "expected to begin trading on The Nasdaq
+# Global Select Market on June 12, 2019".
+source = "https://ir.crowdstrike.com/news-releases/news-release-details/crowdstrike-announces-pricing-initial-public-offering"
+
+[[securities]]
+id = "palantir"
+share_class = "Class A common stock"
+symbols = { tiingo = "PLTR" }
+
+[[securities.history]]
+from = 2020-09-30
+ticker = "PLTR"
+name = "Palantir Technologies Inc."
+cik = 1321655
+# The direct listing's final prospectus (424B4), filed the day trading began. It moved
+# from the NYSE to Nasdaq in 2024 under the same ticker.
+source = "https://www.sec.gov/Archives/edgar/data/1321655/000119312520258493/0001193125-20-258493-index.htm"
+
+[[securities]]
+id = "etsy"
+share_class = "Common stock"
+symbols = { tiingo = "ETSY" }
+
+[[securities.history]]
+from = 2015-04-16
+ticker = "ETSY"
+name = "Etsy, Inc."
+cik = 1370637
+# The IPO's final prospectus (424B4), filed the day trading began.
+source = "https://www.sec.gov/Archives/edgar/data/1370637/000119312515132943/0001193125-15-132943-index.htm"
+
+[[securities]]
+id = "activision-blizzard"
+share_class = "Common stock"
+symbols = { tiingo = "ATVI" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "ATVI"
+name = "Activision, Inc."
+cik = 718877
+# History starts on 2005-01-03, with our price history. Its 10-K for fiscal 2005:
+# "quoted on the Nasdaq National Market under the symbol 'ATVI.'"
+source = "https://www.sec.gov/Archives/edgar/data/718877/000110465905027535/0001104659-05-027535-index.htm"
+
+[[securities.history]]
+from = 2008-07-09
+ticker = "ATVI"
+name = "Activision Blizzard, Inc."
+# 8-K: the Vivendi Games merger closed on July 9, 2008, and "Activision was renamed
+# Activision Blizzard, Inc."
+source = "https://www.sec.gov/Archives/edgar/data/718877/000110465908045739/a08-18354_18k.htm"
+
+[[securities.history]]
+from = 2023-10-13
+delisted = true
+# 8-K: Microsoft's acquisition closed on October 13, 2023, and Activision asked Nasdaq
+# to "halt trading of the Shares on Nasdaq prior to the open of trading on the Closing
+# Date".
+source = "https://www.sec.gov/Archives/edgar/data/718877/000110465923108985/tm2328253d1_8k.htm"
+
+[[securities]]
+id = "abercrombie-fitch"
+share_class = "Class A common stock"
+symbols = { tiingo = "ANF" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "ANF"
+name = "Abercrombie & Fitch Co."
+cik = 1018840
+# History starts on 2005-01-03, with our price history. Its 10-K for fiscal 2004:
+# "traded on the New York Stock Exchange under the symbol 'ANF.'"
+source = "https://www.sec.gov/Archives/edgar/data/1018840/000095015205003151/0000950152-05-003151-index.htm"
+
+[[securities]]
+id = "time-warner"
+share_class = "Common stock"
+symbols = { tiingo = "TWX" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "TWX"
+name = "Time Warner Inc."
+cik = 1105705
+# History starts on 2005-01-03, with our price history. Its 8-K of February 4, 2005:
+# "Time Warner Inc. (NYSE:TWX) today reported financial results".
+source = "https://www.sec.gov/Archives/edgar/data/1105705/000095014405000830/0000950144-05-000830-index.htm"
+
+[[securities.history]]
+from = 2018-06-15
+delisted = true
+# 8-K: AT&T's acquisition closed on June 14, 2018, and Time Warner asked the NYSE to
+# "suspend trading of Time Warner Common Stock prior to market open on the date
+# following the Closing Date".
+source = "https://www.sec.gov/Archives/edgar/data/1105705/000095015718000694/form8-k.htm"
+
+[[securities]]
+id = "celgene"
+share_class = "Common stock"
+symbols = { tiingo = "CELG" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "CELG"
+name = "Celgene Corporation"
+cik = 816284
+# History starts on 2005-01-03, with our price history. Its 10-K for 2004: "traded on
+# the NASDAQ National Market under the symbol 'CELG.'"
+source = "https://www.sec.gov/Archives/edgar/data/816284/000093041305001873/0000930413-05-001873-index.htm"
+
+[[securities.history]]
+from = 2019-11-21
+delisted = true
+# 8-K: after Bristol-Myers Squibb's acquisition, Celgene asked that trading on Nasdaq
+# "be suspended prior to the opening of trading on November 21, 2019".
+source = "https://www.sec.gov/Archives/edgar/data/816284/000110465919065939/tm1923405d1_8k.htm"
+
+[[securities]]
+id = "xilinx"
+share_class = "Common stock"
+symbols = { tiingo = "XLNX" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "XLNX"
+name = "Xilinx, Inc."
+cik = 743988
+# History starts on 2005-01-03, with our price history. Its 10-K for fiscal 2005:
+# "listed on the NASDAQ National Market System under the symbol XLNX".
+source = "https://www.sec.gov/Archives/edgar/data/743988/000104746905016238/0001047469-05-016238-index.htm"
+
+[[securities.history]]
+from = 2022-02-14
+delisted = true
+# 8-K: AMD's acquisition closed, and Xilinx asked Nasdaq to "halt trading of the Xilinx
+# Common Stock on Nasdaq prior to the open of trading on February 14, 2022".
+source = "https://www.sec.gov/Archives/edgar/data/743988/000110465922021762/tm226258d1_8k.htm"
+
+[[securities]]
+id = "pioneer-natural-resources"
+share_class = "Common stock"
+symbols = { tiingo = "PXD" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "PXD"
+name = "Pioneer Natural Resources Company"
+cik = 1038357
+# History starts on 2005-01-03, with our price history. Its 10-K for 2004: "listed and
+# traded on the NYSE under the symbol 'PXD'".
+source = "https://www.sec.gov/Archives/edgar/data/1038357/000103835705000076/0001038357-05-000076-index.htm"
+
+[[securities.history]]
+from = 2024-05-03
+delisted = true
+# 8-K: Exxon Mobil's acquisition closed, and Pioneer asked the NYSE to "delist the
+# shares of Pioneer Common Stock prior to the opening of the market on May 3, 2024".
+source = "https://www.sec.gov/Archives/edgar/data/1038357/000119312524130052/d803313d8k.htm"
+
+[[securities]]
+id = "marathon-oil"
+share_class = "Common stock"
+symbols = { tiingo = "MRO" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "MRO"
+name = "Marathon Oil Corporation"
+cik = 101778
+# History starts on 2005-01-03, with our price history. Its 8-K of January 14, 2005:
+# "Marathon Oil Corporation (NYSE: MRO) today is providing information".
+source = "https://www.sec.gov/Archives/edgar/data/101778/000110465905001506/0001104659-05-001506-index.htm"
+
+[[securities.history]]
+from = 2024-11-22
+delisted = true
+# 8-K: "On November 22, 2024, ConocoPhillips completed its previously announced
+# acquisition of Marathon", which asked the NYSE to suspend trading; the NYSE's Form 25
+# is dated the same day.
+source = "https://www.sec.gov/Archives/edgar/data/101778/000110465924122113/tm2428994d1_8k.htm"
+
+[[securities]]
+id = "discover-financial"
+share_class = "Common stock"
+symbols = { tiingo = "DFS" }
+
+[[securities.history]]
+from = 2007-07-02
+ticker = "DFS"
+name = "Discover Financial Services"
+cik = 1393612
+# 8-K: Discover's release of July 2, 2007, after its spin-off from Morgan Stanley:
+# "Those Discover shares will officially begin trading under the ticker symbol 'DFS'
+# today."
+source = "https://www.sec.gov/Archives/edgar/data/1393612/000119312507150060/0001193125-07-150060-index.htm"
+
+[[securities.history]]
+from = 2025-05-19
+delisted = true
+# 8-K: Capital One's acquisition closed, and Discover asked that trading be suspended
+# "before the market opens on NYSE on May 19, 2025".
+source = "https://www.sec.gov/Archives/edgar/data/1393612/000119312525122107/d928199d8k.htm"
+
+[[securities]]
+id = "kohls"
+share_class = "Common stock"
+symbols = { tiingo = "KSS" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "KSS"
+name = "Kohl's Corporation"
+cik = 885639
+# History starts on 2005-01-03, with our price history. Its 10-K for fiscal 2004:
+# "traded on the New York Stock Exchange since May 19, 1992, under the symbol 'KSS.'"
+source = "https://www.sec.gov/Archives/edgar/data/885639/000119312505055302/0001193125-05-055302-index.htm"
+
+[[securities]]
+id = "hr-block"
+share_class = "Common stock"
+symbols = { tiingo = "HRB" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "HRB"
+name = "H&R Block, Inc."
+cik = 12659
+# History starts on 2005-01-03, with our price history. Its 8-K of February 25, 2005:
+# "H&R Block Inc. (NYSE:HRB) today reported net income".
+source = "https://www.sec.gov/Archives/edgar/data/12659/000095013705002274/0000950137-05-002274-index.htm"
+
+[[securities]]
+id = "amd"
+share_class = "Common stock"
+symbols = { tiingo = "AMD" }
+
+[[securities.history]]
+from = 2005-01-03
+ticker = "AMD"
+name = "Advanced Micro Devices, Inc."
+cik = 2488
+# History starts on 2005-01-03, with our price history. Its 10-K for 2004: "Our common
+# stock (symbol 'AMD') is listed on the New York Stock Exchange".
+source = "https://www.sec.gov/Archives/edgar/data/2488/000119312505039876/0001193125-05-039876-index.htm"
+
+[[securities]]
 id = "alphabet-a"
 share_class = "Class A common stock"
+# Tiingo files Class A's whole history, from 2004, under GOOGL.
+symbols = { tiingo = "GOOGL" }
 
 [[securities.history]]
 from = 2004-08-19

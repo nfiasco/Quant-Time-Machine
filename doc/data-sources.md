@@ -21,7 +21,7 @@ The spike scripts that produced the evidence are in [`backend/spikes/`](../backe
 | Daily prices, splits, dividends | [Tiingo end-of-day API](#daily-prices-decision-d2) (D2) | The session's close (rule 4 of the [time model](time-model.md)) | Free tier: 50 requests per hour, 1,000 per day, 500 symbols per month | **Not without permission or a license**: free and paid individual plans are internal use only | Chosen. Verified 2026-10-12: raw prices ✓, splits and dividends ✓, delisted companies only partly |
 | Survivorship-free reference prices | [WRDS (CRSP) through UD](#wrds-crsp-at-the-university-of-delaware) | Session close; delisting dates and returns | Through UD's subscription | No: internal academic use only | Not requested yet |
 | Trading calendar | [`exchange_calendars`](#trading-calendar) | Not applicable | Open source (Apache-2.0) | Yes | Chosen (S3.5) |
-| Universe membership | [A curated list, `starter_large_caps`](#universe-v1-starter_large_caps-decision-d3) (D3), dated by S&P's public announcements | The effective date of each change | Free | Yes: we cite public announcements and store only our members' dates | Chosen 2026-10-29 (D3); the list is being built (S6.5). Until then, ingestion loads the [M2 ticker set](#m2-ticker-set) |
+| Universe membership | [A curated list, `starter_large_caps`](#universe-v1-starter_large_caps-decision-d3) (D3), dated by S&P's public announcements | The effective date of each change | Free | Yes: we cite public announcements and store only our members' dates | Chosen 2026-10-29 (D3); built 2026-10-31 with 50 members (S6.5), which ingestion loads with SPY |
 
 ## FRED and ALFRED (economic data and its revisions)
 
@@ -319,9 +319,101 @@ A company we'd want but can't cover, such as Lehman Brothers, which Tiingo has n
 
 **Its limits, for the methodology page.** Choosing which companies to curate still uses hindsight. Including companies that left on purpose reduces survivorship bias but doesn't remove it. Universe v2 (S6.6) replaces hand-picking with a rule computed from our own data.
 
+**The members, built 2026-10-31.** 50 companies:
+
+- 28 were members from 2010 on and never left.
+- 13 joined after 2010-01-01, Tesla and Meta among them.
+- 13 left: 8 were acquired or taken private, and 5 were removed for size. AMD left in 2013 and rejoined in 2017, so it's one company with two spells.
+- The banks are JPMorgan, Bank of America, Wells Fargo, Citigroup, and Goldman Sachs.
+
+Every date is cited in [`universes.toml`](../backend/app/data/sources/universes.toml):
+
+- **S&P's own announcements** date every change after 2010, on its newsroom, press.spglobal.com. A change "after the close" counts from the next session.
+- **SPY's annual report** shows membership by 2010-01-01. Its schedule of investments lists every S&P 500 member SPY held on September 30, 2009, and each of these companies is also in its holdings on March 31, 2010.
+- **SEC filings** carry each company's identity, in [`securities.toml`](../backend/app/data/sources/securities.toml): its IPO prospectus, or a 2005 filing that names its ticker, plus name changes, new CIKs, and the end of trading.
+
+| Company | Ticker | CIK | Member | Note |
+| --- | --- | --- | --- | --- |
+| Alphabet Inc. | GOOGL | 1288776, 1652044 | 2010-01-01 on | Was GOOG until 2014; new CIK in 2015 |
+| Amazon.com, Inc. | AMZN | 1018724 | 2010-01-01 on |  |
+| Apple Inc. | AAPL | 320193 | 2010-01-01 on |  |
+| Bank of America Corporation | BAC | 70858 | 2010-01-01 on | Bank |
+| Caterpillar Inc. | CAT | 18230 | 2010-01-01 on |  |
+| Cisco Systems, Inc. | CSCO | 858877 | 2010-01-01 on |  |
+| Citigroup Inc. | C | 831001 | 2010-01-01 on | Bank |
+| Eli Lilly and Company | LLY | 59478 | 2010-01-01 on |  |
+| ExxonMobil Holdings Corporation | XOM | 34088, 2115436 | 2010-01-01 on | New CIK in 2026 (Texas holding company) |
+| Intel Corporation | INTC | 50863 | 2010-01-01 on |  |
+| International Business Machines Corporation | IBM | 51143 | 2010-01-01 on |  |
+| Johnson & Johnson | JNJ | 200406 | 2010-01-01 on |  |
+| JPMorgan Chase & Co. | JPM | 19617 | 2010-01-01 on | Bank |
+| Mastercard Incorporated | MA | 1141391 | 2010-01-01 on |  |
+| McDonald's Corporation | MCD | 63908 | 2010-01-01 on |  |
+| Microsoft Corporation | MSFT | 789019 | 2010-01-01 on |  |
+| NVIDIA Corporation | NVDA | 1045810 | 2010-01-01 on |  |
+| PepsiCo, Inc. | PEP | 77476 | 2010-01-01 on |  |
+| Pfizer Inc. | PFE | 78003 | 2010-01-01 on |  |
+| The Boeing Company | BA | 12927 | 2010-01-01 on |  |
+| The Coca-Cola Company | KO | 21344 | 2010-01-01 on |  |
+| The Goldman Sachs Group, Inc. | GS | 886982 | 2010-01-01 on | Bank |
+| The Home Depot, Inc. | HD | 354950 | 2010-01-01 on |  |
+| The Procter & Gamble Company | PG | 80424 | 2010-01-01 on |  |
+| UnitedHealth Group Incorporated | UNH | 731766 | 2010-01-01 on |  |
+| Verizon Communications Inc. | VZ | 732712 | 2010-01-01 on |  |
+| Walmart Inc. | WMT | 104169 | 2010-01-01 on | Wal-Mart Stores until 2018 |
+| Wells Fargo & Company | WFC | 72971 | 2010-01-01 on | Bank |
+| AbbVie Inc. | ABBV | 1551152 | 2013-01-02 on |  |
+| Abercrombie & Fitch Co. | ANF | 1018840 | 2010-01-01 to 2013-12-23 | Removed |
+| Activision Blizzard, Inc. | ATVI | 718877 | 2015-08-31 to 2023-10-18 | Acquired by Microsoft |
+| Advanced Micro Devices, Inc. | AMD | 2488 | 2010-01-01 to 2013-09-23; 2017-03-20 on | Moved to the S&P MidCap 400 in 2013, back in 2017 |
+| Airbnb, Inc. | ABNB | 1559720 | 2023-09-18 on |  |
+| Celgene Corporation | CELG | 816284 | 2010-01-01 to 2019-11-21 | Acquired by Bristol-Myers Squibb |
+| CrowdStrike Holdings, Inc. | CRWD | 1535527 | 2024-06-24 on |  |
+| Discover Financial Services | DFS | 1393612 | 2010-01-01 to 2025-05-19 | Acquired by Capital One |
+| Etsy, Inc. | ETSY | 1370637 | 2020-09-21 to 2024-09-23 | Removed |
+| H&R Block, Inc. | HRB | 12659 | 2010-01-01 to 2020-09-21 | Moved to the S&P MidCap 400 |
+| Kohl's Corporation | KSS | 885639 | 2010-01-01 to 2020-09-21 | Moved to the S&P MidCap 400 |
+| lululemon athletica inc. | LULU | 1397187 | 2023-10-18 on |  |
+| Marathon Oil Corporation | MRO | 101778 | 2010-01-01 to 2024-11-26 | Acquired by ConocoPhillips |
+| Meta Platforms, Inc. | META | 1326801 | 2013-12-23 on | Facebook, Inc., as FB until 2022 |
+| Palantir Technologies Inc. | PLTR | 1321655 | 2024-09-23 on |  |
+| PayPal Holdings, Inc. | PYPL | 1633917 | 2015-07-20 on |  |
+| Pioneer Natural Resources Company | PXD | 1038357 | 2010-01-01 to 2024-05-08 | Acquired by Exxon Mobil |
+| Tesla, Inc. | TSLA | 1318605 | 2020-12-21 on | Rule 8's golden test |
+| Time Warner Inc. | TWX | 1105705 | 2010-01-01 to 2018-06-20 | Acquired by AT&T |
+| Twitter, Inc. | TWTR | 1418091 | 2018-06-07 to 2022-11-01 | Taken private |
+| Uber Technologies, Inc. | UBER | 1543151 | 2023-12-18 on |  |
+| Xilinx, Inc. | XLNX | 743988 | 2010-01-01 to 2022-02-15 | Acquired by AMD |
+
+**Coverage gaps and candidates left out (checked 2026-10-31).** The list takes only companies whose dates and identity can be cited, and whose whole membership Tiingo covers. That means Tiingo's latest listing under the symbol, which is what its API answers with. [`test_universes.py`](../backend/tests/test_universes.py) checks the coverage against Tiingo's public ticker list (`-m network`).
+
+| Candidate | Why it's out |
+| --- | --- |
+| Monsanto (left 2018-06-07, acquired by Bayer) | Coverage gap: Tiingo's `MON` now answers with Monument Circle Acquisition Corp. (listed 2021–2022), so Monsanto's prices can't be reached by symbol |
+| Lehman Brothers, Bear Stearns, Wachovia | Left before 2010, and Tiingo has no prices for the first two |
+| Netflix (joined December 2010) | S&P's 2010 announcement isn't online; news reports and Netflix's own 10-K aren't S&P's announcement |
+| Visa (joined December 2009) | Not in SPY's holdings on September 30, 2009; S&P's December 2009 announcement wasn't found |
+| Abbott Laboratories, Harley-Davidson | No filing from 2004 or 2005 names the ticker (Harley-Davidson's first that does is from October 2006) |
+| Macy's, Oracle, Xerox | Their identity changed after 2005: Federated Department Stores became Macy's in 2007, and Oracle (2006) and Xerox (2019) each became a new holding company with a new CIK. Left for a later revision |
+
+**What the first load showed (2026-10-31).** Tiingo had bars for every member, with one missing session in the 22 years loaded: Celgene's on November 21, 2019, the day Nasdaq suspended it.
+
+Like Twitter's, most acquired companies' last bars are placeholders, not trades. They fall on or after the day trading stopped, with little or no volume and the previous close repeated:
+
+- Time Warner on June 15, 2018;
+- Celgene on November 22, 2019;
+- Xilinx on February 14, 2022;
+- Activision Blizzard on October 13, 2023;
+- Pioneer on May 3, 2024;
+- Marathon Oil on November 22, 2024.
+
+Discover's last bar, May 16, 2025, is a real session. Delisting exits (S6.7) must skip the placeholders.
+
+The list can grow toward 100 members on the same rules.
+
 ### M2 ticker set
 
-Until the `starter_large_caps` list is built (S6.5), ingestion and the walking skeleton (M2) load these five companies plus the benchmark. Each one is there to exercise a specific rule. It's a test set, not a universe for backtests. Checked against SEC EDGAR and Tiingo's metadata on 2026-10-19:
+Ingestion and the walking skeleton (M2) loaded these five companies plus the benchmark until universe v1 was built (S6.5). Each one is there to exercise a specific rule. They stay as the test set: [`tests/fixtures/`](../backend/tests/fixtures/) copies their history, and [`spikes/hosting.py`](../backend/spikes/hosting.py) cycles through them. All five are also universe members. Checked against SEC EDGAR and Tiingo's metadata on 2026-10-19:
 
 | Ticker | Company | CIK | Tiingo prices | Why it's in the set |
 | --- | --- | --- | --- | --- |
@@ -332,7 +424,7 @@ Until the `starter_large_caps` list is built (S6.5), ingestion and the walking s
 | TWTR | Twitter, taken private in October 2022 | 1418091 | 2013-11-07 to 2022-10-28 | A delisted company. SEC's current ticker file doesn't list TWTR, and its submissions show no tickers, so it needs an override entry (S5.2). Its last bar later tests delisting exits (S6.7). |
 | SPY | SPDR S&P 500 ETF Trust (benchmark) | 884394 | 1993-01-29 on | The default benchmark (S6.2). It files no 10-K or 10-Q, so the filing endpoints should return an empty result with a reason, not an error. |
 
-Loading all six takes six Tiingo requests, against the free plan's 50 per hour and 500 symbols per month.
+Loading all six takes six Tiingo requests, against the free plan's 50 per hour and 500 symbols per month. Universe v1 and SPY take 51, so a first load needs two runs an hour apart.
 
 ## Known gaps
 

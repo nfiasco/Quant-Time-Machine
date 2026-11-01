@@ -1,8 +1,13 @@
-from datetime import UTC, date, datetime
+import csv
+import io
+import zipfile
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 
+import httpx2
 import pytest
 
+from app.data import calendar
 from app.data.errors import NotFoundError
 from app.data.records import UniverseMember
 from app.data.sources import securities, universes
@@ -129,6 +134,21 @@ def test_the_membership_fixture_matches_the_curated_file(fixture_store: Path) ->
     assert facts(stored) == facts(curated)
 
 
+def test_v1_follows_d3() -> None:
+    # doc/data-sources.md: 50 to 100 large US companies, at least 10 of which joined
+    # after 2010-01-01, Tesla and Meta among them, and at least 10 left, Twitter among
+    # them, with at least two banks.
+    v1 = universes.UNIVERSES.by_name[V1]
+    joined = {s.security.id for s in v1.spells if s.added > universes.HISTORY_START}
+    left = {s.security.id for s in v1.spells if s.removed is not None}
+
+    assert 50 <= len(v1.members) <= 100
+    assert len(joined) >= 10 and {"tesla", "meta"} <= joined
+    assert len(left) >= 10 and "twitter" in left
+    assert {"jpmorgan", "bank-of-america"} <= {s.id for s in v1.members}
+    assert all(s.removed is None or s.removed.year <= 2025 for s in v1.spells)
+
+
 def test_ingesters_load_every_member_then_spy() -> None:
     loaded = universes.ingest_set()
 
@@ -207,3 +227,46 @@ def test_the_curated_universes_are_checked(
 
     with pytest.raises(ValueError, match=problem):
         load_universes(path)
+
+
+@pytest.mark.network
+def test_live_tiingo_covers_every_members_spell() -> None:
+    # One download of Tiingo's public ticker list, which needs no key and counts against
+    # no limit. Tiingo answers a symbol with its latest listing, so that listing must
+    # cover the whole spell: a reused symbol, such as Monsanto's MON, which a SPAC took
+    # in 2021, fails. A spell ends when the security left or stopped trading.
+    response = httpx2.get(
+        "https://apimedia.tiingo.com/docs/tiingo/daily/supported_tickers.zip",
+        timeout=120,
+    )
+    response.raise_for_status()
+    with (
+        zipfile.ZipFile(io.BytesIO(response.content)) as archive,
+        archive.open(archive.namelist()[0]) as listing,
+    ):
+        rows = list(csv.DictReader(io.TextIOWrapper(listing, encoding="utf-8")))
+    latest: dict[str, dict[str, str]] = {}
+    for row in rows:
+        symbol = row["ticker"].upper()
+        if row["startDate"] >= latest.get(symbol, {}).get("startDate", ""):
+            latest[symbol] = row
+    recently = (datetime.now(UTC) - timedelta(days=7)).date().isoformat()
+
+    gaps = []
+    for spell in universes.UNIVERSES.by_name[V1].spells:
+        symbol = spell.security.symbols["tiingo"]
+        stopped = [
+            change.effective
+            for change in spell.security.history
+            if change.ticker is None and change.effective > spell.added
+        ]
+        ends = [day for day in (spell.removed, *stopped) if day is not None]
+        needed = calendar.previous_session(min(ends)).isoformat() if ends else recently
+        row = latest.get(symbol, {"startDate": "9999", "endDate": ""})
+        if row["startDate"] > spell.added.isoformat() or row["endDate"] < needed:
+            gaps.append(
+                f"{spell.security.id} ({symbol}): {row['startDate']} to "
+                f"{row['endDate']}, needed {spell.added} to {needed}"
+            )
+
+    assert gaps == []

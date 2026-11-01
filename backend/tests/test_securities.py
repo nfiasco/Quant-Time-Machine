@@ -139,14 +139,15 @@ NOVEMBER = datetime(2026, 11, 2, 12, tzinfo=UTC)
 def test_a_ticker_only_sec_lists_resolves_from_the_download(
     curated_store: Path,
 ) -> None:
-    snapshot(curated_store, OCTOBER, (1045810, "NVDA", "NVIDIA CORP"))
+    # Oracle isn't curated, so only SEC's file says who uses ORCL.
+    snapshot(curated_store, OCTOBER, (1341439, "ORCL", "ORACLE CORP"))
 
-    assert resolve(curated_store, "NVDA", OCTOBER.replace(hour=11)) is None
+    assert resolve(curated_store, "ORCL", OCTOBER.replace(hour=11)) is None
     with PointInTimeView(OCTOBER, store=curated_store) as view:
-        security = view.resolve_ticker("nvda")
+        security = view.resolve_ticker("orcl")
 
-    assert security.security_id == "1045810-NVDA"
-    assert (security.name, security.cik) == ("NVIDIA CORP", 1045810)
+    assert security.security_id == "1341439-ORCL"
+    assert (security.name, security.cik) == ("ORACLE CORP", 1341439)
     assert (security.share_class, security.effective_date) == (None, None)
     assert security.available_at == OCTOBER
     assert security.time_assumed is True
@@ -154,12 +155,12 @@ def test_a_ticker_only_sec_lists_resolves_from_the_download(
 
 def test_only_the_newest_download_counts(curated_store: Path) -> None:
     # A ticker that left SEC's file stops resolving once a newer download is known.
-    snapshot(curated_store, OCTOBER, (1045810, "NVDA", "NVIDIA"), (1, "OLD", "Old Co"))
-    snapshot(curated_store, NOVEMBER, (1045810, "NVDA", "NVIDIA"))
+    snapshot(curated_store, OCTOBER, (1341439, "ORCL", "ORACLE"), (1, "OLD", "Old Co"))
+    snapshot(curated_store, NOVEMBER, (1341439, "ORCL", "ORACLE"))
 
     assert resolve(curated_store, "OLD", "2026-10-15") == "1-OLD"
     assert resolve(curated_store, "OLD", NOVEMBER) is None
-    assert resolve(curated_store, "NVDA", NOVEMBER) == "1045810-NVDA"
+    assert resolve(curated_store, "ORCL", NOVEMBER) == "1341439-ORCL"
 
 
 def test_the_curated_history_comes_before_sec(curated_store: Path) -> None:
@@ -316,17 +317,17 @@ def ingest(tmp_path: Path, server: FakeServer) -> Path:
 
 
 def test_ingest_loads_the_curated_history_and_a_snapshot(tmp_path: Path) -> None:
-    server = FakeServer(ok(sec_listing((1045810, "NVDA", "NVIDIA CORP"))))
+    server = FakeServer(ok(sec_listing((1341439, "ORCL", "ORACLE CORP"))))
 
     store = ingest(tmp_path, server)
 
     assert str(server.requests[0].url) == securities.TICKER_FILE
     assert resolve(store, "FB", "2020-06-05") == "meta"
     with PointInTimeView(NOW, store=store) as view:
-        nvda = view.resolve_ticker("NVDA")
-    assert nvda.security_id == "1045810-NVDA"
-    assert (nvda.available_at, nvda.time_assumed, nvda.source) == (NOW, True, "edgar")
-    assert nvda.source_ref == f"{securities.TICKER_FILE} fetched 2026-10-19T12:00:00Z"
+        orcl = view.resolve_ticker("ORCL")
+    assert orcl.security_id == "1341439-ORCL"
+    assert (orcl.available_at, orcl.time_assumed, orcl.source) == (NOW, True, "edgar")
+    assert orcl.source_ref == f"{securities.TICKER_FILE} fetched 2026-10-19T12:00:00Z"
 
 
 def test_rerunning_adds_nothing_and_makes_no_requests(tmp_path: Path) -> None:
