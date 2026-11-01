@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from app.api.examples import EXAMPLE_DATA_VERSION
 from app.api.filings import Filing
+from app.api.fundamentals import Fundamental
 from app.api.macro import MacroObservation
 from app.api.prices import PriceBar
 from app.config import Settings
@@ -76,6 +77,8 @@ def test_response_models_have_readable_names() -> None:
         "FilingResponse",
         "FilingListResponse",
         "Filing",
+        "FundamentalListResponse",
+        "Fundamental",
         "ErrorResponse",
     } <= set(SPEC["components"]["schemas"])
 
@@ -86,6 +89,7 @@ def test_response_models_have_readable_names() -> None:
         (MacroObservation, records.MacroObservation),
         (PriceBar, records.PriceBar),
         (Filing, records.Filing),
+        (Fundamental, records.Fundamental),
     ],
 )
 def test_response_models_carry_every_record_field_but_internal_ids(
