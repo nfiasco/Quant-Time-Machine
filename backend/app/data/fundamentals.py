@@ -1,4 +1,4 @@
-"""Standard metrics from XBRL facts, as known at a knowledge time (S5.6).
+"""Standard metrics from XBRL facts, as known at a knowledge time (S5.6, S5.7).
 
 Pure functions over `xbrl_facts` rows that a PointInTimeView has already read, so every
 row they see was known at the knowledge time:
@@ -6,6 +6,8 @@ row they see was known at the knowledge time:
 - `latest_by_period`: for each concept and period, the value its latest filing
   reported (doc/time-model.md, rule 6);
 - `resolve`: for each period, the first concept in a metric's order that has a value;
+- `quarterly_values`: a metric's quarters, reported or derived from year-to-date
+  totals, with the concept and filings each came from;
 - `coverage`: which of a company's 10-Qs and 10-Ks reported none of a metric's
   concepts for their own period.
 
@@ -17,8 +19,8 @@ never stands in for the report.
 
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
-from datetime import date, datetime
+from dataclasses import dataclass, replace
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from app.data.records import ConceptUse
@@ -115,6 +117,171 @@ def resolve(
         if best is None or rank[concept] < rank[best.concept]:
             resolved[(start, end)] = version
     return resolved
+
+
+_SPANS = (
+    (range(80, 101), 1),  # a quarter: 13 or 14 weeks, or 90 to 92 days
+    (range(175, 197), 2),  # six months: 26 or 27 weeks, or 181 to 184 days
+    (range(266, 288), 3),  # nine months: 39 or 40 weeks, or 273 to 275 days
+    (range(350, 381), 4),  # a year: 52 or 53 weeks, or 365 or 366 days
+)
+
+
+def quarters_spanned(duration_days: int) -> int | None:
+    """How many quarters a period covers, from its length in days, both ends counted:
+    1 for a quarter, 2 for six months, 3 for nine months, and 4 for a year. None for
+    anything else, such as an instant (0 days) or a transition period."""
+    return next((n for days, n in _SPANS if duration_days in days), None)
+
+
+@dataclass(frozen=True)
+class Quarter:
+    """A metric's value for one quarter as known by then, or, for an instant metric,
+    for one date."""
+
+    concept: str
+    period_start: date | None
+    period_end: date
+    value: float
+    derived: bool
+    """Computed from two year-to-date totals rather than reported."""
+    accession_numbers: tuple[str, ...]
+    """The filings it came from; for a derived quarter, the longer total's first."""
+    available_at: datetime
+    """When the last of those filings was accepted."""
+    time_assumed: bool
+    fiscal_year: int | None = None
+    fiscal_period: str | None = None
+    """"Q1" to "Q4"."""
+
+
+def quarterly_values(
+    rows: Iterable[Mapping[str, Any]], metric: Metric, concepts: Sequence[str]
+) -> list[Quarter]:
+    """Every quarter of a metric that `rows` give, oldest first.
+
+    Periods are sorted by length (`quarters_spanned`), so 13- and 14-week quarters and
+    52- and 53-week years count. For each quarter, keyed by its end date, the concepts
+    are tried in order. A concept has the quarter if a filing reported it, or, for a
+    metric that can be derived, if two of its year-to-date totals with the same start
+    give it: Q2 is six months minus Q1, Q3 nine months minus six, and Q4 the year
+    minus nine months. Every value is the latest one filed (`latest_by_period`), and a
+    reported quarter beats a derived one. An instant metric has a value per date
+    instead.
+
+    Each value gets the fiscal year and quarter of the 10-Q or 10-K that reported its
+    period as its own (`_labels`).
+    """
+    rows = list(rows)
+    versions = latest_by_period(rows).versions
+    found: dict[date, Quarter] = {}
+    if metric.period == "instant":
+        for (start, end), version in resolve(versions, concepts).items():
+            if start is None:
+                found[end] = _reported(version)
+    else:
+        for concept in concepts:
+            for end, quarter in _quarters(versions, concept, metric.derive).items():
+                found.setdefault(end, quarter)
+    labels = _labels(rows)
+    return [
+        replace(found[end], fiscal_year=labels[end][0], fiscal_period=labels[end][1])
+        if end in labels
+        else found[end]
+        for end in sorted(found)
+    ]
+
+
+def _quarters(
+    versions: Mapping[ConceptPeriod, Version], concept: str, derive: bool
+) -> dict[date, Quarter]:
+    """One concept's quarters by end date: those reported, then, with `derive`, those
+    its year-to-date totals give."""
+    quarters: dict[date, Quarter] = {}
+    totals: defaultdict[date, dict[int, Version]] = defaultdict(dict)
+    for (name, start, end), version in versions.items():
+        if name != concept or start is None:
+            continue
+        spanned = quarters_spanned((end - start).days + 1)
+        if spanned is None:
+            continue
+        totals[start][spanned] = version  # by the fiscal year's start
+        earlier = quarters.get(end)
+        if spanned == 1 and (
+            earlier is None or version.available_at > earlier.available_at
+        ):
+            quarters[end] = _reported(version)
+    if derive:
+        for by_span in totals.values():
+            for spanned in (2, 3, 4):
+                longer, shorter = by_span.get(spanned), by_span.get(spanned - 1)
+                if longer is None or shorter is None:
+                    continue
+                start = shorter.period_end + timedelta(days=1)
+                if quarters_spanned((longer.period_end - start).days + 1) == 1:
+                    quarters.setdefault(longer.period_end, _derived(longer, shorter))
+    return quarters
+
+
+def _reported(version: Version) -> Quarter:
+    return Quarter(
+        concept=version.concept,
+        period_start=version.period_start,
+        period_end=version.period_end,
+        value=version.value,
+        derived=False,
+        accession_numbers=(version.accession_number,),
+        available_at=version.available_at,
+        time_assumed=version.time_assumed,
+    )
+
+
+def _derived(longer: Version, shorter: Version) -> Quarter:
+    """The quarter between two year-to-date totals with the same start."""
+    return Quarter(
+        concept=longer.concept,
+        period_start=shorter.period_end + timedelta(days=1),
+        period_end=longer.period_end,
+        value=longer.value - shorter.value,
+        derived=True,
+        accession_numbers=tuple(
+            dict.fromkeys((longer.accession_number, shorter.accession_number))
+        ),
+        available_at=max(longer.available_at, shorter.available_at),
+        time_assumed=longer.time_assumed or shorter.time_assumed,
+    )
+
+
+def _labels(rows: Sequence[Mapping[str, Any]]) -> dict[date, tuple[int, str]]:
+    """The fiscal year and quarter of each period end, from the 10-Qs and 10-Ks that
+    reported it as their own period.
+
+    SEC gives every fact its filing's fiscal year and period, so they're right only for
+    the filing's own period: the latest period end it reported among `rows`. A 10-K's
+    is the fourth quarter. The earliest such filing wins, so a comparative repeated in a
+    later filing never relabels a period.
+    """
+    reports = [
+        row
+        for row in rows
+        if form_family(row["form"] or "") in ("10-K", "10-Q")
+        and row["fiscal_year"] is not None
+        and row["fiscal_period"] in ("Q1", "Q2", "Q3", "Q4", "FY")
+    ]
+    own: dict[str, date] = {}
+    for row in reports:
+        accession = row["accession_number"]
+        own[accession] = max(own.get(accession, row["period_end"]), row["period_end"])
+    labels: dict[date, tuple[datetime, str, tuple[int, str]]] = {}
+    for row in reports:
+        end, accession = row["period_end"], row["accession_number"]
+        if end != own[accession]:
+            continue
+        period = "Q4" if row["fiscal_period"] == "FY" else row["fiscal_period"]
+        found = (row["available_at"], accession, (row["fiscal_year"], period))
+        if end not in labels or found[:2] < labels[end][:2]:
+            labels[end] = found
+    return {end: label for end, (*_, label) in labels.items()}
 
 
 @dataclass(frozen=True)

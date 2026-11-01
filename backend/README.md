@@ -10,7 +10,7 @@ Three sources are in, each ingested and readable as of any moment:
 
 - macro vintages from ALFRED (S4.2–S4.4);
 - raw daily prices from Tiingo (S6.2, S6.3);
-- filing histories from SEC EDGAR (S5.3, S5.4), with the XBRL facts reported in them (S5.5).
+- filing histories from SEC EDGAR (S5.3, S5.4), with the XBRL facts reported in them, read as standard metrics such as revenue (S5.5–S5.7).
 
 Company identity ties tickers to securities over time (S5.2), universe v1 says which companies were eligible when (S6.5), and the as-of endpoints serve the data (S8.2). Every response says which [data version](#data-versions) it read (S3.7).
 
@@ -179,6 +179,7 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | `get_price_history_as_of(ticker, lookback)` | The last `lookback` bars known then, oldest first, for signals (S6.3) |
 | `get_latest_filing_as_of(ticker, form="10-Q", include_amendments=False)` | A `Filing`: the latest of a form family EDGAR had accepted by then, counted from its acceptance time, never its filing date (S5.4) |
 | `list_filings_as_of(ticker, forms=("10-K", "10-Q", "8-K"), include_amendments=False, limit=100)` | The filings accepted by then, newest first, across every CIK the security had (S5.4) |
+| `get_fundamentals_as_of(ticker, metric, quarters=8)` | The last `quarters` quarters of a metric in [`metrics.toml`](app/data/sources/metrics.toml), such as `revenue`, oldest first, as `Fundamental`s. Each is the latest value filed by then, with its concept and accession numbers. A quarter no filing reported, such as most fourth quarters, is derived from two year-to-date totals filed by then (S5.7) |
 | `universe_as_of(name)` | The `UniverseMember`s of a universe in [`universes.toml`](app/data/sources/universes.toml), such as `starter_large_caps`, each with its ticker, name, and CIK then. A company counts from 00:00 ET on the effective date it joined until the date it left: Tesla is in from December 21, 2020 (S6.5) |
 | `fundamentals_coverage(universe, metric)` | For every company in the universe by then, those that left included: how many of its 10-Qs and 10-Ks reported one of the metric's concepts for their own period, which concepts they used, and the periods none covered (S5.6) |
 
