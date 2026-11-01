@@ -21,6 +21,8 @@ app/data/records.py:
   closed (S6.3)
 - `get_latest_filing_as_of` and `list_filings_as_of`: filings EDGAR had accepted (S5.4)
 - `universe_as_of`: a universe's members, from their effective dates (S6.5)
+- `get_fundamentals_as_of`: a standard metric's last quarters, from the XBRL facts filed
+  by then (S5.7)
 - `fundamentals_coverage`: how a standard metric's XBRL concepts cover each universe
   member's filings (S5.6)
 
@@ -45,6 +47,7 @@ from app.data import calendar, fundamentals, versions
 from app.data.errors import DataVersionError, LookAheadError, NotFoundError
 from app.data.records import (
     Filing,
+    Fundamental,
     FundamentalsCoverage,
     MacroObservation,
     PriceBar,
@@ -502,6 +505,46 @@ class PointInTimeView:
             for spell in spells
         ]
 
+    def get_fundamentals_as_of(
+        self, ticker: str, metric: str, quarters: int = 8
+    ) -> list[Fundamental]:
+        """A standard metric's last `quarters` quarters as known at the knowledge time,
+        oldest first.
+
+        `metric` is a name in app/data/sources/metrics.toml, such as "revenue". Each
+        quarter's value is the latest one filed by then (doc/time-model.md, rule 6). At
+        09:30 ET on June 5, 2020, Apple's revenue for the quarter ended March 28, 2020
+        is $58,313 million from its 10-Q; the 10-K and the next year's 10-Q that repeat
+        it came later. A quarter no filing reported is derived from two year-to-date
+        totals known by then: Apple's fourth quarter of fiscal 2021 is the full year
+        minus the first nine months, and cites both filings. A quarter without a value
+        is skipped, not filled. For an instant metric, such as total assets, the last
+        dates come back instead.
+
+        The ticker is resolved at the knowledge time (see `resolve_ticker`), and the
+        facts of every CIK the security had by then are read. [] if none were filed
+        yet, as for a fund like SPY. Raises ValueError for an unknown metric or fewer
+        than one quarter.
+        """
+        if quarters < 1:
+            raise ValueError(f"quarters must be at least 1, not {quarters}")
+        standard = metrics.metric(metric)
+        security = self.resolve_ticker(ticker)
+        ciks = self._ciks(security.security_id, security.cik)
+        if not ciks:
+            return []
+        concepts = standard.concepts_for(security.security_id)
+        rows = self._select(
+            "xbrl_facts",
+            where=(
+                f"cik IN ({', '.join('?' * len(ciks))}) AND unit = ? "
+                f"AND concept IN ({', '.join('?' * len(concepts))})"
+            ),
+            params=[*ciks, standard.unit, *concepts],
+        )
+        found = fundamentals.quarterly_values(rows, standard, concepts)
+        return [_fundamental(security, standard, q) for q in found[-quarters:]]
+
     def fundamentals_coverage(
         self, universe: str, metric: str
     ) -> list[FundamentalsCoverage]:
@@ -685,6 +728,32 @@ def _filing(security: Security, row: Mapping[str, Any]) -> Filing:
         index_url=f"{folder}/{accession}-index.htm",
         source=row["source"],
         source_ref=row["source_ref"],
+    )
+
+
+def _fundamental(
+    security: Security, metric: metrics.Metric, quarter: fundamentals.Quarter
+) -> Fundamental:
+    """A quarter as a record, under the ticker and CIK the security had at the
+    knowledge time."""
+    return Fundamental(
+        security_id=security.security_id,
+        ticker=security.ticker,
+        cik=security.cik,
+        metric=metric.name,
+        concept=quarter.concept,
+        unit=metric.unit,
+        period_start=quarter.period_start,
+        period_end=quarter.period_end,
+        fiscal_year=quarter.fiscal_year,
+        fiscal_period=quarter.fiscal_period,
+        value=quarter.value,
+        derived=quarter.derived,
+        accession_numbers=quarter.accession_numbers,
+        available_at=quarter.available_at,
+        time_assumed=quarter.time_assumed,
+        source="edgar",
+        source_ref=" minus ".join(quarter.accession_numbers),
     )
 
 

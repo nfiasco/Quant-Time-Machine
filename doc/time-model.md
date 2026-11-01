@@ -134,6 +134,19 @@ Apple's revenue for the quarter ended March 28, 2020 (`RevenueFromContractWithCu
 
 Here the value never changed. If a later filing had restated it, the restated number would apply only from that filing's acceptance time. **Never use SEC's frames API in a backtest:** it returns one value per company and period, the *last filed* one (for this quarter, the 2021 10-Q).
 
+**Quarters no filing reported (S5.7).** A 10-K reports the full year, not its fourth quarter, and 10-Qs report cash flows only year to date. `get_fundamentals_as_of` derives such a quarter from two year-to-date totals with the same start:
+
+- Q2 is six months minus Q1, Q3 is nine months minus six, and Q4 is the full year minus nine months.
+- A quarter is derived only when both totals were filed by *T*, and it cites both filings.
+- A quarter a filing did report wins.
+
+| Quarter | Full year | Nine months | Fourth quarter | Known from |
+| --- | --- | --- | --- | --- |
+| Apple, fiscal Q4 2021 (June 27 to September 25, 2021) | $365,817 million (10-K 0000320193-21-000105) | $282,457 million (10-Q 0000320193-21-000065) | $83,360 million | 2021-10-28 18:04:28 ET, the 10-K's acceptance |
+| Microsoft, fiscal Q4 2021 (April to June 2021) | $168,088 million (10-K 0001564590-21-039151) | $121,936 million (10-Q 0001564590-21-020891) | $46,152 million | 2021-07-29 16:21:55 ET |
+
+Periods are sorted by length, so Apple's 14-week first quarters and 53-week years count. Microsoft's quarters follow its fiscal year, which ends in June.
+
 ### 7. A macro observation is known at its vintage date plus its release time
 
 ALFRED records each published version of an observation (a *vintage*) with a `realtime_start` date, but no time of day. We add the release's scheduled time from a release-time table (S4.3); for example, BLS publishes the Employment Situation at 08:30 ET. If a release's time isn't known, we use the end of that day, so it's first usable on the next trading day, and we flag it.
@@ -238,7 +251,9 @@ The pitfalls table in [roadmap §2.4](roadmap.md#24-where-look-ahead-bias-creeps
    - **Not every vintage date is a scheduled release.** A vintage dated on another day, such as a FRED correction, still gets its release's time, unless it's listed as an exception. For example, PAYEMS has a vintage dated Monday, May 11, 2020, three days after the April 2020 jobs report, that changed three observations (April from 131,072 to 131,045 thousand). It counts as known at 08:30 that day.
 
    A release without a time in the table uses the end-of-day rule and is flagged.
-4. **Ticker history.** SEC's ticker file lists only current tickers, so ticker history comes from a curated file, [`securities.toml`](../backend/app/data/sources/securities.toml) (S5.2).
+4. **A derived quarter can mix bases for a while after a recast.** When a company recasts earlier results, such as after selling a business, its next 10-K recasts the full year before any 10-Q recasts the matching nine months. Until one does, a fourth quarter derived from the two mixes old and new figures. The next filings fix it.
+5. **Per-share amounts are never derived.** Diluted EPS doesn't add up across quarters, because the share count changes. So a fourth quarter's EPS appears only if a filing reported it, and Apple's and Microsoft's 10-Ks stopped reporting quarters after fiscal 2020.
+6. **Ticker history.** SEC's ticker file lists only current tickers, so ticker history comes from a curated file, [`securities.toml`](../backend/app/data/sources/securities.toml) (S5.2).
    - It covers universe v1's members and the M2 test set, plus tickers that changed hands: FB became META, GOOG moved from Google's Class A to its Class C shares, and WB went from Wachovia to Weibo. Each change cites its source.
    - A member listed long before our price history has a history that starts on 2005-01-03, so its earlier tickers don't resolve.
    - A ticker that only SEC's file lists is known only from when that file was downloaded, so it can't be used for earlier dates.
@@ -261,7 +276,8 @@ Each rule becomes at least one golden test, built on small committed fixtures (n
 | `test_filing_visible_after_acceptance_not_filing_date` | 5 | *T* = 2020-04-30 18:05 ET | The fiscal Q2 10-Q is already visible (its filing date is May 1) |
 | `test_edgar_acceptance_time_correction` | 5 | JSON `2020-05-01T02:03:10.000Z` and `2020-01-29T04:02:44.000Z` | `2020-04-30T22:03:10Z` and `2020-01-28T23:02:44Z` |
 | `test_fact_versions_follow_filing_acceptance` | 6 | The three filings of Apple's fiscal Q2 2020 revenue | June 5, 2020 sees only the 10-Q row |
-| `test_restatement_applies_from_amendment` | 6 | A synthetic restated value in a later 10-K/A | The old value before the amendment's acceptance, the new one after |
+| `test_restatement_applies_from_amendment` | 6 | A made-up 10-K/A restating Apple's fiscal 2021 revenue | Its derived fourth quarter is $83,360 million until the amendment's acceptance, and the restated figure after |
+| `test_apples_fourth_quarter_is_the_full_year_minus_nine_months` | 6 | Apple's fiscal 2021 10-K and third-quarter 10-Q | Q4 is $83,360 million, derived, known from the 10-K's acceptance |
 | `test_macro_first_print_vs_revision_jan_1990` | 7 | UNRATE vintages | 5.3% from 1990-02-02 08:30 ET through 1996-03-07; 5.4% from 1996-03-08 on |
 | `test_may_2020_unrate_known_at_0930_not_0800` | 7 | UNRATE vintages | 09:30 ET on 2020-06-05 sees 13.3%; 08:00 ET sees April's 14.7% as the latest |
 | `test_unknown_release_time_is_end_of_day_and_flagged` | 7, 11 | A vintage with no release time | `available_at` is 23:59:59.999999 ET that day; flagged |

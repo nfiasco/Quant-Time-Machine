@@ -18,7 +18,7 @@ EARNINGS_8K = "0000320193-20-000050"
 FY2020_10K = "0000320193-20-000096"
 FY2001_10K405 = "0000912057-01-544436"
 AMENDED_Q2 = "0000320193-20-900001"  # made up, for the amendment tests
-NEWEST_10Q = "0000320193-21-000056"  # fiscal Q2 2021: the newest real 10-Q here
+NEWEST_10Q = "0000320193-21-000065"  # fiscal Q3 2021: the newest real 10-Q here
 
 
 def latest(client: TestClient, ticker: str = "AAPL", **params: str) -> Any:

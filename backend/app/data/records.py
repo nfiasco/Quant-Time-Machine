@@ -162,3 +162,43 @@ class FundamentalsCoverage:
     """Periods of report whose filing reported none of the concepts for that period."""
     ambiguous: tuple[date, ...]
     """Periods of report whose filing reported two values for the same period."""
+
+
+@dataclass(frozen=True)
+class Fundamental:
+    """One quarter of a standard metric, as known at the knowledge time (S5.7).
+
+    For an instant metric, such as total assets, it's the value on one date.
+    """
+
+    security_id: str
+    ticker: str
+    """The ticker at the knowledge time."""
+    cik: int | None
+    """The security's CIK at the knowledge time."""
+    metric: str
+    """A metric in app/data/sources/metrics.toml, such as "revenue"."""
+    concept: str
+    """The XBRL concept the value came from, such as
+    "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax"."""
+    unit: str
+    period_start: date | None
+    """None for an instant."""
+    period_end: date
+    fiscal_year: int | None
+    fiscal_period: str | None
+    """"Q1" to "Q4", from the filing that reported the period as its own; None if no
+    filing in our data did."""
+    value: float
+    derived: bool
+    """True for a quarter computed from two year-to-date totals, such as a fourth
+    quarter from the full year minus the first nine months."""
+    accession_numbers: tuple[str, ...]
+    """The filings the value came from: one, or two for a derived quarter, the longer
+    total's first."""
+    available_at: datetime
+    """When the last of those filings was accepted (doc/time-model.md, rule 6)."""
+    time_assumed: bool
+    source: str
+    source_ref: str
+    """The accession number, or "<longer total's> minus <shorter total's>"."""
