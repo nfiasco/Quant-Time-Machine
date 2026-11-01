@@ -21,6 +21,8 @@ app/data/records.py:
   closed (S6.3)
 - `get_latest_filing_as_of` and `list_filings_as_of`: filings EDGAR had accepted (S5.4)
 - `universe_as_of`: a universe's members, from their effective dates (S6.5)
+- `fundamentals_coverage`: how a standard metric's XBRL concepts cover each universe
+  member's filings (S5.6)
 
 Callers use one view per request or backtest decision, and close it when done:
 
@@ -39,15 +41,17 @@ from pathlib import Path
 from typing import Any, Self
 
 from app.config import get_settings
-from app.data import calendar, versions
+from app.data import calendar, fundamentals, versions
 from app.data.errors import DataVersionError, LookAheadError, NotFoundError
 from app.data.records import (
     Filing,
+    FundamentalsCoverage,
     MacroObservation,
     PriceBar,
     Security,
     UniverseMember,
 )
+from app.data.sources import metrics
 from app.data.sources.alfred import SERIES, Series
 from app.data.sources.edgar import FORM_FAMILIES
 from app.data.sources.universes import UNIVERSES, Universe
@@ -425,12 +429,7 @@ class PointInTimeView:
             members += [f"{form}/A" for form in members]
 
         security = self.resolve_ticker(ticker)
-        versions = self._select(
-            "securities", where="security_id = ?", params=[security.security_id]
-        )
-        ciks = {row["cik"] for row in versions if row["cik"] is not None}
-        if not versions and security.cik is not None:
-            ciks = {security.cik}  # a ticker only SEC's file knows
+        ciks = self._ciks(security.security_id, security.cik)
         if not ciks:
             return []
         rows = self._select(
@@ -439,12 +438,24 @@ class PointInTimeView:
                 f"cik IN ({', '.join('?' * len(ciks))}) "
                 f"AND form IN ({', '.join('?' * len(members))})"
             ),
-            params=[*sorted(ciks), *members],
+            params=[*ciks, *members],
             latest_per_key=True,
             order_by="available_at DESC, accession_number DESC",
             limit=limit,
         )
         return [_filing(security, row) for row in rows]
+
+    def _ciks(self, security_id: str, cik: int | None = None) -> list[int]:
+        """Every CIK a security had by the knowledge time, such as Google Inc.'s and
+        then Alphabet's for GOOGL. A ticker only SEC's file knows has no curated
+        history, so its own `cik` stands in."""
+        versions = self._select(
+            "securities", where="security_id = ?", params=[security_id]
+        )
+        ciks = {row["cik"] for row in versions if row["cik"] is not None}
+        if not versions and cik is not None:
+            ciks = {cik}
+        return sorted(ciks)
 
     def universe_as_of(self, name: str) -> list[UniverseMember]:
         """A universe's members at the knowledge time, by security ID.
@@ -490,6 +501,79 @@ class PointInTimeView:
             _universe_member(spell, identities[spell["security_id"]])
             for spell in spells
         ]
+
+    def fundamentals_coverage(
+        self, universe: str, metric: str
+    ) -> list[FundamentalsCoverage]:
+        """How a standard metric's concepts cover the 10-Qs and 10-Ks of every company
+        that was in a universe by the knowledge time, those that left included (S5.6).
+
+        For each company, by security ID: its original 10-Qs and 10-Ks from its first
+        XBRL fact on, the concept each one reported the metric through, and the periods
+        none of the concepts covered, which an override in app/data/sources/metrics.toml
+        may fix. Raises NotFoundError for an unknown universe and ValueError for an
+        unknown metric.
+        """
+        name = _universe(universe).name
+        standard = metrics.metric(metric)
+        spells = self._select("universe_members", where="universe = ?", params=[name])
+        return [
+            self._coverage(security_id, standard)
+            for security_id in sorted({spell["security_id"] for spell in spells})
+        ]
+
+    def _coverage(
+        self, security_id: str, standard: metrics.Metric
+    ) -> FundamentalsCoverage:
+        identity = self._select(
+            "securities",
+            where="security_id = ?",
+            params=[security_id],
+            latest_per_key=True,
+        )
+        concepts = standard.concepts_for(security_id)
+        ciks = self._ciks(security_id)
+        found = fundamentals.Coverage(0, (), (), ())
+        if ciks:
+            in_ciks = f"cik IN ({', '.join('?' * len(ciks))})"
+            forms = [*FORM_FAMILIES["10-K"], *FORM_FAMILIES["10-Q"]]
+            first = self._select(
+                "xbrl_facts",
+                where=in_ciks,
+                params=ciks,
+                order_by="available_at",
+                limit=1,
+            )
+            filings = self._select(
+                "filings",
+                where=f"{in_ciks} AND form IN ({', '.join('?' * len(forms))})",
+                params=[*ciks, *forms],
+            )
+            facts = self._select(
+                "xbrl_facts",
+                where=(
+                    f"{in_ciks} AND unit = ? "
+                    f"AND concept IN ({', '.join('?' * len(concepts))})"
+                ),
+                params=[*ciks, standard.unit, *concepts],
+            )
+            found = fundamentals.coverage(
+                filings,
+                facts,
+                standard,
+                concepts,
+                since=first[0]["available_at"] if first else None,
+            )
+        return FundamentalsCoverage(
+            security_id=security_id,
+            name=identity[0]["name"] if identity else security_id,
+            metric=standard.name,
+            concepts=concepts,
+            filings_checked=found.filings_checked,
+            concepts_used=found.concepts_used,
+            missing=found.missing,
+            ambiguous=found.ambiguous,
+        )
 
     def close(self) -> None:
         """Close the view's DuckDB connection."""

@@ -216,6 +216,22 @@ Retrieved 2026-10-11: Apple's revenue for the quarter ended March 28, 2020 (`Rev
 - **Only exact duplicates are dropped.** Two values one filing reported for the same period are both kept. None turned up on 2026-11-01 for Apple, Microsoft, JPMorgan, and 11 more companies.
 - **Size.** A company facts file runs to about 5 MB (Microsoft's: 4.9 MB). The store keeps only the curated concepts.
 
+**Standard metrics (S5.6).** [`sources/metrics.toml`](../backend/app/data/sources/metrics.toml) says what each metric means: `revenue`, `net_income`, `eps_diluted`, `operating_cash_flow`, `total_assets`, and `shares_outstanding`.
+
+- **Concept order.** Each metric lists the concepts that can report it, most preferred first. For every period, the first concept with a value supplies it ([`app/data/fundamentals.py`](../backend/app/data/fundamentals.py)). So a company keeps one series when its tag changes, and each value says which concept it came from.
+- **ASC 606.**
+  - Apple tagged revenue `SalesRevenueNet` in its 10-Qs until mid-2018, `Revenues` in its fiscal 2018 10-K, and `RevenueFromContractWithCustomerExcludingAssessedTax` from fiscal 2019 on, with comparatives back to fiscal 2017.
+  - Microsoft moved to the new name with its fiscal 2018 10-K. Its revenue for the quarter ended March 31, 2018, $26,819 million, is `SalesRevenueNet` until that 10-K was accepted on August 3, 2018.
+- **Overrides.** A security whose filings need another list gets one, with the reason and a source.
+  - JPMorgan's revenue is total net revenue: `RevenuesNetOfInterestExpense` first, then `Revenues`.
+  - Its filings switched to that tag in 2015 and recast earlier quarters under it. The default order tries `Revenues` first, so it would miss the recasts: the first quarter of 2014 was $22,993 million as first reported and $23,215 million as recast.
+- **An instant metric lists one concept**, because two concepts can be measured on different dates. Shares outstanding is the cover page's count, dated shortly before each filing.
+- **Only 10-K, 10-Q, and 8-K filings and their amendments are read.** Facts from other forms, such as proxy statements, repeat the reports' numbers. They're stored but never read, so a repeat never stands in for the report.
+- **Coverage.** `uv run python -m app.data.coverage` prints, for each metric and each company that was ever in the universe:
+  - how many of its 10-Qs and 10-Ks, from its first XBRL fact on, reported one of the concepts for their own period;
+  - which concepts they used;
+  - which periods none of them covered.
+
 **Limits, cost, and terms:** the same as the submissions API. XBRL data usually updates within a minute of a filing.
 
 ## Daily prices (decision D2)

@@ -2,9 +2,10 @@
 
 `uv run python -m app.data.ingest sec` loads each company's facts right after its
 filing history (sources/edgar.py), for every company whose submissions include XBRL
-filings, from `api/xbrl/companyfacts/CIK##########.json`. Only the curated concepts in
-CONCEPTS are kept, in every unit SEC gives: the revenue family, net income, diluted EPS,
-operating cash flow, total assets, and shares outstanding.
+filings, from `api/xbrl/companyfacts/CIK##########.json`. Only the concepts that
+sources/metrics.toml maps to standard metrics are kept, in every unit SEC gives: the
+revenue family, net income, diluted EPS, operating cash flow, total assets, and shares
+outstanding.
 
 **When a fact became public: the acceptance time of the filing that reported it**
 (doc/time-model.md, rule 6). A fact's `filed` is a date only, so its accession number
@@ -30,36 +31,15 @@ from typing import Any
 
 from app.data.http import SourceClient
 from app.data.sources import IngestContext
+from app.data.sources.metrics import all_concepts
 from app.data.store import WriteResult, write_rows
 from app.data.tables import XBRL_FACTS
 from app.data.timeutil import market_time
 
 logger = logging.getLogger(__name__)
 
-CONCEPTS: frozenset[str] = frozenset(
-    {
-        # Revenue, under its names before and after ASC 606, and banks' net revenue
-        "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
-        "us-gaap:RevenueFromContractWithCustomerIncludingAssessedTax",
-        "us-gaap:Revenues",
-        "us-gaap:SalesRevenueNet",
-        "us-gaap:RevenuesNetOfInterestExpense",
-        # Net income
-        "us-gaap:NetIncomeLoss",
-        "us-gaap:ProfitLoss",
-        # Diluted earnings per share
-        "us-gaap:EarningsPerShareDiluted",
-        "us-gaap:EarningsPerShareBasicAndDiluted",
-        # Operating cash flow
-        "us-gaap:NetCashProvidedByUsedInOperatingActivities",
-        "us-gaap:NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
-        # Total assets
-        "us-gaap:Assets",
-        # Shares outstanding, from the cover page
-        "dei:EntityCommonStockSharesOutstanding",
-    }
-)
-"""The concepts kept, each with its taxonomy."""
+CONCEPTS: frozenset[str] = all_concepts()
+"""The concepts kept: every one a metric in sources/metrics.toml lists."""
 
 END_OF_DAY = time(23, 59, 59, 999999)
 

@@ -128,3 +128,37 @@ class Security:
     time_assumed: bool
     source: str
     source_ref: str
+
+
+@dataclass(frozen=True)
+class ConceptUse:
+    """How many of a company's filings reported a metric through one concept (S5.6)."""
+
+    concept: str
+    filings: int
+    first_period: date
+    """The earliest period of report among them."""
+    last_period: date
+
+
+@dataclass(frozen=True)
+class FundamentalsCoverage:
+    """How well a standard metric covers one company's 10-Qs and 10-Ks (S5.6).
+
+    Its original 10-Qs and 10-Ks are checked from its first XBRL fact on, when tagging
+    began for it, through the knowledge time.
+    """
+
+    security_id: str
+    name: str
+    """The company's name at the knowledge time."""
+    metric: str
+    concepts: tuple[str, ...]
+    """The concepts tried for it, most preferred first."""
+    filings_checked: int
+    concepts_used: tuple[ConceptUse, ...]
+    """In the order tried."""
+    missing: tuple[date, ...]
+    """Periods of report whose filing reported none of the concepts for that period."""
+    ambiguous: tuple[date, ...]
+    """Periods of report whose filing reported two values for the same period."""
