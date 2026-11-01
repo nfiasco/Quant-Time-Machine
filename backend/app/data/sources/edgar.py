@@ -1,8 +1,8 @@
 """SEC EDGAR filing histories (S5.3).
 
-`uv run python -m app.data.ingest sec` loads company identity first
-(sources/securities.py), then each starter-set company's filing history, AAPL first,
-into the `filings` table. A history is `submissions/CIK##########.json`, whose
+`uv run python -m app.data.ingest sec` loads company identity and universe membership
+first (sources/securities.py and sources/universes.py), then the filing history of each
+universe member and benchmark, AAPL first, into the `filings` table. A history is `submissions/CIK##########.json`, whose
 `recent` block holds the last year or so (at least 1,000 filings), plus every older
 page listed in its `filings.files`. All requests stay within SEC's limit of 10 per
 second. Only 10-K, 10-Q, and 8-K filings and their amendments are kept: JPMorgan alone
@@ -35,7 +35,7 @@ from datetime import date, datetime, time, timedelta
 from typing import Any
 
 from app.data.http import SourceClient
-from app.data.sources import IngestContext, securities
+from app.data.sources import IngestContext, securities, universes
 from app.data.store import write_rows
 from app.data.tables import FILINGS
 from app.data.timeutil import ET, market_time
@@ -81,9 +81,11 @@ def corrected_acceptance(raw: str) -> datetime:
 
 
 def ingest(context: IngestContext) -> None:
-    """Load company identity, then the starter set's filing histories, AAPL first."""
+    """Load company identity and universe membership, then the filing histories of the
+    universes' members and the benchmarks, AAPL first."""
     securities.ingest(context)
-    for security in securities.CURATED.starter_set:
+    universes.write_members(context.store)
+    for security in universes.ingest_set():
         for cik in security.ciks:
             filings = fetch_filings(context.client, cik)
             shifted, votes = runs_ahead(filings)

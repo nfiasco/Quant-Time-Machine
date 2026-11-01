@@ -8,7 +8,7 @@ import pytest
 
 from app.config import get_settings
 from app.data.http import client_for
-from app.data.sources import IngestContext, edgar, securities
+from app.data.sources import IngestContext, edgar, universes
 from app.data.sources.edgar import (
     acceptance,
     corrected_acceptance,
@@ -286,9 +286,10 @@ def test_ingest_sec_loads_identity_then_filings_apple_first(tmp_path: Path) -> N
     paths = [str(r.url.path) for r in server.requests]
     assert paths[0] == "/files/company_tickers.json"  # identity first
     assert paths[1] == "/submissions/CIK0000320193.json"  # then AAPL
+    # Then every universe member and benchmark, in universes.toml's order.
     expected = [
         f"/submissions/CIK{cik:010d}.json"
-        for security in securities.CURATED.starter_set
+        for security in universes.ingest_set()
         for cik in security.ciks
     ]
     assert paths[1:] == expected

@@ -88,6 +88,29 @@ class Filing:
 
 
 @dataclass(frozen=True)
+class UniverseMember:
+    """A security in a universe at the knowledge time (S6.5)."""
+
+    universe: str
+    security_id: str
+    ticker: str | None
+    """The ticker at the knowledge time, or None if the security had stopped trading
+    but hadn't left the universe yet: Twitter from October 28 to November 1, 2022."""
+    name: str
+    """The name at the knowledge time."""
+    cik: int | None
+    added: date
+    """The first day of this membership: the effective date of S&P's change, or
+    2010-01-01 for a company already in the index then (D3)."""
+    available_at: datetime
+    """When the membership became known: 00:00 ET on `added`."""
+    time_assumed: bool
+    source: str
+    source_ref: str
+    """The announcement or filing that dates `added`."""
+
+
+@dataclass(frozen=True)
 class Security:
     """A security as identified at the knowledge time (S5.2)."""
 

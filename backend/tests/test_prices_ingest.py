@@ -1,13 +1,13 @@
 import logging
 from dataclasses import replace
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
 
 import pytest
 
 from app.config import get_settings
-from app.data.http import client_for
-from app.data.sources import IngestContext, tiingo
+from app.data.http import RateLimitExceeded, client_for
+from app.data.sources import IngestContext, tiingo, universes
 from app.data.sources.prices import SourceBar, ingest_prices, last_settled_session
 from app.data.sources.securities import CURATED
 from app.data.sources.tiingo import TiingoPriceSource
@@ -300,21 +300,39 @@ def test_tiingo_bars_keep_their_raw_prices(tmp_path: Path) -> None:
     ]
 
 
-def test_ingest_tiingo_loads_the_starter_set_including_spy(tmp_path: Path) -> None:
+def test_ingest_tiingo_loads_the_universe_and_spy(tmp_path: Path) -> None:
+    # One made-up bar for every symbol. With more than 50 securities, a first load
+    # stops at Tiingo's hourly limit, and a run an hour later picks up where it stopped.
     server = FakeServer(lambda request: ok([tiingo_record("2020-06-04", 100.0)]))
     store = tmp_path / "store"
+    clock = FakeClock()
 
-    with fake_client(tmp_path, "tiingo", server, FakeClock()) as client:
-        context = IngestContext(settings(tmp_path), client, store)
-        tiingo.ingest(context, now=utc(2020, 6, 5, 12))
-        tiingo.ingest(context, now=utc(2020, 6, 5, 12))  # up to date: no requests
+    def run() -> None:
+        with fake_client(tmp_path, "tiingo", server, clock) as client:
+            context = IngestContext(settings(tmp_path), client, store)
+            tiingo.ingest(context, now=utc(2020, 6, 5, 12))
+
+    for _ in range(3):
+        try:
+            run()
+            break
+        except RateLimitExceeded:
+            clock.now += timedelta(hours=1)
+    else:
+        pytest.fail("the universe never finished loading")
+    run()  # up to date: no requests
 
     symbols = [request.url.path.split("/")[3] for request in server.requests]
-    assert symbols == ["AAPL", "MSFT", "JPM", "META", "TWTR", "SPY"]
-    assert len(stored(store)) == 6
-    # The curated securities come along, so prices can be read by ticker at once.
+    expected = [security.symbols["tiingo"] for security in universes.ingest_set()]
+    assert symbols == expected  # each once, in universes.toml's order
+    assert symbols[0] == "AAPL" and symbols[-1] == "SPY"
+    assert len(stored(store)) == len(expected)
+    # Identity and membership come along, so prices can be read by ticker at once.
     with PointInTimeView(utc(2020, 6, 5, 13, 30), store=store) as view:
         assert view.resolve_ticker("FB").security_id == "meta"
+        members = {m.security_id for m in view.universe_as_of("starter_large_caps")}
+    assert {"apple", "meta"} <= members
+    assert "tesla" not in members  # it joined on 2020-12-21
 
 
 @pytest.mark.network

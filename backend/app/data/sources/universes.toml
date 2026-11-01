@@ -1,0 +1,69 @@
+# Universe membership (S6.5): which securities were in each universe, and when.
+#
+# starter_large_caps is universe v1 (decision D3, doc/data-sources.md): large US
+# companies, each a member from the effective date it joined the S&P 500 until the
+# effective date it left, as S&P Dow Jones Indices announced them. It deliberately keeps
+# companies that later left, so a backtest doesn't see only today's survivors.
+#
+# Each [[universes.members]] entry is one membership spell of a security in
+# securities.toml. `added` is its first day as a member and `removed` the first day it
+# wasn't one any more; `source` and `removed_source` cite them. S&P changes take effect
+# before the open of a trading day, or after the close of the one before it, so both dates
+# are the first session of the new membership. A company that left and rejoined has one
+# entry per spell.
+#
+# History starts on 2010-01-01. A company already in the index then has
+# added = 2010-01-01 and cites SPY's annual report, whose schedule of investments lists
+# every S&P 500 member it held on September 30, 2009; each such member is also in SPY's
+# holdings on March 31, 2010. Before 2010 the universe is empty. Sources were checked on
+# 2026-10-31.
+
+# Loaded with the members, but never one: SPY is the default benchmark (D3, S6.2).
+benchmarks = ["spdr-sp500"]
+
+[[universes]]
+name = "starter_large_caps"
+
+# Members since before 2010.
+
+[[universes.members]]
+security = "apple"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "microsoft"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "jpmorgan"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+# Members that joined after 2010.
+
+[[universes.members]]
+security = "meta"
+added = 2013-12-23
+# S&P: Facebook replaces Teradyne "after the close of trading on Friday, December 20".
+source = "https://press.spglobal.com/2013-12-11-Facebook-Set-to-Join-the-S-P-100-500-Alliance-Data-Systems-and-Mohawk-to-Join-the-S-P-500-Changes-to-the-S-P-MidCap-400-and-the-S-P-SmallCap-600"
+
+[[universes.members]]
+security = "tesla"
+added = 2020-12-21
+# S&P: added "effective prior to the open of trading on Monday, December 21". This is
+# rule 8's example in doc/time-model.md.
+source = "https://press.spglobal.com/2020-11-16-Tesla-Set-to-Join-S-P-500"
+
+[[universes.members]]
+security = "twitter"
+added = 2018-06-07
+# S&P: Twitter replaces Monsanto "effective prior to the open of trading on Thursday,
+# June 7".
+source = "https://press.spglobal.com/2018-06-04-Netflix-Set-to-Join-S-P-100-Twitter-to-Join-S-P-500-REGENXBIO-to-Join-S-P-SmallCap-600"
+removed = 2022-11-01
+# S&P: Arch Capital replaces Twitter "effective prior to the opening of trading on
+# Tuesday, November 1". Twitter stopped trading on October 28 (securities.toml), so for
+# those days it's a member without a ticker.
+removed_source = "https://press.spglobal.com/2022-10-27-Arch-Capital-Group-Set-to-Join-S-P-500-RXO-to-Join-S-P-MidCap-400-Bread-Financial-Holdings-to-Join-S-P-SmallCap-600"

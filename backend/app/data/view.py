@@ -20,6 +20,7 @@ app/data/records.py:
 - `get_price_as_of` and `get_price_history_as_of`: daily bars whose sessions had
   closed (S6.3)
 - `get_latest_filing_as_of` and `list_filings_as_of`: filings EDGAR had accepted (S5.4)
+- `universe_as_of`: a universe's members, from their effective dates (S6.5)
 
 Callers use one view per request or backtest decision, and close it when done:
 
@@ -40,9 +41,16 @@ from typing import Any, Self
 from app.config import get_settings
 from app.data import calendar, versions
 from app.data.errors import DataVersionError, LookAheadError, NotFoundError
-from app.data.records import Filing, MacroObservation, PriceBar, Security
+from app.data.records import (
+    Filing,
+    MacroObservation,
+    PriceBar,
+    Security,
+    UniverseMember,
+)
 from app.data.sources.alfred import SERIES, Series
 from app.data.sources.edgar import FORM_FAMILIES
+from app.data.sources.universes import UNIVERSES, Universe
 from app.data.store import TableSpec, connect, sql_timestamp, store_dir, table_source
 from app.data.tables import TABLES
 from app.data.timeutil import to_utc
@@ -438,6 +446,51 @@ class PointInTimeView:
         )
         return [_filing(security, row) for row in rows]
 
+    def universe_as_of(self, name: str) -> list[UniverseMember]:
+        """A universe's members at the knowledge time, by security ID.
+
+        A company is a member from 00:00 ET on the day it joined until the day it left
+        (doc/time-model.md, rule 8). `starter_large_caps` leaves out Tesla on December
+        1, 2020, because Tesla joined the S&P 500 on December 21, and includes it on
+        January 4, 2021. Before 2010 it's empty (D3). Each member comes with its ticker,
+        name, and CIK at the knowledge time; the ticker is None if the security had
+        stopped trading but hadn't left yet.
+
+        Raises NotFoundError for a universe that isn't in
+        app/data/sources/universes.toml.
+        """
+        universe = _universe(name)
+        spells = self._select(
+            "universe_members",
+            where="universe = ?",
+            params=[universe.name],
+            latest_per_key=True,
+            latest_where="removed IS NULL",
+            order_by="security_id",
+        )
+        if not spells:
+            return []
+        ids = [row["security_id"] for row in spells]
+        identities = {
+            row["security_id"]: row
+            for row in self._select(
+                "securities",
+                where=f"security_id IN ({', '.join('?' * len(ids))})",
+                params=ids,
+                latest_per_key=True,
+            )
+        }
+        if missing := sorted(set(ids) - set(identities)):
+            # Ingestion writes identity with membership, so the store is broken.
+            raise RuntimeError(
+                f"{universe.name} members {missing} have no curated identity at "
+                f"{self.knowledge_time.isoformat()}"
+            )
+        return [
+            _universe_member(spell, identities[spell["security_id"]])
+            for spell in spells
+        ]
+
     def close(self) -> None:
         """Close the view's DuckDB connection."""
         self._connection.close()
@@ -461,6 +514,33 @@ def _macro_series(series_id: str) -> Series:
     if series is None:
         raise NotFoundError("series", series_id)
     return series
+
+
+def _universe(name: str) -> Universe:
+    """A universe in the curated file. Names are matched in any case."""
+    universe = UNIVERSES.by_name.get(name.strip().lower())
+    if universe is None:
+        raise NotFoundError("universe", name)
+    return universe
+
+
+def _universe_member(
+    spell: Mapping[str, Any], identity: Mapping[str, Any]
+) -> UniverseMember:
+    """A `universe_members` row as a record, with the security's ticker, name, and CIK
+    at the knowledge time."""
+    return UniverseMember(
+        universe=spell["universe"],
+        security_id=spell["security_id"],
+        ticker=identity["ticker"],
+        name=identity["name"],
+        cik=identity["cik"],
+        added=spell["added"],
+        available_at=spell["available_at"],
+        time_assumed=spell["time_assumed"],
+        source=spell["source"],
+        source_ref=spell["source_ref"],
+    )
 
 
 def _curated_security(row: Mapping[str, Any]) -> Security:

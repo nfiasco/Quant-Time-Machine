@@ -109,6 +109,24 @@ FILINGS = TableSpec(
 never its filing date. `acceptance_raw` keeps EDGAR's uncorrected value for auditing.
 `amends` is the accession number of the filing an amendment changes, when it's known."""
 
+UNIVERSE_MEMBERS = TableSpec(
+    name="universe_members",
+    key=("universe", "security_id", "added"),
+    columns={
+        "universe": "VARCHAR",
+        "security_id": "VARCHAR",
+        "added": "DATE",
+        "removed": "DATE",
+    },
+)
+"""Each curated universe's membership spells, from sources/universes.toml (S6.5, D3).
+
+A spell is a security's time in a universe, from `added` until `removed`. Its first
+version is known from 00:00 ET on `added`, with `removed` None. If the security leaves,
+a second version, known from 00:00 ET on `removed`, sets it. So no row shows a removal
+before it happened (doc/time-model.md, rule 8), and a spell's latest version known at a
+knowledge time says whether the security was a member then."""
+
 TABLES: dict[str, TableSpec] = {
     spec.name: spec
     for spec in (
@@ -118,5 +136,6 @@ TABLES: dict[str, TableSpec] = {
         PRICE_BARS,
         CORPORATE_ACTIONS,
         FILINGS,
+        UNIVERSE_MEMBERS,
     )
 }

@@ -10,4 +10,6 @@ meta,META,"Meta Platforms, Inc.",1326801,Class A common stock,2022-06-09,curated
 twitter,TWTR,"Twitter, Inc.",1418091,Common stock,2013-11-07,curated,https://www.sec.gov/Archives/edgar/data/1418091/000119312513431301/0001193125-13-431301-index.htm,2013-11-07T05:00:00Z,false
 twitter,,"Twitter, Inc.",1418091,Common stock,2022-10-28,curated,https://www.sec.gov/Archives/edgar/data/1418091/000087666122000890/ruleprovisionnotice.htm,2022-10-28T04:00:00Z,false
 spdr-sp500,SPY,SPDR S&P 500 ETF Trust,884394,Trust units,1993-01-29,curated,https://www.sec.gov/Archives/edgar/data/1222333/000119312513023294/d473476dfwp.htm,1993-01-29T05:00:00Z,false
+tesla,TSLA,"Tesla Motors, Inc.",1318605,Common stock,2010-06-29,curated,https://www.sec.gov/Archives/edgar/data/1318605/000119312510149105/0001193125-10-149105-index.htm,2010-06-29T04:00:00Z,false
+tesla,TSLA,"Tesla, Inc.",1318605,Common stock,2017-02-01,curated,https://www.sec.gov/Archives/edgar/data/1318605/000156459017000802/tsla-8k_20170201.htm,2017-02-01T05:00:00Z,false
 apple,CANARY,Apple Inc.,320193,Common stock,2099-01-01,curated,canary: no query before 2099 may return this row,2099-01-01T00:00:00Z,false

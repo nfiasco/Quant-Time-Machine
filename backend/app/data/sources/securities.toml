@@ -1,9 +1,10 @@
 # Curated securities (S5.2): which security used which ticker, and when.
 #
 # SEC's ticker file (company_tickers.json) lists only today's tickers, so ticker history
-# comes from here: the M2 ticker set (doc/data-sources.md), plus tickers that changed
-# hands. FB became META, GOOG moved from Google's Class A shares to its Class C shares,
-# and WB went from Wachovia to Weibo.
+# comes from here: every member of the universes in universes.toml (S6.5) and the M2
+# ticker set (doc/data-sources.md), plus tickers that changed hands. FB became META, GOOG
+# moved from Google's Class A shares to its Class C shares, and WB went from Wachovia to
+# Weibo.
 #
 # Each [[securities.history]] entry applies from 00:00 ET on its date until the next
 # entry, and cites the source of that date. `name` and `cik` carry over from the entry
@@ -14,9 +15,10 @@
 # the codes each price vendor uses for the security's whole history: Tiingo files
 # Facebook's history under META, for example.
 
-# The securities the price and filing ingesters load: the M2 ticker set, with SPY as the
-# benchmark. The full universe (D3, S6.5) replaces it.
-starter_set = ["apple", "microsoft", "jpmorgan", "meta", "twitter", "spdr-sp500"]
+# The M2 ticker set, with SPY as the benchmark: the test set that tests/fixtures/ and
+# spikes/hosting.py use (D3). The ingesters load the universes' members instead
+# (universes.toml).
+m2_ticker_set = ["apple", "microsoft", "jpmorgan", "meta", "twitter", "spdr-sp500"]
 
 [[securities]]
 id = "apple"
@@ -135,6 +137,29 @@ name = "SPDR S&P 500 ETF Trust"
 cik = 884394
 # State Street, on EDGAR: SPY first traded on the AMEX on January 29, 1993.
 source = "https://www.sec.gov/Archives/edgar/data/1222333/000119312513023294/d473476dfwp.htm"
+
+# Universe members beyond the M2 set (universes.toml).
+
+[[securities]]
+id = "tesla"
+share_class = "Common stock"
+symbols = { tiingo = "TSLA" }
+
+[[securities.history]]
+from = 2010-06-29
+ticker = "TSLA"
+name = "Tesla Motors, Inc."
+cik = 1318605
+# The IPO's final prospectus (424B4), filed the day trading began.
+source = "https://www.sec.gov/Archives/edgar/data/1318605/000119312510149105/0001193125-10-149105-index.htm"
+
+[[securities.history]]
+from = 2017-02-01
+ticker = "TSLA"
+name = "Tesla, Inc."
+# 8-K: "Effective February 1, 2017, Tesla Motors, Inc. amended ... its certificate of
+# incorporation ... to reflect a change of its corporate name to 'Tesla, Inc.'"
+source = "https://www.sec.gov/Archives/edgar/data/1318605/000156459017000802/tsla-8k_20170201.htm"
 
 [[securities]]
 id = "alphabet-a"

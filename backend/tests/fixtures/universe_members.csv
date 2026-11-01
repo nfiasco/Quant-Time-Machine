@@ -1,0 +1,7 @@
+universe,security_id,added,removed,source,source_ref,available_at,time_assumed
+starter_large_caps,apple,2010-01-01,,curated,https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt,2010-01-01T05:00:00Z,false
+starter_large_caps,meta,2013-12-23,,curated,https://press.spglobal.com/2013-12-11-Facebook-Set-to-Join-the-S-P-100-500-Alliance-Data-Systems-and-Mohawk-to-Join-the-S-P-500-Changes-to-the-S-P-MidCap-400-and-the-S-P-SmallCap-600,2013-12-23T05:00:00Z,false
+starter_large_caps,twitter,2018-06-07,,curated,https://press.spglobal.com/2018-06-04-Netflix-Set-to-Join-S-P-100-Twitter-to-Join-S-P-500-REGENXBIO-to-Join-S-P-SmallCap-600,2018-06-07T04:00:00Z,false
+starter_large_caps,twitter,2018-06-07,2022-11-01,curated,https://press.spglobal.com/2022-10-27-Arch-Capital-Group-Set-to-Join-S-P-500-RXO-to-Join-S-P-MidCap-400-Bread-Financial-Holdings-to-Join-S-P-SmallCap-600,2022-11-01T04:00:00Z,false
+starter_large_caps,tesla,2020-12-21,,curated,https://press.spglobal.com/2020-11-16-Tesla-Set-to-Join-S-P-500,2020-12-21T05:00:00Z,false
+starter_large_caps,apple,2010-01-01,2099-01-01,curated,canary: no query before 2099 may return this row,2099-01-01T00:00:00Z,false

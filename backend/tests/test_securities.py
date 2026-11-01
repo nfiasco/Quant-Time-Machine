@@ -16,7 +16,6 @@ from app.data.view import PointInTimeView
 from tests.fakes import NOW, FakeClock, FakeServer, fake_client, ok, settings
 
 CURATED = securities.CURATED
-STARTER_IDS = {s.id for s in CURATED.starter_set}
 
 
 @pytest.fixture
@@ -179,7 +178,8 @@ def test_a_ticker_listed_under_two_companies_is_not_resolved(
 
 
 def test_the_securities_fixture_matches_the_curated_file(fixture_store: Path) -> None:
-    # tests/fixtures/securities.csv copies the starter set's history, plus a canary.
+    # tests/fixtures/securities.csv copies the whole curated history of each security
+    # it lists, the M2 ticker set among them, plus a canary.
     def facts(rows: list[dict[str, object]]) -> list[tuple[object, ...]]:
         columns = ("security_id", "effective_date", "ticker", "name", "cik")
         more = ("share_class", "source_ref", "available_at", "time_assumed")
@@ -187,15 +187,17 @@ def test_the_securities_fixture_matches_the_curated_file(fixture_store: Path) ->
 
     with PointInTimeView(datetime(2098, 1, 1, tzinfo=UTC), store=fixture_store) as view:
         stored = view._select("securities")
+    listed = {row["security_id"] for row in stored}
     curated = [
-        r for r in securities.curated_rows(CURATED) if r["security_id"] in STARTER_IDS
+        r for r in securities.curated_rows(CURATED) if r["security_id"] in listed
     ]
 
     assert facts(stored) == facts(curated)
+    assert {s.id for s in CURATED.m2_ticker_set} <= listed
 
 
-def test_the_starter_set_is_the_m2_ticker_set() -> None:
-    starter = CURATED.starter_set
+def test_the_m2_ticker_set_is_the_test_set() -> None:
+    starter = CURATED.m2_ticker_set
 
     assert [s.id for s in starter] == [
         "apple",
@@ -262,7 +264,7 @@ source = "https://example.com/earlier"
         (ONE + EARLIER, "history dates must increase"),
         (ONE + ONE, "one is listed twice"),
         (ONE + ONE.replace('id = "one"', 'id = "two"'), "one and two both use ONE"),
-        ('starter_set = ["nope"]\n' + ONE, "starter set names unknown nope"),
+        ('m2_ticker_set = ["nope"]\n' + ONE, "M2 ticker set names unknown nope"),
     ],
 )
 def test_the_curated_file_is_checked(tmp_path: Path, toml: str, problem: str) -> None:

@@ -1,7 +1,7 @@
 """Tiingo's end-of-day prices, our daily price source (decision D2; S6.2).
 
-`uv run python -m app.data.ingest tiingo` loads new bars for the starter set, SPY
-included, through sources/prices.py. Each bar from
+`uv run python -m app.data.ingest tiingo` loads new bars for the universes' members
+and the benchmark, SPY, through sources/prices.py. Each bar from
 `tiingo/daily/<symbol>/prices?startDate=...&endDate=...` has raw fields (open, high,
 low, close, volume), adjusted ones (adjOpen, adjClose, and so on), the dividend paid
 (`divCash`), and the split factor (`splitFactor`). Only the raw fields, the dividend,
@@ -10,7 +10,9 @@ dividend happens, so they'd carry the future into the past. They stay only in th
 cache, as Tiingo sent them.
 
 Tiingo's free plan is for internal use only (doc/data-sources.md, D2), and allows 50
-requests an hour; a run makes one per security that has new sessions.
+requests an hour; a run makes one per security that has new sessions. Loading more
+than 50 securities from scratch stops at the limit, and the next run picks up with the
+securities that still have no bars.
 """
 
 from collections.abc import Mapping
@@ -18,7 +20,7 @@ from datetime import UTC, date, datetime, time
 from typing import Any
 
 from app.data.http import SourceClient
-from app.data.sources import IngestContext, securities
+from app.data.sources import IngestContext, securities, universes
 from app.data.sources.prices import SourceBar, ingest_prices
 
 
@@ -57,15 +59,16 @@ def _raw_bar(record: Mapping[str, Any]) -> SourceBar:
 
 
 def ingest(context: IngestContext, now: datetime | None = None) -> None:
-    """Load the starter set's new bars from Tiingo.
+    """Load new bars from Tiingo for the universes' members and the benchmark.
 
-    It also writes the curated securities, so prices can be read by ticker even if
-    `ingest sec` hasn't run yet.
+    It also writes the curated securities and universe membership, so prices can be read
+    by ticker, and members listed, even if `ingest sec` hasn't run yet.
     """
     securities.write_curated(context.store)
+    universes.write_members(context.store)
     ingest_prices(
         context.store,
         TiingoPriceSource(context.client),
-        securities.CURATED.starter_set,
+        universes.ingest_set(),
         now=datetime.now(UTC) if now is None else now,
     )
