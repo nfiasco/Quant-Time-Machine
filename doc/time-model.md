@@ -169,6 +169,12 @@ The announcement was public on November 16, but membership itself starts on the 
 
 Universe v1, `starter_large_caps` (D3), dates its members exactly this way: each company joins and leaves on the effective dates in S&P's announcements ([data-sources.md](data-sources.md#universe-v1-starter_large_caps-decision-d3)). Tesla is one of its members, so this example is its golden test.
 
+`PointInTimeView.universe_as_of` reads it (S6.5):
+
+- **A membership is known from 00:00 ET on its first day.** A change S&P makes after the close counts from the next session.
+- **A removal is a later version of that membership, known only from 00:00 ET on its own date.** So no read sees a company leave early, even through a row it already has.
+- **Membership and trading can end on different days.** Twitter stopped trading on October 28, 2022, but stayed in the index until November 1. In between, it's a member without a ticker.
+
 ### 9. Decisions: the first trading day of each month, at 09:30 ET
 
 | Month | Decision time | Note |
@@ -230,7 +236,8 @@ The pitfalls table in [roadmap §2.4](roadmap.md#24-where-look-ahead-bias-creeps
 
    A release without a time in the table uses the end-of-day rule and is flagged.
 4. **Ticker history.** SEC's ticker file lists only current tickers, so ticker history comes from a curated file, [`securities.toml`](../backend/app/data/sources/securities.toml) (S5.2).
-   - It covers the starter set plus tickers that changed hands: FB became META, GOOG moved from Google's Class A to its Class C shares, and WB went from Wachovia to Weibo. Each change cites its source.
+   - It covers universe v1's members and the M2 test set, plus tickers that changed hands: FB became META, GOOG moved from Google's Class A to its Class C shares, and WB went from Wachovia to Weibo. Each change cites its source.
+   - A member listed long before our price history has a history that starts on 2005-01-03, so its earlier tickers don't resolve.
    - A ticker that only SEC's file lists is known only from when that file was downloaded, so it can't be used for earlier dates.
 
 ## Named test cases for S3.6

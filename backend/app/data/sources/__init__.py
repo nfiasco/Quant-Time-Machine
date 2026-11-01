@@ -6,6 +6,8 @@ source names to them:
 
 - `alfred`: every vintage of the starter macro series (`ingest fred`, S4.2)
 - `securities`: who used which ticker when, curated and from SEC (`ingest sec`, S5.2)
+- `universes`: which securities were in each universe, and when (`ingest sec` and
+  `ingest tiingo`, S6.5)
 - `edgar`: each company's filing history, after identity (`ingest sec`, S5.3)
 - `prices` and `tiingo`: raw daily bars, splits, and dividends (`ingest tiingo`, S6.2)
 """

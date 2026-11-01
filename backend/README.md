@@ -12,7 +12,7 @@ Three sources are in, each ingested and readable as of any moment:
 - raw daily prices from Tiingo (S6.2, S6.3);
 - filing histories from SEC EDGAR (S5.3, S5.4).
 
-Company identity ties tickers to securities over time (S5.2), and the as-of endpoints serve all of it (S8.2).
+Company identity ties tickers to securities over time (S5.2), universe v1 says which companies were eligible when (S6.5), and the as-of endpoints serve the data (S8.2). Every response says which [data version](#data-versions) it read (S3.7).
 
 ## Getting started
 
@@ -177,6 +177,7 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | `get_price_history_as_of(ticker, lookback)` | The last `lookback` bars known then, oldest first, for signals (S6.3) |
 | `get_latest_filing_as_of(ticker, form="10-Q", include_amendments=False)` | A `Filing`: the latest of a form family EDGAR had accepted by then, counted from its acceptance time, never its filing date (S5.4) |
 | `list_filings_as_of(ticker, forms=("10-K", "10-Q", "8-K"), include_amendments=False, limit=100)` | The filings accepted by then, newest first, across every CIK the security had (S5.4) |
+| `universe_as_of(name)` | The `UniverseMember`s of a universe in [`universes.toml`](app/data/sources/universes.toml), such as `starter_large_caps`, each with its ticker, name, and CIK then. A company counts from 00:00 ET on the effective date it joined until the date it left: Tesla is in from December 21, 2020 (S6.5) |
 
 ```python
 from app.data.timeutil import parse_knowledge_time
@@ -287,6 +288,7 @@ data/
 | `price_bars` | `security_id`, `session_date` | Raw daily bars, as traded |
 | `corporate_actions` | `security_id`, `ex_date`, `action` | Splits and cash dividends by ex-date |
 | `filings` | `cik`, `accession_number` | 10-K, 10-Q, and 8-K filings and their amendments, from EDGAR |
+| `universe_members` | `universe`, `security_id`, `added` | Each curated universe's membership spells; a removal is a second version, known from its own date |
 
 After the first runs above, the store held 65,829 rows in 24 files, 1.2 MB in all, and the raw cache 42 MB, mostly EDGAR's submission files. Only the store is needed to serve the API. `uv run python -m spikes.hosting` reports both by table and source.
 

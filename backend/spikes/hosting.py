@@ -142,9 +142,9 @@ def first_trading_days(start: int, end: int) -> Iterator[date]:
 
 
 def tickers_on(day: date) -> list[str]:
-    """The starter set's tickers in use on `day`, from the curated history."""
+    """The M2 ticker set's tickers in use on `day`, from the curated history."""
     tickers = []
-    for security in CURATED.starter_set:
+    for security in CURATED.m2_ticker_set:
         current = [c for c in security.history if c.effective <= day]
         if current and current[-1].ticker is not None:
             tickers.append(current[-1].ticker)

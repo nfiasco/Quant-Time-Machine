@@ -71,10 +71,12 @@ class CuratedSecurity:
 
 @dataclass(frozen=True)
 class Curated:
-    """The curated file: its securities by ID, and the starter set ingestion loads."""
+    """The curated file: its securities by ID, and the M2 ticker set, the test set that
+    tests/fixtures/ and spikes/hosting.py use. The ingesters load the universes instead
+    (sources/universes.py)."""
 
     securities: Mapping[str, CuratedSecurity]
-    starter_set: tuple[CuratedSecurity, ...]
+    m2_ticker_set: tuple[CuratedSecurity, ...]
 
 
 def load_curated(path: Path = CURATED_FILE) -> Curated:
@@ -93,14 +95,14 @@ def load_curated(path: Path = CURATED_FILE) -> Curated:
         securities[security.id] = security
     _check_tickers_are_never_shared(securities.values(), path)
 
-    starter_set = []
-    for security_id in config.get("starter_set", ()):
+    m2_ticker_set = []
+    for security_id in config.get("m2_ticker_set", ()):
         if security_id not in securities:
             raise ValueError(
-                f"{path.name}: the starter set names unknown {security_id}"
+                f"{path.name}: the M2 ticker set names unknown {security_id}"
             )
-        starter_set.append(securities[security_id])
-    return Curated(securities, tuple(starter_set))
+        m2_ticker_set.append(securities[security_id])
+    return Curated(securities, tuple(m2_ticker_set))
 
 
 def _security(entry: Mapping[str, Any], path: Path) -> CuratedSecurity:
@@ -180,7 +182,7 @@ def _check_tickers_are_never_shared(
 
 
 CURATED = load_curated()
-"""The curated securities and the starter set."""
+"""The curated securities and the M2 ticker set."""
 
 
 def ingest(context: IngestContext) -> None:

@@ -1,0 +1,360 @@
+# Universe membership (S6.5): which securities were in each universe, and when.
+#
+# starter_large_caps is universe v1 (decision D3, doc/data-sources.md): large US
+# companies, each a member from the effective date it joined the S&P 500 until the
+# effective date it left, as S&P Dow Jones Indices announced them. It deliberately keeps
+# companies that later left, so a backtest doesn't see only today's survivors.
+#
+# Each [[universes.members]] entry is one membership spell of a security in
+# securities.toml. `added` is its first day as a member and `removed` the first day it
+# wasn't one any more; `source` and `removed_source` cite them. S&P changes take effect
+# before the open of a trading day, or after the close of the one before it, so both dates
+# are the first session of the new membership. A company that left and rejoined has one
+# entry per spell.
+#
+# History starts on 2010-01-01. A company already in the index then has
+# added = 2010-01-01 and cites SPY's annual report, whose schedule of investments lists
+# every S&P 500 member it held on September 30, 2009; each such member is also in SPY's
+# holdings on March 31, 2010. Before 2010 the universe is empty. Sources were checked on
+# 2026-10-31.
+
+# Loaded with the members, but never one: SPY is the default benchmark (D3, S6.2).
+benchmarks = ["spdr-sp500"]
+
+[[universes]]
+name = "starter_large_caps"
+
+# Members since before 2010 that never left.
+
+[[universes.members]]
+security = "apple"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "microsoft"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "jpmorgan"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "alphabet-a"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "amazon"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "nvidia"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "intel"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "cisco"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "ibm"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "mastercard"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "bank-of-america"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "wells-fargo"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "citigroup"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "goldman-sachs"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "johnson-johnson"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "unitedhealth"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "pfizer"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "eli-lilly"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "procter-gamble"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "coca-cola"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "pepsico"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "walmart"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "mcdonalds"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "home-depot"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "exxon-mobil"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "boeing"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "caterpillar"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+[[universes.members]]
+security = "verizon"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+
+# Members since before 2010 that left. AMD rejoined in 2017 (below).
+
+[[universes.members]]
+security = "amd"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+removed = 2013-09-23
+# S&P: AMD moves to the S&P MidCap 400 "effective after the close of trading on Friday,
+# September 20".
+removed_source = "https://press.spglobal.com/2013-09-11-Vertex-Ametek-Set-to-Join-the-S-P-500-Advanced-Micro-Devices-SAIC-to-Join-S-P-MidCap-400-Capstead-to-Join-S-P-SmallCap-600"
+
+[[universes.members]]
+security = "abercrombie-fitch"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+removed = 2013-12-23
+# S&P: Alliance Data Systems and Mohawk Industries replace Abercrombie & Fitch and JDS
+# Uniphase "after the close of trading on Friday, December 20".
+removed_source = "https://press.spglobal.com/2013-12-11-Facebook-Set-to-Join-the-S-P-100-500-Alliance-Data-Systems-and-Mohawk-to-Join-the-S-P-500-Changes-to-the-S-P-MidCap-400-and-the-S-P-SmallCap-600"
+
+[[universes.members]]
+security = "time-warner"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+removed = 2018-06-20
+# S&P: FleetCor replaces Time Warner "effective prior to the open of trading on
+# Wednesday, June 20".
+removed_source = "https://press.spglobal.com/2018-06-15-NVIDIA-Set-to-Join-S-P-100-FleetCor-Technologies-to-Join-S-P-500-Penn-Virginia-to-Join-S-P-SmallCap-600"
+
+[[universes.members]]
+security = "celgene"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+removed = 2019-11-21
+# S&P: ServiceNow "will replace Celgene in the S&P 500 prior to the open of trading on
+# Thursday, November 21."
+removed_source = "https://press.spglobal.com/2019-11-19-Thermo-Fisher-Scientific-Set-to-Join-S-P-100-ServiceNow-to-Join-S-P-500"
+
+[[universes.members]]
+security = "kohls"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+removed = 2020-09-21
+# S&P: Kohl's moves to the S&P MidCap 400, "effective prior to the open of trading on
+# Monday, September 21, 2020".
+removed_source = "https://press.spglobal.com/2020-09-04-Etsy-Teradyne-and-Catalent-Set-to-Join-S-P-500-Others-to-Join-S-P-MidCap-400-and-S-P-SmallCap-600"
+
+[[universes.members]]
+security = "hr-block"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+removed = 2020-09-21
+# S&P: H&R Block moves to the S&P MidCap 400, "effective prior to the open of trading on
+# Monday, September 21, 2020".
+removed_source = "https://press.spglobal.com/2020-09-04-Etsy-Teradyne-and-Catalent-Set-to-Join-S-P-500-Others-to-Join-S-P-MidCap-400-and-S-P-SmallCap-600"
+
+[[universes.members]]
+security = "xilinx"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+removed = 2022-02-15
+# S&P: Nordson replaces Xilinx "effective prior to the opening of trading on Tuesday,
+# February 15".
+removed_source = "https://press.spglobal.com/2022-02-10-Nordson-Set-to-Join-S-P-500-PDC-Energy-to-Join-S-P-MidCap-400-XPEL-to-Join-S-P-SmallCap-600"
+
+[[universes.members]]
+security = "pioneer-natural-resources"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+removed = 2024-05-08
+# S&P: Vistra replaces Pioneer "effective prior to the opening of trading on Wednesday,
+# May 8".
+removed_source = "https://press.spglobal.com/2024-05-03-Vistra-Set-to-Join-S-P-500-Aaon-to-Join-S-P-MidCap-400-Marathon-Digital-Holdings-to-Join-S-P-SmallCap-600"
+
+[[universes.members]]
+security = "marathon-oil"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+removed = 2024-11-26
+# S&P: Texas Pacific Land replaces Marathon Oil "effective prior to the opening of
+# trading on Tuesday, November 26".
+removed_source = "https://press.spglobal.com/2024-11-21-Texas-Pacific-Land-Set-to-Join-S-P-500,-Mueller-Industries-to-Join-S-P-MidCap-400-and-Atlas-Energy-Solutions-to-Join-S-P-SmallCap-600"
+
+[[universes.members]]
+security = "discover-financial"
+added = 2010-01-01
+source = "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+removed = 2025-05-19
+# S&P: Coinbase replaces Discover "effective prior to the opening of trading on Monday,
+# May 19".
+removed_source = "https://press.spglobal.com/2025-05-12-Coinbase-Global-Set-to-Join-S-P-500"
+
+# Members that joined after 2010. Activision Blizzard, Twitter, and Etsy later left.
+
+[[universes.members]]
+security = "abbvie"
+added = 2013-01-02
+# S&P: AbbVie replaces Federated Investors "after the close of trading on Monday,
+# December 31".
+source = "https://press.spglobal.com/2012-12-20-AbbVie-Set-to-Join-S-P-100-500-Federated-Investors-Set-to-Join-S-P-MidCap-400-ITT-Educational-Services-Procera-Networks-to-Join-S-P-SmallCap-600"
+
+[[universes.members]]
+security = "meta"
+added = 2013-12-23
+# S&P: Facebook replaces Teradyne "after the close of trading on Friday, December 20".
+source = "https://press.spglobal.com/2013-12-11-Facebook-Set-to-Join-the-S-P-100-500-Alliance-Data-Systems-and-Mohawk-to-Join-the-S-P-500-Changes-to-the-S-P-MidCap-400-and-the-S-P-SmallCap-600"
+
+[[universes.members]]
+security = "paypal"
+added = 2015-07-20
+# S&P: PayPal replaces Noble Corp., effective "after the close of trading on Friday,
+# July 17".
+source = "https://press.spglobal.com/2015-07-14-PayPal-Holdings-Set-to-Join-S-P-100-500-Others-to-Join-S-P-MidCap-400-and-S-P-SmallCap-600"
+
+[[universes.members]]
+security = "activision-blizzard"
+added = 2015-08-31
+# S&P: Activision Blizzard replaces Pall "after the close of trading on Friday, August
+# 28".
+source = "https://press.spglobal.com/2015-08-27-Activision-Blizzard-United-Continental-Holdings-Set-to-Join-the-S-P-500"
+removed = 2023-10-18
+# S&P: Lululemon replaces Activision Blizzard, after Microsoft's acquisition closed on
+# October 13, "effective prior to the opening of trading on Wednesday, October 18".
+# Activision stopped trading on October 13 (securities.toml).
+removed_source = "https://press.spglobal.com/2023-10-13-Lululemon-Athletica-Hubbell-Set-to-Join-S-P-500-Others-to-Join-S-P-MidCap-400-and-S-P-SmallCap-600"
+
+[[universes.members]]
+security = "amd"
+added = 2017-03-20
+# S&P: AMD replaces Urban Outfitters, "effective prior to the open on Monday, March 20".
+# AMD left the index in 2013 (above).
+source = "https://press.spglobal.com/2017-03-10-S-P-Dow-Jones-Indices-Announces-Changes-to-U-S-Indices-and-Updates-to-U-S-Indices-Methodology-and-Market-Cap-Guidelines"
+
+[[universes.members]]
+security = "twitter"
+added = 2018-06-07
+# S&P: Twitter replaces Monsanto "effective prior to the open of trading on Thursday,
+# June 7".
+source = "https://press.spglobal.com/2018-06-04-Netflix-Set-to-Join-S-P-100-Twitter-to-Join-S-P-500-REGENXBIO-to-Join-S-P-SmallCap-600"
+removed = 2022-11-01
+# S&P: Arch Capital replaces Twitter "effective prior to the opening of trading on
+# Tuesday, November 1". Twitter stopped trading on October 28 (securities.toml), so for
+# those days it's a member without a ticker.
+removed_source = "https://press.spglobal.com/2022-10-27-Arch-Capital-Group-Set-to-Join-S-P-500-RXO-to-Join-S-P-MidCap-400-Bread-Financial-Holdings-to-Join-S-P-SmallCap-600"
+
+[[universes.members]]
+security = "etsy"
+added = 2020-09-21
+# S&P: Etsy is added "effective prior to the open of trading on Monday, September 21,
+# 2020".
+source = "https://press.spglobal.com/2020-09-04-Etsy-Teradyne-and-Catalent-Set-to-Join-S-P-500-Others-to-Join-S-P-MidCap-400-and-S-P-SmallCap-600"
+removed = 2024-09-23
+# S&P: Etsy is deleted "effective prior to the open of trading on Monday, September 23".
+removed_source = "https://press.spglobal.com/2024-09-06-Palantir-Technologies,-Dell-Technologies,-and-Erie-Indemnity-Set-to-Join-S-P-500-Others-to-Join-S-P-MidCap-400-and-S-P-SmallCap-600"
+
+[[universes.members]]
+security = "tesla"
+added = 2020-12-21
+# S&P: added "effective prior to the open of trading on Monday, December 21". This is
+# rule 8's example in doc/time-model.md.
+source = "https://press.spglobal.com/2020-11-16-Tesla-Set-to-Join-S-P-500"
+
+[[universes.members]]
+security = "airbnb"
+added = 2023-09-18
+# S&P: added "effective prior to the open of trading on Monday, September 18".
+source = "https://press.spglobal.com/2023-09-01-Blackstone-and-Airbnb-Set-to-Join-S-P-500-Others-to-Join-S-P-100,-S-P-MidCap-400-and-S-P-SmallCap-600"
+
+[[universes.members]]
+security = "lululemon"
+added = 2023-10-18
+# S&P: Lululemon replaces Activision Blizzard "effective prior to the opening of trading
+# on Wednesday, October 18".
+source = "https://press.spglobal.com/2023-10-13-Lululemon-Athletica-Hubbell-Set-to-Join-S-P-500-Others-to-Join-S-P-MidCap-400-and-S-P-SmallCap-600"
+
+[[universes.members]]
+security = "uber"
+added = 2023-12-18
+# S&P: added "effective prior to the open of trading on Monday, December 18".
+source = "https://press.spglobal.com/2023-12-01-Uber-Technologies,-Jabil-and-Builders-FirstSource-Set-to-Join-S-P-500-Others-to-Join-S-P-MidCap-400-and-S-P-SmallCap-600"
+
+[[universes.members]]
+security = "crowdstrike"
+added = 2024-06-24
+# S&P: added "effective prior to the open of trading on Monday, June 24".
+source = "https://press.spglobal.com/2024-06-07-KKR,-CrowdStrike-Holdings-and-GoDaddy-Set-to-Join-S-P-500-Others-to-Join-S-P-MidCap-400-and-S-P-SmallCap-600"
+
+[[universes.members]]
+security = "palantir"
+added = 2024-09-23
+# S&P: added "effective prior to the open of trading on Monday, September 23".
+source = "https://press.spglobal.com/2024-09-06-Palantir-Technologies,-Dell-Technologies,-and-Erie-Indemnity-Set-to-Join-S-P-500-Others-to-Join-S-P-MidCap-400-and-S-P-SmallCap-600"
