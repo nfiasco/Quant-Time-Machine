@@ -5,9 +5,17 @@ from pathlib import Path
 import pytest
 
 from app.data.errors import LookAheadError
+from app.data.store import write_rows
 from app.data.tables import TABLES
+from app.data.versions import write_manifest
 from app.data.view import AccessRecord, PointInTimeView
-from tests.fixture_loader import CANARY_YEAR, TEST_OBSERVATIONS, TEST_TABLES
+from tests.fixture_loader import (
+    CANARY_YEAR,
+    FIXTURE_DATA_VERSION,
+    FIXTURE_INGESTED_AT,
+    TEST_OBSERVATIONS,
+    TEST_TABLES,
+)
 
 ALL_TABLES = TABLES | TEST_TABLES
 APP_DIR = Path(__file__).resolve().parents[1] / "app"
@@ -181,9 +189,44 @@ def test_naive_knowledge_times_are_rejected(store_dir: Path) -> None:
         PointInTimeView(naive, store=store_dir, tables=[])
 
 
-def test_data_versions_are_not_available_yet(store_dir: Path) -> None:
-    with pytest.raises(NotImplementedError, match="S3.7"):
-        PointInTimeView(DEMO, data_version="v1", store=store_dir, tables=[])
+def test_pinned_data_version_ignores_later_rows(fixture_store: Path) -> None:
+    # A later run revises May 2020 again and adds July (made up), then cuts a version.
+    later = FIXTURE_INGESTED_AT + timedelta(days=1)
+    known_on = utc(2020, 8, 7, 12, 30)
+    write_rows(
+        fixture_store,
+        TEST_OBSERVATIONS,
+        [
+            {
+                "series_id": "TEST",
+                "period": period,
+                "value": value,
+                "source": "test",
+                "source_ref": f"synthetic: ingested later, {period:%B}",
+                "available_at": known_on,
+                "time_assumed": False,
+            }
+            for period, value in ((date(2020, 5, 1), 101.7), (date(2020, 7, 1), 103.0))
+        ],
+        now=later,
+    )
+    newer = write_manifest(fixture_store, ALL_TABLES.values(), now=later)
+
+    def may_and_july(data_version: str | None) -> list[float | None]:
+        with PointInTimeView(
+            utc(2026, 1, 1),
+            data_version=data_version,
+            store=fixture_store,
+            tables=ALL_TABLES.values(),
+        ) as view:
+            assert view.data_version == data_version
+            return [latest(view, date(2020, 5, 1)), latest(view, date(2020, 7, 1))]
+
+    # The fixtures' version still answers as it did before the later run.
+    assert may_and_july(FIXTURE_DATA_VERSION) == [101.5, None]
+    assert newer is not None and newer.data_version == "20261020T120000Z"
+    assert may_and_july(newer.data_version) == [101.7, 103.0]
+    assert may_and_july(None) == [101.7, 103.0]  # unpinned: every file stored now
 
 
 def test_unknown_tables_are_rejected(store_dir: Path) -> None:

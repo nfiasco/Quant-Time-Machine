@@ -34,12 +34,17 @@ def _error_body(code: str, message: str, field: str | None = None) -> dict[str, 
     return {"error": {"code": code, "message": message, "details": details}}
 
 
+EXAMPLE_DATA_VERSION = "20261019T120000Z"
+"""The test fixtures' data version (tests/conftest.py), which the examples are replayed
+against."""
+
+
 def _known_at(
     knowledge_time: str, data: object, reason: str | None = None
 ) -> dict[str, Any]:
     return {
         "knowledge_time": knowledge_time,
-        "data_version": None,
+        "data_version": EXAMPLE_DATA_VERSION,
         "data": data,
         "reason": reason,
     }
@@ -309,7 +314,7 @@ def keep_nulls(app: FastAPI) -> None:
     """Make `app.openapi()` keep the nulls in these examples.
 
     FastAPI writes the OpenAPI spec without null values, which also strips them from
-    examples, so `"data": null` and `"data_version": null` would vanish from /docs. This
+    examples, so `"data": null` and `"reason": null` would vanish from /docs. This
     wraps `app.openapi`, FastAPI's documented hook, to put each example's value back,
     matched by its status and request.
     """

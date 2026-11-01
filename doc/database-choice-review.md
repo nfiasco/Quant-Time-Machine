@@ -32,7 +32,7 @@ These are workload-fit judgments, not measured performance rankings.
 
 **The main unresolved issue is reproducibility.** Every option must distinguish the observation date, when information became public, and which dataset version a saved run used. A filing from 2020 loaded in 2026 can belong in a 2020 simulation; a later public restatement cannot appear before its publication date.
 
-The current [`PointInTimeView`](../backend/app/data/view.py) does not implement persistent `data_version` selection. The [`writer`](../backend/app/data/store.py) also needs coordinated ingestion, complete-batch publication, and corrections that preserve old inputs. Database “time travel” alone does not supply these guarantees.
+The current [`PointInTimeView`](../backend/app/data/view.py) does not implement persistent `data_version` selection (S3.7 has since added it; see the outcome below). The [`writer`](../backend/app/data/store.py) also needs coordinated ingestion, complete-batch publication, and corrections that preserve old inputs. Database “time travel” alone does not supply these guarantees.
 
 Two storage pitfalls matter:
 
@@ -55,3 +55,9 @@ Switch when another design demonstrably improves correctness, meets an unmet req
 - **Files a manifest lists are never deleted or rewritten.** A correction or rebuild writes new files and a new manifest, so old runs replay unchanged. Compacting files would follow the same rule.
 
 DuckLake and ClickHouse remain later comparisons (steps 1 and 2 above). Revisit them if the manifest can't meet these rules, if ingestion needs more than one writer, or if a backtest misses the 60-second target because of storage.
+
+**Implemented in S3.7 (2026-10-31).** [`app/data/versions.py`](../backend/app/data/versions.py) writes the manifest at the end of each `ingest` run, and `PointInTimeView` pins to it, as described above. Three choices were made along the way:
+
+- **Names.** A data version is named by when it was cut, such as `20261101T143005Z`.
+- **Checks.** A pinned view checks every listed file's size each time it opens, and its SHA-256 the first time in a process. Hashing on every open would slow every request as the store grows.
+- **Rebuilds.** Deleting a table to rebuild it still breaks the versions that list its files, but they now fail clearly. Retiring old files instead of deleting them can wait until saved runs exist (S7.7).

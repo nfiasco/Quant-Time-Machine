@@ -26,7 +26,7 @@ uv run fastapi dev  # start the dev server with auto-reload
 Then open:
 
 - http://localhost:8000/health returns `{"status": "ok"}`
-- http://localhost:8000/v1/knowledge-time?as_of=2020-06-05 returns `{"knowledge_time": "2020-06-05T09:30:00-04:00", "data_version": null}`
+- http://localhost:8000/v1/knowledge-time?as_of=2020-06-05 returns `{"knowledge_time": "2020-06-05T09:30:00-04:00", "data_version": "20261101T143005Z"}`, with your store's newest [data version](#data-versions), or `null` before your first ingestion run
 - http://localhost:8000/docs is the interactive API docs (Swagger UI), with an example for every endpoint
 
 The data endpoints need a local store. With keys in `.env`, [ingest](#ingestion) the three sources once, which takes under a minute. Then http://localhost:8000/v1/macro/UNRATE?as_of=2020-06-05 returns May 2020's first print, 13.3%.
@@ -112,7 +112,7 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
   | `2020-06-05T13:30:00Z` | Used as given (encode `+` as `%2B`)      | `2020-06-05T09:30:00-04:00` |
   | `2020-03-08T02:30`     | Never happened (clocks jumped an hour)   | 422; add an offset          |
 
-- **Every timestamp in a response** is New York time with its offset (D12), and every response echoes `knowledge_time` and `data_version` (`null` until data versions exist, S3.7).
+- **Every timestamp in a response** is New York time with its offset (D12), and every response echoes `knowledge_time` and `data_version`: the store's newest [data version](#data-versions), which every read in the request is pinned to, or `null` if the store has none yet.
 - **Data endpoints answer with a `DataResponse`.** `data` is the answer, or `null` (`[]` for a list) when nothing was known yet. In that case `reason` is a sentence the page can show, and it's still a 200.
 - **Errors** share one body, `{"error": {"code", "message", "details"}}` ([`app/api/errors.py`](app/api/errors.py)):
 
@@ -137,7 +137,7 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 
 | Endpoint | Answers with | Reads |
 | --- | --- | --- |
-| `GET /v1/knowledge-time?as_of` | The exact instant an `as_of` means | — |
+| `GET /v1/knowledge-time?as_of` | The exact instant an `as_of` means, and the data version the data endpoints read now | `latest_data_version` |
 | `GET /v1/macro/{series_id}?as_of&period` | A series' latest observation as published then, or one period's latest version | `get_macro_as_of` |
 | `GET /v1/prices/{ticker}?as_of` | The latest daily bar whose session had closed; 403 unless `SERVE_RAW_PRICES` is on | `get_price_as_of` |
 | `GET /v1/filings/{ticker}/latest?as_of&form&include_amendments` | The latest 10-K, 10-Q, or 8-K accepted by EDGAR then | `get_latest_filing_as_of` |
@@ -152,6 +152,7 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | [`timeutil.py`](app/data/timeutil.py) | The market clock, `parse_knowledge_time`, and `describe_time` ("June 5, 2020, 9:30 AM ET") |
 | [`calendar.py`](app/data/calendar.py) | The NYSE calendar: sessions, open and close times (with early closes), previous and next session, and the first trading day of a month (S3.5) |
 | [`store.py`](app/data/store.py) | The Parquet store: `TableSpec` and `write_rows` (S3.4) |
+| [`versions.py`](app/data/versions.py) | [Data versions](#data-versions): the manifest each ingestion run writes, and what a pinned view reads (S3.7) |
 | [`tables.py`](app/data/tables.py) | Every table in the store |
 | [`view.py`](app/data/view.py) | `PointInTimeView`, the only way to read the store (S3.3) |
 | [`records.py`](app/data/records.py) | What the view's reads return, with the field names of the API contract |
@@ -163,7 +164,7 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 
 - **Provenance.** Every row carries `source`, `source_ref`, `available_at`, `ingested_at` (in UTC), and `time_assumed`.
 - **Append-only.** `write_rows` adds rows and never changes stored ones. A row whose key and `available_at` are already stored is skipped, so re-running ingestion adds nothing twice. A revision is a new row with a later `available_at`.
-- **Rebuilding.** Changing how a table's `available_at` is computed means deleting `DATA_DIR/store/<table>/` and ingesting again from the raw cache.
+- **Rebuilding.** Changing how a table's `available_at` is computed means deleting `DATA_DIR/store/<table>/` and ingesting again from the raw cache. That breaks every [data version](#data-versions) that lists the deleted files: a view pinned to one raises `DataVersionError` rather than answer from different data. Until the next ingestion run writes a new version, the API answers 500.
 
 **Reading.** Create a `PointInTimeView` for a knowledge time and call its read methods. They return only rows with `available_at` at or before that time, and log every row they read. Nothing else may open DuckDB or Parquet files, and a test enforces this.
 
@@ -187,6 +188,26 @@ with PointInTimeView(parse_knowledge_time("2020-06-05")) as view:  # 09:30 ET
 
 A series outside the catalog in `alfred_series.toml`, or a ticker no security in our data used at the time, raises `NotFoundError`, which the API answers with 404.
 
+## Data versions
+
+A data version is the store as one finished ingestion run left it, so a saved run can replay on exactly the data it saw (S3.7, [`app/data/versions.py`](app/data/versions.py)).
+
+- **The manifest.** When an ingestion command finishes, it writes `DATA_DIR/store/_versions/<data_version>.json`. That file lists every Parquet file in the store, with its size and SHA-256 hash, the rows per table and per source, and the latest `ingested_at`.
+- **The name** is when the version was cut, in UTC, such as `20261101T143005Z`. Names only increase, so the newest sorts last.
+- **No partial or duplicate versions.** A run that fails or stops at a rate limit writes no manifest, and a run that adds nothing keeps the newest version.
+- **Pinning.** A view pinned to a version reads only that version's files, and only rows ingested by then, so data added later never changes its answers:
+
+  ```python
+  with PointInTimeView(
+      parse_knowledge_time("2020-06-05"), data_version="20261101T143005Z"
+  ) as view:
+      view.get_macro_as_of("UNRATE")  # the same answer, however much is ingested later
+  ```
+
+  A pinned view first checks that every file the version lists is still there with the same size, and the first time in a process, the same hash. If one is missing or changed, it raises `DataVersionError` instead of answering from different data. Without `data_version`, a view reads every file stored now, including any a stopped run left.
+- **The API** pins each request to the store's newest version, `latest_data_version(store)`, and echoes it as `data_version`. It's `null` only if the store has no version yet: run any ingestion command once, even one that answers from the cache.
+- **Never delete or rewrite a file a version lists.** `write_rows` never does. Rebuilding a table by deleting its folder breaks the versions that list its files (see [Store](#point-in-time-data-layer)).
+
 ## Ingestion
 
 From `backend/`, run each source once, one after another:
@@ -208,6 +229,8 @@ Each command loads its whole catalog: there's no option for a single series or t
 | `tiingo` | 6 | 3 s | The curated `securities`, then raw daily bars for the starter set, SPY included, into `price_bars`, and the splits and dividends they report into `corporate_actions` (S6.2). A first run loads each security from 2005. Later runs ask only for sessions after its last stored bar, through the last one Tiingo has settled (20:00 ET), and log any session that comes back without a bar. Adjusted prices are never stored. |
 
 Each ingester lives in [`app/data/sources/`](app/data/sources/) and is listed in `INGESTERS` in [`app/data/ingest.py`](app/data/ingest.py).
+
+**Data versions.** When a command finishes, it writes a [data version](#data-versions), and its log ends with `Data version 20261101T143005Z: … rows in … files`, or with "unchanged" when the run added nothing. A run that fails or stops at a rate limit writes none, so the API keeps serving the version before it.
 
 **Release times.** Each vintage counts as known on its date at its release's time, New York time: 08:30 for BLS's and BEA's releases, 16:15 for the Fed's H.15 (S4.3). The times and their sources are in `alfred_series.toml`, and [`doc/time-model.md`](../doc/time-model.md) (rule 7) summarizes them. A release whose time isn't known (`time = "unknown"`) makes its vintages known at the end of their date, flagged `time_assumed`.
 
@@ -248,11 +271,13 @@ data/
 ├── raw/<source>/<ab>/<sha256>.body   # each response exactly as received (fred, sec, tiingo)
 │                    <sha256>.json    # its metadata: the URL without keys, status, fetch time
 ├── store/<table>/part-<ingested_at>-<id>.parquet   # zstd, sorted by key, then available_at
+│        _versions/<data_version>.json             # one manifest per data version (S3.7)
 └── samples/<name>.csv                # output of the sample-data scripts (testing only)
 ```
 
 - **Raw cache.** `<sha256>` hashes the method and the URL, with its query sorted and its keys removed; `<ab>` is the hash's first two characters.
 - **Store.** Every write that adds rows creates a new Parquet file, so files accumulate. For example, `fred` writes one per series on each run that finds new vintages. Every file carries the provenance columns.
+- **Data versions.** `store/_versions/` holds one manifest per finished ingestion run, which names its files relative to `store/`. Keep it with the store: copying or uploading `store/` takes it along.
 
 | Table | Key | Holds |
 | --- | --- | --- |

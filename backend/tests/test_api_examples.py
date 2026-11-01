@@ -1,17 +1,21 @@
 import dataclasses
 import json
+from pathlib import Path
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
+from app.api.examples import EXAMPLE_DATA_VERSION
 from app.api.filings import Filing
 from app.api.macro import MacroObservation
 from app.api.prices import PriceBar
 from app.config import Settings
 from app.data import records
+from app.data.versions import latest_data_version
 from app.main import create_app
+from tests.fixture_loader import FIXTURE_DATA_VERSION
 
 SPEC = create_app(Settings(_env_file=None)).openapi()
 
@@ -43,6 +47,11 @@ def test_every_example_is_what_the_api_answers(
     response = replay.request(method, url)
 
     assert (response.status_code, response.json()) == (status, example["value"])
+
+
+def test_examples_show_the_fixture_stores_data_version(fixture_store: Path) -> None:
+    assert EXAMPLE_DATA_VERSION == FIXTURE_DATA_VERSION
+    assert latest_data_version(fixture_store) == FIXTURE_DATA_VERSION
 
 
 def test_every_v1_operation_documents_its_errors() -> None:

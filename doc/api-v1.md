@@ -27,7 +27,7 @@ Every successful response has the same four fields:
 ```json
 {
   "knowledge_time": "2020-06-05T09:30:00-04:00",
-  "data_version": null,
+  "data_version": "20261019T120000Z",
   "data": {},
   "reason": null
 }
@@ -36,16 +36,16 @@ Every successful response has the same four fields:
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `knowledge_time` | string | The exact instant the answer is "as of" |
-| `data_version` | string or null | The data version the answer came from. `null` until data versions exist (S3.7, Sprint 3), then always a string. |
+| `data_version` | string or null | The data version the answer came from: the newest in the store when the request arrived, named by when it was cut, such as `20261101T143005Z` (S3.7). Each finished ingestion run that adds data writes a new one, so answers for a given `data_version` never change. `null` only if the store has none yet. The examples here show the test fixtures' version. |
 | `data` | object, array, or null | The answer. When nothing was known yet, it's `null` for single-item endpoints and `[]` for lists. |
 | `reason` | string or null | Set when `data` is `null` or `[]`: one sentence the page can show as is. Otherwise `null`. |
 
 "Nothing was known yet" is not an error: it's a 200 with a reason.
 
-`GET /v1/knowledge-time?as_of=…` is the one exception. It only resolves an `as_of` value, so it returns just the first two fields:
+`GET /v1/knowledge-time?as_of=…` is the one exception. It only resolves an `as_of` value, so it returns just the first two fields, with the data version the data endpoints read now:
 
 ```json
-{ "knowledge_time": "2020-06-05T09:30:00-04:00", "data_version": null }
+{ "knowledge_time": "2020-06-05T09:30:00-04:00", "data_version": "20261019T120000Z" }
 ```
 
 ## Fields on every record
@@ -73,7 +73,7 @@ A series' latest observation as it was published at the knowledge time, or the v
 ```json
 {
   "knowledge_time": "2020-06-05T09:30:00-04:00",
-  "data_version": null,
+  "data_version": "20261019T120000Z",
   "data": {
     "series_id": "UNRATE",
     "title": "Unemployment Rate",
@@ -98,7 +98,7 @@ A series' latest observation as it was published at the knowledge time, or the v
 ```json
 {
   "knowledge_time": "2020-06-05T08:00:00-04:00",
-  "data_version": null,
+  "data_version": "20261019T120000Z",
   "data": {
     "series_id": "UNRATE",
     "title": "Unemployment Rate",
@@ -135,7 +135,7 @@ The latest daily bar whose session had closed by the knowledge time.
 ```json
 {
   "knowledge_time": "2020-06-05T09:30:00-04:00",
-  "data_version": null,
+  "data_version": "20261019T120000Z",
   "data": {
     "ticker": "AAPL",
     "cik": 320193,
@@ -177,7 +177,7 @@ The latest filing of one form type that EDGAR had accepted by the knowledge time
 ```json
 {
   "knowledge_time": "2020-06-05T09:30:00-04:00",
-  "data_version": null,
+  "data_version": "20261019T120000Z",
   "data": {
     "ticker": "AAPL",
     "cik": 320193,
@@ -208,7 +208,7 @@ When nothing was filed yet, `data` is `null`. Facebook went public on May 18, 20
 ```json
 {
   "knowledge_time": "2012-05-21T09:30:00-04:00",
-  "data_version": null,
+  "data_version": "20261019T120000Z",
   "data": null,
   "reason": "No 10-Q from Facebook, Inc. had been accepted by EDGAR by May 21, 2012, 9:30 AM ET."
 }
@@ -232,7 +232,7 @@ The filing history up to the knowledge time, newest first.
 ```json
 {
   "knowledge_time": "2020-06-05T09:30:00-04:00",
-  "data_version": null,
+  "data_version": "20261019T120000Z",
   "data": [
     {
       "ticker": "AAPL",
@@ -316,7 +316,7 @@ Until S8.6 generates them from OpenAPI, the frontend can copy these:
 // where [] means nothing was known yet.
 export type V1Response<T> = {
   knowledge_time: string;
-  data_version: string | null;
+  data_version: string | null; // null only if the backend's store has no data version yet
   data: T;
   reason: string | null;
 };

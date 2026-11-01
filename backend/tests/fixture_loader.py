@@ -6,7 +6,7 @@ store from the `fixture_store` fixture in conftest.py instead of calling this di
 
 import csv
 from collections.abc import Callable
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
@@ -15,6 +15,12 @@ from app.data.store import TableSpec, write_rows
 from app.data.timeutil import to_utc
 
 FIXTURES = Path(__file__).parent / "fixtures"
+
+FIXTURE_INGESTED_AT = datetime(2026, 10, 19, 12, tzinfo=UTC)
+"""When the fixture rows count as ingested, so their data version never changes."""
+
+FIXTURE_DATA_VERSION = "20261019T120000Z"
+"""The fixture store's data version, cut at FIXTURE_INGESTED_AT (see conftest.py)."""
 
 TEST_OBSERVATIONS = TableSpec(
     name="test_observations",
@@ -46,8 +52,11 @@ _PARSERS: dict[str, Callable[[str], object]] = {
 }
 
 
-def load_fixture(store: Path, spec: TableSpec, path: Path) -> None:
-    """Load one fixture CSV into `store` through `write_rows`, as ingestion would."""
+def load_fixture(
+    store: Path, spec: TableSpec, path: Path, *, now: datetime = FIXTURE_INGESTED_AT
+) -> None:
+    """Load one fixture CSV into `store` through `write_rows`, as ingestion would, with
+    `ingested_at` set to `now`."""
     with path.open(newline="", encoding="utf-8") as file:
         records = list(csv.DictReader(file))
     rows = []
@@ -67,7 +76,7 @@ def load_fixture(store: Path, spec: TableSpec, path: Path) -> None:
         pytest.fail(
             f"{path.name} needs a canary row with available_at in {CANARY_YEAR}"
         )
-    write_rows(store, spec, rows)
+    write_rows(store, spec, rows, now=now)
 
 
 def _is_canary(row: dict[str, object]) -> bool:

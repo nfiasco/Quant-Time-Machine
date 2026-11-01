@@ -4,10 +4,11 @@
   (doc/time-model.md, rule 3): `2020-06-05` means 09:30 ET. It's required, because an
   API default of "now" is a classic way for look-ahead to sneak in.
 - **Reads.** A handler that reads data takes `view: View`: one `PointInTimeView` per
-  request, bound to `as_of` and the app's store, and closed once the response is built.
+  request, bound to `as_of` and pinned to the app store's newest data version (S3.7),
+  and closed once the response is built.
 - **Echo.** Every response carries `knowledge_time` (the exact instant used) and
-  `data_version` (null until runs can pin data versions, S3.7). Every timestamp is
-  written in New York time with its offset (`NewYorkTime`).
+  `data_version` (the data version read, null only for a store that has none yet).
+  Every timestamp is written in New York time with its offset (`NewYorkTime`).
 - **Envelope.** Data endpoints answer with a `DataResponse`. Its `data` is null (or []
   for a list) when nothing was known yet, and `reason` then says why.
 - **Errors.** app/api/errors.py turns every error into the contract's error body.
@@ -31,6 +32,7 @@ from pydantic import (
 from app.config import Settings
 from app.data.store import store_dir
 from app.data.timeutil import ET, KnowledgeTimeError, parse_knowledge_time
+from app.data.versions import latest_data_version
 from app.data.view import PointInTimeView
 
 
@@ -90,11 +92,24 @@ AppSettings = Annotated[Settings, Depends(app_settings)]
 """An endpoint or dependency parameter for the app's settings."""
 
 
+def newest_data_version(settings: AppSettings) -> str | None:
+    """The app store's newest data version, which this request reads; None if no
+    ingestion run has written one yet."""
+    return latest_data_version(store_dir(settings.data_dir))
+
+
+DataVersion = Annotated[str | None, Depends(newest_data_version)]
+"""An endpoint or dependency parameter for the data version the request reads."""
+
+
 def point_in_time_view(
-    knowledge_time: KnowledgeTime, settings: AppSettings
+    knowledge_time: KnowledgeTime, settings: AppSettings, data_version: DataVersion
 ) -> Iterator[PointInTimeView]:
-    """One view per request: the app's store as it was known at `as_of`."""
-    with PointInTimeView(knowledge_time, store=store_dir(settings.data_dir)) as view:
+    """One view per request: the app's store as it was known at `as_of`, pinned to its
+    newest data version."""
+    with PointInTimeView(
+        knowledge_time, data_version=data_version, store=store_dir(settings.data_dir)
+    ) as view:
         yield view
 
 
@@ -114,7 +129,10 @@ class AsOfResponse(BaseModel):
         description="The exact instant this answer is as of, in New York time."
     )
     data_version: str | None = Field(
-        description="The data version read. Null until data versions exist (S3.7)."
+        description=(
+            "The data version read: the newest in the store when the request arrived, "
+            "such as 20261101T143005Z. Null only if the store has none yet."
+        )
     )
 
 
