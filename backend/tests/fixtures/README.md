@@ -17,6 +17,7 @@ Small, committed tables that the tests load into a temporary point-in-time store
 - **Keep files small:** a few rows per case, each there for a test.
 - **`securities.csv` copies the whole history of each security it lists** from [`app/data/sources/securities.toml`](../../app/data/sources/securities.toml): the M2 ticker set, plus Tesla for the universe tests. A test fails if the two drift apart.
 - **`universe_members.csv` copies the spells it lists** from [`app/data/sources/universes.toml`](../../app/data/sources/universes.toml): Apple, Meta, Tesla (rule 8's golden test), and Twitter, which left. A test checks it the same way.
+- **`xbrl_facts.csv` holds real company facts from SEC, timed as ingestion times them**: each at its filing's acceptance time in `filings.csv`, or at the end of its filed date, flagged, when its filing isn't there. A test checks it.
 
 ## Using them
 

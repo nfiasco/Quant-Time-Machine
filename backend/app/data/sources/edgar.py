@@ -2,7 +2,8 @@
 
 `uv run python -m app.data.ingest sec` loads company identity and universe membership
 first (sources/securities.py and sources/universes.py), then the filing history of each
-universe member and benchmark, AAPL first, into the `filings` table. A history is
+universe member and benchmark, AAPL first, into the `filings` table, each followed by
+the company's XBRL facts if it files any (sources/xbrl.py, S5.5). A history is
 `submissions/CIK##########.json`, whose `recent` block holds the last year or so (at
 least 1,000 filings), plus every older page listed in its `filings.files`. All requests
 stay within SEC's limit of 10 per second. Only 10-K, 10-Q, and 8-K filings and their
@@ -38,7 +39,7 @@ from datetime import date, datetime, time, timedelta
 from typing import Any
 
 from app.data.http import SourceClient
-from app.data.sources import IngestContext, securities, universes
+from app.data.sources import IngestContext, securities, universes, xbrl
 from app.data.store import write_rows
 from app.data.tables import FILINGS
 from app.data.timeutil import ET, market_time
@@ -85,7 +86,8 @@ def corrected_acceptance(raw: str) -> datetime:
 
 def ingest(context: IngestContext) -> None:
     """Load company identity and universe membership, then the filing histories of the
-    universes' members and the benchmarks, AAPL first."""
+    universes' members and the benchmarks, AAPL first, each followed by the company's
+    XBRL facts."""
     securities.ingest(context)
     universes.write_members(context.store)
     for security in universes.ingest_set():
@@ -106,6 +108,8 @@ def ingest(context: IngestContext) -> None:
                 "run ahead by the Eastern offset" if shifted else "are true UTC",
                 *(votes if shifted else reversed(votes)),
             )
+            if any(filing.get("isXBRL") for filing in filings):
+                xbrl.ingest_facts(context, security.id, cik, rows)
 
 
 def fetch_filings(client: SourceClient, cik: int) -> list[dict[str, Any]]:

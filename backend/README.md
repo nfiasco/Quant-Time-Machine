@@ -10,7 +10,7 @@ Three sources are in, each ingested and readable as of any moment:
 
 - macro vintages from ALFRED (S4.2–S4.4);
 - raw daily prices from Tiingo (S6.2, S6.3);
-- filing histories from SEC EDGAR (S5.3, S5.4).
+- filing histories from SEC EDGAR (S5.3, S5.4), with the XBRL facts reported in them (S5.5).
 
 Company identity ties tickers to securities over time (S5.2), universe v1 says which companies were eligible when (S6.5), and the as-of endpoints serve the data (S8.2). Every response says which [data version](#data-versions) it read (S3.7).
 
@@ -226,7 +226,7 @@ Each command loads its whole catalog: there's no option for a single series or t
 | Source | Requests | Time | What it loads |
 | --- | ---: | ---: | --- |
 | `fred` | 18 | 6 s | Every vintage of the series in [`sources/alfred_series.toml`](app/data/sources/alfred_series.toml), UNRATE first, into `macro_observations` (S4.2). Each request asks for ALFRED's whole real-time range, because FRED's defaults return today's revised values. |
-| `sec` | 312 | 54 s | First, identity and membership: the curated ticker history in [`sources/securities.toml`](app/data/sources/securities.toml) into `securities`, a snapshot of SEC's ticker file into `sec_tickers` (S5.2), and the universes in [`sources/universes.toml`](app/data/sources/universes.toml) into `universe_members` (S6.5). It warns when a curated security's current ticker isn't in SEC's file. Then the filing histories of every universe member and SPY, AAPL first, older pages included, into `filings` (S5.3). The big banks' histories run to dozens of pages each. Only 10-K, 10-Q, and 8-K filings and their amendments are kept. Each filing is known at its EDGAR acceptance time, corrected for the Eastern-offset shift where the company's file has one (see [`doc/data-sources.md`](../doc/data-sources.md#sec-edgar-filing-history-submissions-api)), and each amendment is linked to the filing it amends. |
+| `sec` | 312 | 54 s | First, identity and membership: the curated ticker history in [`sources/securities.toml`](app/data/sources/securities.toml) into `securities`, a snapshot of SEC's ticker file into `sec_tickers` (S5.2), and the universes in [`sources/universes.toml`](app/data/sources/universes.toml) into `universe_members` (S6.5). It warns when a curated security's current ticker isn't in SEC's file. Then the filing histories of every universe member and SPY, AAPL first, older pages included, into `filings` (S5.3). The big banks' histories run to dozens of pages each. Only 10-K, 10-Q, and 8-K filings and their amendments are kept. Each filing is known at its EDGAR acceptance time, corrected for the Eastern-offset shift where the company's file has one (see [`doc/data-sources.md`](../doc/data-sources.md#sec-edgar-filing-history-submissions-api)), and each amendment is linked to the filing it amends. Right after each company's filings come its XBRL company facts, if it files any, for the curated concepts in [`sources/xbrl.py`](app/data/sources/xbrl.py), into `xbrl_facts` (S5.5). Each fact is known at the acceptance time of the filing that reported it, or at the end of its filed date, flagged, when that filing isn't in `filings`. |
 | `tiingo` | 51 | 26 s, then a rerun an hour later | The curated `securities` and membership, then raw daily bars for every universe member and SPY into `price_bars`, and the splits and dividends they report into `corporate_actions` (S6.2). A first run loads each security from 2005. Loading universe v1 from scratch takes one request more than Tiingo's 50 an hour, so the first run stops at the limit and a rerun an hour later finishes; only the run that finishes writes a data version. Later runs ask only for sessions after its last stored bar, through the last one Tiingo has settled (20:00 ET), and log any session that comes back without a bar. Adjusted prices are never stored. |
 
 Each ingester lives in [`app/data/sources/`](app/data/sources/) and is listed in `INGESTERS` in [`app/data/ingest.py`](app/data/ingest.py).
@@ -240,7 +240,7 @@ To add a macro series, add it to `alfred_series.toml` with FRED's metadata and i
 **Picking up new data.**
 
 - **`tiingo`** asks for new sessions on every run.
-- **`fred` and `sec`** request the same URLs every time, so a plain re-run answers from the raw cache and adds nothing. Run them with `--refresh` to fetch new vintages and filings.
+- **`fred` and `sec`** request the same URLs every time, so a plain re-run answers from the raw cache and adds nothing. Run them with `--refresh` to fetch new vintages, filings, and company facts.
 - **`sec --refresh`** also stores a new snapshot of SEC's ticker file.
 
 **Exit codes.**
@@ -288,6 +288,7 @@ data/
 | `price_bars` | `security_id`, `session_date` | Raw daily bars, as traded |
 | `corporate_actions` | `security_id`, `ex_date`, `action` | Splits and cash dividends by ex-date |
 | `filings` | `cik`, `accession_number` | 10-K, 10-Q, and 8-K filings and their amendments, from EDGAR |
+| `xbrl_facts` | `cik`, `accession_number`, `concept`, `unit`, `period_end`, `duration_days`, `value` | Each XBRL fact in the curated concepts as each filing reported it; a value repeated in a later filing is another row, known from that filing's acceptance time |
 | `universe_members` | `universe`, `security_id`, `added` | Each curated universe's membership spells; a removal is a second version, known from its own date |
 
 After loading universe v1 on 2026-10-31, the store held 305,139 rows in 163 files, 7.5 MB in all, and the raw cache 159 MB, mostly EDGAR's submission files. The M2 set alone had been 65,829 rows in 1.2 MB. Only the store is needed to serve the API. `uv run python -m spikes.hosting` reports both by table and source.

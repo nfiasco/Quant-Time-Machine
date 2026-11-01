@@ -2,6 +2,7 @@ import logging
 from collections.abc import Mapping, Sequence
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import httpx2
 import pytest
@@ -29,43 +30,60 @@ def utc(*args: int) -> datetime:
     return datetime(*args, tzinfo=UTC)
 
 
-def block(*filings: Filing) -> dict[str, list[str]]:
-    """Filings in the submissions API's columnar format."""
-    columns: dict[str, list[str]] = {name: [] for name in COLUMNS}
-    columns |= {"primaryDocument": [], "items": []}
+def block(*filings: Filing, xbrl: bool = False) -> dict[str, list[Any]]:
+    """Filings in the submissions API's columnar format, flagged as XBRL filings or
+    not."""
+    columns: dict[str, list[Any]] = {name: [] for name in COLUMNS}
+    columns |= {"primaryDocument": [], "items": [], "isXBRL": []}
     for filing in filings:
         for name, value in zip(COLUMNS, filing, strict=True):
             columns[name].append(value)
         columns["primaryDocument"].append(f"{filing[0]}.htm")
         columns["items"].append("")
+        columns["isXBRL"].append(int(xbrl))
     return columns
 
 
 class FakeEdgar:
-    """Answers SEC's ticker file and submissions requests.
+    """Answers SEC's ticker file, submissions, and company facts requests.
 
     `histories` maps a CIK to its recent block, then any older pages; companies not
-    listed have no filings.
+    listed have no filings. `company_facts` maps a CIK to its company facts, and makes
+    that company's filings XBRL filings.
     """
 
-    def __init__(self, histories: Mapping[int, Sequence[Sequence[Filing]]]) -> None:
+    def __init__(
+        self,
+        histories: Mapping[int, Sequence[Sequence[Filing]]],
+        company_facts: Mapping[int, Mapping[str, Any]] | None = None,
+    ) -> None:
         self.histories = histories
+        self.company_facts = company_facts or {}
 
     def __call__(self, request: httpx2.Request) -> httpx2.Response:
         path = request.url.path
         if path == "/files/company_tickers.json":
             return ok({})
+        if path.startswith("/api/xbrl/companyfacts/CIK"):
+            cik = int(path[-15:-5])
+            if cik not in self.company_facts:
+                return httpx2.Response(404, json={"message": "Not Found"})
+            return ok(self.company_facts[cik])
         name = path.removeprefix("/submissions/").removesuffix(".json")
         cik = int(name[3:13])
         recent, *pages = self.histories.get(cik, [()])
+        xbrl = cik in self.company_facts
         if "-submissions-" in name:
-            return ok(block(*pages[int(name[-3:]) - 1]))
+            return ok(block(*pages[int(name[-3:]) - 1], xbrl=xbrl))
         files = [
             {"name": f"CIK{cik:010d}-submissions-{n:03d}.json"}
             for n in range(1, len(pages) + 1)
         ]
         return ok(
-            {"cik": str(cik), "filings": {"recent": block(*recent), "files": files}}
+            {
+                "cik": str(cik),
+                "filings": {"recent": block(*recent, xbrl=xbrl), "files": files},
+            }
         )
 
 
@@ -321,8 +339,75 @@ def test_ingest_sec_loads_identity_then_filings_apple_first(tmp_path: Path) -> N
     ]  # the fiscal Q3 10-Q wasn't accepted until July 30
 
 
+# Apple's revenue for the quarter ended March 28, 2020, in its 10-Q above and in its
+# fiscal 2020 10-K, which these histories leave out.
+APPLE_FACTS = {
+    "cik": 320193,
+    "entityName": "Apple Inc.",
+    "facts": {
+        "us-gaap": {
+            "RevenueFromContractWithCustomerExcludingAssessedTax": {
+                "units": {
+                    "USD": [
+                        {
+                            "start": "2019-12-29",
+                            "end": "2020-03-28",
+                            "val": 58313000000,
+                            "accn": accession,
+                            "fy": 2020,
+                            "fp": period,
+                            "form": form,
+                            "filed": filed,
+                        }
+                        for accession, period, form, filed in (
+                            ("0000320193-20-000052", "Q2", "10-Q", "2020-05-01"),
+                            ("0000320193-20-000096", "FY", "10-K", "2020-10-30"),
+                        )
+                    ]
+                }
+            }
+        }
+    },
+}
+
+
+def test_ingest_sec_loads_company_facts_after_each_xbrl_filers_filings(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    edgar_server = FakeEdgar(
+        {320193: [APPLE], 1418091: [TWITTER]}, company_facts={320193: APPLE_FACTS}
+    )
+    server = FakeServer(edgar_server)
+
+    with caplog.at_level(logging.INFO, logger="app.data.sources.xbrl"):
+        store = ingest(tmp_path, server)
+
+    paths = [str(r.url.path) for r in server.requests]
+    assert paths[1:3] == [
+        "/submissions/CIK0000320193.json",
+        "/api/xbrl/companyfacts/CIK0000320193.json",
+    ]
+    # Only Apple's filings are XBRL filings here, so no one else's facts are requested.
+    assert sum("companyfacts" in path for path in paths) == 1
+    with PointInTimeView(utc(2026, 1, 1), store=store) as view:
+        facts = view._select("xbrl_facts")
+    assert [
+        (f["accession_number"], f["available_at"], f["time_assumed"]) for f in facts
+    ] == [
+        ("0000320193-20-000052", utc(2020, 4, 30, 22, 3, 10), False),
+        # The 10-K isn't in this history: its copy counts from the end of its filed
+        # date in New York, flagged.
+        ("0000320193-20-000096", utc(2020, 10, 31, 3, 59, 59, 999999), True),
+    ]
+    assert (
+        "apple (CIK 320193): 2 facts in the curated concepts, 2 new, 1 with assumed "
+        "times" in caplog.text
+    )
+
+
 def test_rerunning_adds_nothing_and_makes_no_requests(tmp_path: Path) -> None:
-    server = FakeServer(FakeEdgar({320193: [APPLE]}))
+    edgar_server = FakeEdgar({320193: [APPLE]}, company_facts={320193: APPLE_FACTS})
+    server = FakeServer(edgar_server)
     store = ingest(tmp_path, server)
     requests = len(server.requests)
 
@@ -330,6 +415,7 @@ def test_rerunning_adds_nothing_and_makes_no_requests(tmp_path: Path) -> None:
 
     assert len(server.requests) == requests  # answered from the raw cache
     assert len(list((store / "filings").glob("part-*.parquet"))) == 1
+    assert len(list((store / "xbrl_facts").glob("part-*.parquet"))) == 1
 
 
 def test_the_vote_is_logged(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:

@@ -18,6 +18,7 @@ EARNINGS_8K = "0000320193-20-000050"
 FY2020_10K = "0000320193-20-000096"
 FY2001_10K405 = "0000912057-01-544436"
 AMENDED_Q2 = "0000320193-20-900001"  # made up, for the amendment tests
+NEWEST_10Q = "0000320193-21-000056"  # fiscal Q2 2021: the newest real 10-Q here
 
 
 def latest(client: TestClient, ticker: str = "AAPL", **params: str) -> Any:
@@ -163,7 +164,7 @@ def test_june_5_2020_sees_two_10qs_but_not_the_third(client: TestClient) -> None
 
 def test_a_future_row_never_reaches_a_response(client: TestClient) -> None:
     # The canary 10-Q becomes known only in 2099.
-    assert latest(client, as_of="2098-12-31")["data"]["accession_number"] == Q3
+    assert latest(client, as_of="2098-12-31")["data"]["accession_number"] == NEWEST_10Q
     assert "0000000000-99-000001" not in listed(client, as_of="2098-12-31")
 
 
