@@ -156,6 +156,8 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | [`tables.py`](app/data/tables.py) | Every table in the store |
 | [`view.py`](app/data/view.py) | `PointInTimeView`, the only way to read the store (S3.3) |
 | [`records.py`](app/data/records.py) | What the view's reads return, with the field names of the API contract |
+| [`fundamentals.py`](app/data/fundamentals.py) | Standard metrics from XBRL facts: each concept's latest value per period, the concept order, and coverage (S5.6) |
+| [`coverage.py`](app/data/coverage.py) | The coverage report for the standard metrics (S5.6) |
 | [`raw_cache.py`](app/data/raw_cache.py) and [`http.py`](app/data/http.py) | Downloads, with rate limits, retries, and a cache of every response |
 | [`ingest.py`](app/data/ingest.py) | The ingestion command |
 | [`sources/`](app/data/sources/) | One ingester per source, with its config files |
@@ -178,6 +180,7 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | `get_latest_filing_as_of(ticker, form="10-Q", include_amendments=False)` | A `Filing`: the latest of a form family EDGAR had accepted by then, counted from its acceptance time, never its filing date (S5.4) |
 | `list_filings_as_of(ticker, forms=("10-K", "10-Q", "8-K"), include_amendments=False, limit=100)` | The filings accepted by then, newest first, across every CIK the security had (S5.4) |
 | `universe_as_of(name)` | The `UniverseMember`s of a universe in [`universes.toml`](app/data/sources/universes.toml), such as `starter_large_caps`, each with its ticker, name, and CIK then. A company counts from 00:00 ET on the effective date it joined until the date it left: Tesla is in from December 21, 2020 (S6.5) |
+| `fundamentals_coverage(universe, metric)` | For every company in the universe by then, those that left included: how many of its 10-Qs and 10-Ks reported one of the metric's concepts for their own period, which concepts they used, and the periods none covered (S5.6) |
 
 ```python
 from app.data.timeutil import parse_knowledge_time
@@ -230,6 +233,12 @@ Each command loads its whole catalog: there's no option for a single series or t
 | `tiingo` | 51 | 26 s, then a rerun an hour later | The curated `securities` and membership, then raw daily bars for every universe member and SPY into `price_bars`, and the splits and dividends they report into `corporate_actions` (S6.2). A first run loads each security from 2005. Loading universe v1 from scratch takes one request more than Tiingo's 50 an hour, so the first run stops at the limit and a rerun an hour later finishes; only the run that finishes writes a data version. Later runs ask only for sessions after its last stored bar, through the last one Tiingo has settled (20:00 ET), and log any session that comes back without a bar. Adjusted prices are never stored. |
 
 Each ingester lives in [`app/data/sources/`](app/data/sources/) and is listed in `INGESTERS` in [`app/data/ingest.py`](app/data/ingest.py).
+
+**Coverage of the standard metrics.** After `ingest sec`, run `uv run python -m app.data.coverage`. It reads the store as the API does, pinned to the newest data version, and prints Markdown. For each metric in [`sources/metrics.toml`](app/data/sources/metrics.toml), and each company that was ever in the universe, it shows how many of the company's 10-Qs and 10-Ks reported one of the metric's concepts for their own period, which concepts they used, and which periods none covered.
+
+- **Options:** `--as-of` for an earlier knowledge time, and `--metric` (repeatable) for fewer metrics.
+- **What to look for:** a company that misses periods, or whose concept switches to one with different values for the same period. Either may need an override in `metrics.toml`, with its reason and source.
+- **After adding a concept,** run `ingest sec` again. It answers from the raw cache.
 
 **Data versions.** When a command finishes, it writes a [data version](#data-versions), and its log ends with `Data version 20261101T143005Z: … rows in … files`, or with "unchanged" when the run added nothing. A run that fails or stops at a rate limit writes none, so the API keeps serving the version before it.
 

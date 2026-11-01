@@ -1,0 +1,95 @@
+# Standard metrics (S5.6): what "revenue" and the rest mean, as XBRL concepts.
+#
+# Each metric lists the concepts that can report it, most preferred first. For every
+# period, the first concept with a value supplies it (app/data/fundamentals.py), so a
+# company keeps one series when its tag changes, as Apple's did with ASC 606 in 2018:
+# SalesRevenueNet in its 10-Qs, Revenues in its fiscal 2018 10-K, then
+# RevenueFromContractWithCustomerExcludingAssessedTax.
+#
+# - label: how a sentence names the metric, such as "diluted EPS".
+# - unit: the unit SEC files its values in.
+# - period: "duration" for an amount over a period, "instant" for a balance on a date.
+#   An instant metric lists one concept, because two concepts can be measured on
+#   different dates, such as a balance sheet's and a cover page's.
+# - derive: whether a quarter can be computed from year-to-date totals (S5.7). Never
+#   for per-share amounts, which don't add up across quarters.
+# - overrides: a security whose filings need another list, with the reason and an https
+#   source that shows it.
+#
+# `ingest sec` keeps every concept listed here (sources/xbrl.py), so adding one means
+# running it again; it answers from the raw cache.
+
+[[metrics]]
+name = "revenue"
+label = "revenue"
+unit = "USD"
+period = "duration"
+derive = true
+concepts = [
+    "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+    "us-gaap:RevenueFromContractWithCustomerIncludingAssessedTax",
+    "us-gaap:Revenues",
+    "us-gaap:SalesRevenueNet",
+    # Banks' total net revenue: net interest income plus noninterest revenue.
+    "us-gaap:RevenuesNetOfInterestExpense",
+]
+
+[[metrics.overrides]]
+security = "jpmorgan"
+concepts = ["us-gaap:RevenuesNetOfInterestExpense", "us-gaap:Revenues"]
+reason = """\
+JPMorgan reports total net revenue. From 2015 on, its filings tag it \
+RevenuesNetOfInterestExpense, recast earlier quarters included, while Revenues keeps \
+the values first reported: the first quarter of 2014 was $22,993 million in its 10-Q \
+and $23,215 million as recast in the 10-Q for the first quarter of 2015."""
+source = "https://www.sec.gov/Archives/edgar/data/19617/000001961715000318/corpq12015.htm"
+
+[[metrics]]
+name = "net_income"
+label = "net income"
+unit = "USD"
+period = "duration"
+derive = true
+# ProfitLoss includes noncontrolling interests: a fallback for companies without
+# NetIncomeLoss.
+concepts = ["us-gaap:NetIncomeLoss", "us-gaap:ProfitLoss"]
+
+[[metrics]]
+name = "eps_diluted"
+label = "diluted EPS"
+unit = "USD/shares"
+period = "duration"
+derive = false
+concepts = [
+    "us-gaap:EarningsPerShareDiluted",
+    "us-gaap:EarningsPerShareBasicAndDiluted",
+]
+
+[[metrics]]
+name = "operating_cash_flow"
+label = "operating cash flow"
+unit = "USD"
+period = "duration"
+derive = true
+# 10-Qs report it only year to date, so S5.7 derives every quarter after the first.
+concepts = [
+    "us-gaap:NetCashProvidedByUsedInOperatingActivities",
+    "us-gaap:NetCashProvidedByUsedInOperatingActivitiesContinuingOperations",
+]
+
+[[metrics]]
+name = "total_assets"
+label = "total assets"
+unit = "USD"
+period = "instant"
+concepts = ["us-gaap:Assets"]
+
+[[metrics]]
+name = "shares_outstanding"
+label = "shares outstanding"
+unit = "shares"
+period = "instant"
+# The count on the cover of each 10-Q and 10-K, as of a date shortly before filing.
+# Companies with several share classes, such as Alphabet and Meta, report it by class,
+# which SEC's company facts leave out.
+concepts = ["dei:EntityCommonStockSharesOutstanding"]
