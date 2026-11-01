@@ -1,3 +1,5 @@
+import tempfile
+from pathlib import Path
 from typing import Annotated
 
 import pytest
@@ -11,26 +13,41 @@ from app.config import Settings
 from app.data.errors import LookAheadError, NotFoundError
 from app.data.timeutil import parse_knowledge_time
 from app.main import create_app
+from tests.fixture_loader import FIXTURE_DATA_VERSION
 
 FRONTEND = "http://localhost:3000"
+
+NO_STORE = tempfile.TemporaryDirectory()
+"""An empty DATA_DIR, so these tests never read a developer's backend/data."""
 
 
 def make_app() -> FastAPI:
     # Built from known settings, so a developer's backend/.env can't change the results.
-    return create_app(Settings(_env_file=None, cors_origins=[FRONTEND]))
+    return create_app(
+        Settings(_env_file=None, cors_origins=[FRONTEND], data_dir=Path(NO_STORE.name))
+    )
 
 
 client = TestClient(make_app())
 
 
-def test_bare_date_echoes_knowledge_time_and_data_version() -> None:
+def test_bare_date_echoes_knowledge_time_and_data_version(
+    client: TestClient,
+) -> None:
+    # The fixture store's client: the data version is the store's newest.
     response = client.get("/v1/knowledge-time", params={"as_of": "2020-06-05"})
 
     assert response.status_code == 200
     assert response.json() == {
         "knowledge_time": "2020-06-05T09:30:00-04:00",
-        "data_version": None,
+        "data_version": FIXTURE_DATA_VERSION,
     }
+
+
+def test_a_store_without_data_versions_echoes_null() -> None:
+    response = client.get("/v1/knowledge-time", params={"as_of": "2020-06-05"})
+
+    assert response.json()["data_version"] is None
 
 
 @pytest.mark.parametrize(

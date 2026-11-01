@@ -4,7 +4,14 @@ from pathlib import Path
 import pytest
 
 from app.data.store import StoreError, connect, table_source
-from tests.fixture_loader import FIXTURES, TEST_OBSERVATIONS, load_fixture
+from app.data.versions import VERSIONS, latest_data_version, read_manifest
+from tests.fixture_loader import (
+    FIXTURE_DATA_VERSION,
+    FIXTURE_INGESTED_AT,
+    FIXTURES,
+    TEST_OBSERVATIONS,
+    load_fixture,
+)
 
 
 def test_timestamps_are_timezone_aware_utc(fixture_store: Path) -> None:
@@ -21,9 +28,17 @@ def test_timestamps_are_timezone_aware_utc(fixture_store: Path) -> None:
 
 
 def test_every_fixture_file_was_loaded(fixture_store: Path) -> None:
-    loaded = {path.name for path in fixture_store.iterdir()}
+    loaded = {path.name for path in fixture_store.iterdir() if path.name != VERSIONS}
 
     assert loaded == {path.stem for path in FIXTURES.glob("*.csv")}
+
+
+def test_the_fixture_store_is_one_data_version(fixture_store: Path) -> None:
+    manifest = read_manifest(fixture_store, FIXTURE_DATA_VERSION)
+
+    assert latest_data_version(fixture_store) == FIXTURE_DATA_VERSION
+    assert set(manifest.tables) == {path.stem for path in FIXTURES.glob("*.csv")}
+    assert manifest.ingested_through == FIXTURE_INGESTED_AT
 
 
 def write_csv(path: Path, *rows: str) -> Path:

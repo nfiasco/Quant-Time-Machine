@@ -15,14 +15,16 @@ never an overwrite. Read the store through `PointInTimeView` (app/data/view.py).
 module is the only one that opens DuckDB or reads Parquet files.
 
 Changing how a table's `available_at` is computed means rebuilding the table: delete
-DATA_DIR/store/<table>/ and re-run ingestion, which reuses the raw cache.
+DATA_DIR/store/<table>/ and re-run ingestion, which reuses the raw cache. That breaks
+every data version that lists the deleted files (app/data/versions.py): a view pinned to
+one raises DataVersionError rather than answer from different data.
 """
 
 import logging
 import math
 import re
 import uuid
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -132,14 +134,18 @@ def table_files(store: Path, spec: TableSpec) -> list[Path]:
     return sorted((store / spec.name).glob("part-*.parquet"))
 
 
-def table_source(store: Path, spec: TableSpec) -> str:
+def table_source(
+    store: Path, spec: TableSpec, files: Sequence[Path] | None = None
+) -> str:
     """SQL for every row of a table, to use after FROM.
 
     It names the files explicitly, so a reader sees a fixed set of files even while new
-    ones are written. A table with no files yet is an empty, typed result rather than
-    the error a glob that matches nothing would raise.
+    ones are written: the table's files now, or `files`, such as the ones a data version
+    lists. A table with no files is an empty, typed result rather than the error a glob
+    that matches nothing would raise.
     """
-    files = table_files(store, spec)
+    if files is None:
+        files = table_files(store, spec)
     if not files:
         nulls = ", ".join(f"NULL::{t} AS {c}" for c, t in spec.all_columns.items())
         return f"(SELECT {nulls} WHERE false)"
@@ -174,6 +180,23 @@ def max_per_group(
             f"GROUP BY {group}"
         ).fetchall()
     return dict(rows)
+
+
+def summarize(
+    store: Path, spec: TableSpec, files: Sequence[Path] | None = None
+) -> tuple[dict[str, int], datetime | None]:
+    """A table's rows per `source`, and the latest `ingested_at` among them.
+
+    Reads the table's files now, or `files`, for data versions (app/data/versions.py).
+    The latest `ingested_at` is None for a table without rows.
+    """
+    with connect() as connection:
+        rows = connection.execute(
+            f"SELECT source, count(*), max(ingested_at) "
+            f"FROM {table_source(store, spec, files)} GROUP BY source ORDER BY source"
+        ).fetchall()
+    counts = {source: count for source, count, _ in rows}
+    return counts, max((to_utc(latest) for *_, latest in rows), default=None)
 
 
 def write_rows(

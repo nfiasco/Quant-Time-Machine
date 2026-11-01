@@ -19,6 +19,15 @@ class LookAheadError(Exception):
         self.data_version = data_version
 
 
+class DataVersionError(Exception):
+    """A data version the store doesn't have, or one whose files are missing or changed
+    (app/data/versions.py).
+
+    A view pinned to it refuses to answer from different data. The store needs fixing,
+    so the API answers with its generic 500.
+    """
+
+
 class NotFoundError(LookupError):
     """An unknown ticker, series, or other identifier. The API answers with 404.
 

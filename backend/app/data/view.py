@@ -7,6 +7,11 @@ connection can see a later row, even one that forgets to filter. Every read goes
 through `_select`, which also re-checks each row and records it in the access log that
 feeds a run's audit (S7.7) and the bias checks (E12).
 
+A view can also be pinned to a data version (S3.7, app/data/versions.py). It then
+reads only the files that version lists, and only rows ingested by then, so a saved
+run's answers never change when new data arrives. The API pins every request to the
+newest data version.
+
 Read functions are methods that call `_select` and return the records in
 app/data/records.py:
 
@@ -33,8 +38,8 @@ from pathlib import Path
 from typing import Any, Self
 
 from app.config import get_settings
-from app.data import calendar
-from app.data.errors import LookAheadError, NotFoundError
+from app.data import calendar, versions
+from app.data.errors import DataVersionError, LookAheadError, NotFoundError
 from app.data.records import Filing, MacroObservation, PriceBar, Security
 from app.data.sources.alfred import SERIES, Series
 from app.data.sources.edgar import FORM_FAMILIES
@@ -42,7 +47,13 @@ from app.data.store import TableSpec, connect, sql_timestamp, store_dir, table_s
 from app.data.tables import TABLES
 from app.data.timeutil import to_utc
 
-__all__ = ["AccessRecord", "LookAheadError", "NotFoundError", "PointInTimeView"]
+__all__ = [
+    "AccessRecord",
+    "DataVersionError",
+    "LookAheadError",
+    "NotFoundError",
+    "PointInTimeView",
+]
 
 
 @dataclass(frozen=True)
@@ -69,33 +80,41 @@ class PointInTimeView:
         """Bind a view to an aware `knowledge_time`.
 
         `store` defaults to DATA_DIR/store, and `tables` to every table in
-        app/data/tables.py. Pinning a view to a `data_version` arrives with S3.7.
+        app/data/tables.py. With a `data_version`, the view reads only the files that
+        version lists, and only rows ingested by then; a table it doesn't list reads as
+        empty. Without one, it reads every file in the store now. Raises
+        DataVersionError if the store doesn't have the version, or if any of its files
+        is missing or changed.
         """
         self.knowledge_time = to_utc(knowledge_time)
-        if data_version is not None:
-            raise NotImplementedError(
-                "pinning a view to a data version arrives in S3.7"
-            )
         self.data_version = data_version
         if store is None:
             store = store_dir(get_settings().data_dir)
+        self._version = (
+            None if data_version is None else versions.open_version(store, data_version)
+        )
         self._tables = {
             t.name: t for t in (TABLES.values() if tables is None else tables)
         }
         self._log: list[AccessRecord] = []
         self._connection = connect()
         for spec in self._tables.values():
+            files = (
+                None if self._version is None else self._version.paths(store, spec.name)
+            )
             self._connection.execute(
-                f"CREATE VIEW {spec.name} AS SELECT * FROM {table_source(store, spec)} "
-                f"WHERE {self._row_filter()}"
+                f"CREATE VIEW {spec.name} AS SELECT * FROM "
+                f"{table_source(store, spec, files)} WHERE {self._row_filter()}"
             )
 
     def _row_filter(self) -> str:
-        """The condition built into every table's view.
-
-        S3.7 adds `AND ingested_at <= ...` here when the view is pinned to a data version.
-        """
-        return f"available_at <= {sql_timestamp(self.knowledge_time)}"
+        """The condition built into every table's view: known by the knowledge time, and,
+        when the view is pinned, ingested by its data version."""
+        condition = f"available_at <= {sql_timestamp(self.knowledge_time)}"
+        if self._version is not None:
+            ingested = sql_timestamp(self._version.ingested_through)
+            condition += f" AND ingested_at <= {ingested}"
+        return condition
 
     @property
     def access_log(self) -> tuple[AccessRecord, ...]:
@@ -152,11 +171,20 @@ class PointInTimeView:
             }
             available_at = row["available_at"]
             assert isinstance(available_at, datetime)
+            # The table views make both of these impossible, so the store or this class
+            # is broken.
             if available_at > self.knowledge_time:
-                # The table views make this impossible, so the store or this class is broken.
                 raise RuntimeError(
                     f"{table} returned a row available at {available_at.isoformat()}, "
                     f"after the knowledge time {self.knowledge_time.isoformat()}"
+                )
+            if (
+                self._version is not None
+                and row["ingested_at"] > self._version.ingested_through
+            ):
+                raise RuntimeError(
+                    f"{table} returned a row ingested at {row['ingested_at'].isoformat()}, "
+                    f"after data version {self.data_version}"
                 )
             self._log.append(
                 AccessRecord(

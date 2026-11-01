@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.api.prices import RESTRICTED_MESSAGE
+from tests.fixture_loader import FIXTURE_DATA_VERSION
 
 # The prices in tests/fixtures/price_bars.csv are made up (Tiingo's terms, D2).
 
@@ -17,7 +18,7 @@ def price(client: TestClient, ticker: str = "AAPL", **params: str) -> Any:
 def test_bar_known_only_after_close(client: TestClient) -> None:
     assert price(client, as_of="2020-06-05") == {
         "knowledge_time": "2020-06-05T09:30:00-04:00",
-        "data_version": None,
+        "data_version": FIXTURE_DATA_VERSION,
         "data": {
             "ticker": "AAPL",
             "cik": 320193,

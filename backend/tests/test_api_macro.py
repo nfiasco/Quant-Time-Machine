@@ -3,6 +3,8 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.fixture_loader import FIXTURE_DATA_VERSION
+
 
 def macro(client: TestClient, series_id: str = "UNRATE", **params: str) -> Any:
     response = client.get(f"/v1/macro/{series_id}", params=params)
@@ -13,7 +15,7 @@ def macro(client: TestClient, series_id: str = "UNRATE", **params: str) -> Any:
 def test_june_5_2020_sees_mays_first_print(client: TestClient) -> None:
     assert macro(client, as_of="2020-06-05") == {
         "knowledge_time": "2020-06-05T09:30:00-04:00",
-        "data_version": None,
+        "data_version": FIXTURE_DATA_VERSION,
         "data": {
             "series_id": "UNRATE",
             "title": "Unemployment Rate",
@@ -73,7 +75,7 @@ def test_a_series_with_nothing_published_yet_is_null_with_a_reason(
 ) -> None:
     assert macro(client, "PAYEMS", as_of="2020-06-05") == {
         "knowledge_time": "2020-06-05T09:30:00-04:00",
-        "data_version": None,
+        "data_version": FIXTURE_DATA_VERSION,
         "data": None,
         "reason": "No PAYEMS value had been published by June 5, 2020, 9:30 AM ET.",
     }

@@ -6,6 +6,10 @@ Downloads go through the source's rate limits into the raw cache (DATA_DIR/raw/)
 normalized rows go into the point-in-time store (DATA_DIR/store/). A re-run reuses
 cached responses, so it makes no requests for what it already has; `--refresh`
 downloads everything again. Keys and the SEC User-Agent come from backend/.env.
+
+When the ingester finishes, the run writes a data version: a manifest of the store's
+files that runs can be pinned to (S3.7, app/data/versions.py). A run that fails or stops
+at a rate limit writes none, and a run that adds nothing keeps the newest one.
 """
 
 import argparse
@@ -14,6 +18,7 @@ import sys
 from collections.abc import Callable, Sequence
 
 from app.config import get_settings
+from app.data import versions
 from app.data.http import (
     SOURCES,
     FetchError,
@@ -63,9 +68,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
 
     settings = get_settings()
+    store = store_dir(settings.data_dir)
     try:
         with client_for(args.source, settings, refresh=args.refresh) as client:
-            ingester(IngestContext(settings, client, store_dir(settings.data_dir)))
+            ingester(IngestContext(settings, client, store))
     except MissingSettingError as error:
         print(error, file=sys.stderr)
         return 2
@@ -79,6 +85,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     except (FetchError, IngestError) as error:
         print(error, file=sys.stderr)
         return 1
+    # Last, so no data version points at a run that stopped part way.
+    versions.write_manifest(store, written_by=f"ingest {args.source}")
     return 0
 
 

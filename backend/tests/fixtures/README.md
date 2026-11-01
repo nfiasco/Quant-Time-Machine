@@ -5,7 +5,7 @@ Small, committed tables that the tests load into a temporary point-in-time store
 ## Format
 
 - **One CSV per table.** `<table>.csv` loads into the table of that name in [`app/data/tables.py`](../../app/data/tables.py), or into a test-only table in [`fixture_loader.py`](../fixture_loader.py). A file with no matching table fails the tests.
-- **Columns.** The header lists the table's own columns, then `source`, `source_ref`, `available_at`, and `time_assumed`. Leave out `ingested_at`: the loader stamps it, as ingestion does.
+- **Columns.** The header lists the table's own columns, then `source`, `source_ref`, `available_at`, and `time_assumed`. Leave out `ingested_at`: the loader stamps it, as ingestion does, always with 2026-10-19T12:00Z, so the store's data version never changes.
 - **Timestamps carry an offset**, preferably `Z` for UTC, as in `2020-06-05T12:30:00Z`. A timestamp without one fails to load (doc/time-model.md, rule 1).
 - **Other values.** Dates are `YYYY-MM-DD`, booleans are `true` or `false`, and an empty cell is a missing value.
 
@@ -19,7 +19,7 @@ Small, committed tables that the tests load into a temporary point-in-time store
 
 ## Using them
 
-In a test, the `fixture_store` fixture is a temporary store holding every file here, and `store_dir` is an empty one. Both are defined in [`conftest.py`](../conftest.py).
+In a test, the `fixture_store` fixture is a temporary store holding every file here, and `store_dir` is an empty one. Both are defined in [`conftest.py`](../conftest.py). The fixture store is one data version, `20261019T120000Z` (`FIXTURE_DATA_VERSION`), which the API tests and the `/docs` examples echo.
 
 ## Network tests
 

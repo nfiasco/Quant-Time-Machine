@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.api.filings import FormFamily
 from app.data.sources.edgar import FORM_FAMILIES
+from tests.fixture_loader import FIXTURE_DATA_VERSION
 
 # Apple's 10-Qs for the quarters ended December 28, 2019, March 28, 2020, and June 27,
 # 2020, accepted on January 28, April 30, and July 30 (doc/time-model.md, rule 5).
@@ -34,7 +35,7 @@ def listed(client: TestClient, ticker: str = "AAPL", **params: str) -> list[str]
 def test_filing_known_from_acceptance_time(client: TestClient) -> None:
     assert latest(client, as_of="2020-06-05", form="10-Q") == {
         "knowledge_time": "2020-06-05T09:30:00-04:00",
-        "data_version": None,
+        "data_version": FIXTURE_DATA_VERSION,
         "data": {
             "ticker": "AAPL",
             "cik": 320193,
@@ -108,7 +109,7 @@ def test_facebook_had_no_10q_right_after_its_ipo(client: TestClient) -> None:
 
     assert latest(client, "FB", as_of="2012-05-21") == {
         "knowledge_time": "2012-05-21T09:30:00-04:00",
-        "data_version": None,
+        "data_version": FIXTURE_DATA_VERSION,
         "data": None,
         "reason": (
             "No 10-Q from Facebook, Inc. had been accepted by EDGAR by May 21, 2012, "

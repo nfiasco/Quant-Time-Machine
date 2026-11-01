@@ -8,8 +8,14 @@ from fastapi.testclient import TestClient
 
 from app.config import Settings
 from app.data.tables import TABLES
+from app.data.versions import write_manifest
 from app.main import create_app
-from tests.fixture_loader import FIXTURES, TEST_TABLES, load_fixture
+from tests.fixture_loader import (
+    FIXTURE_INGESTED_AT,
+    FIXTURES,
+    TEST_TABLES,
+    load_fixture,
+)
 
 
 @pytest.fixture
@@ -20,13 +26,15 @@ def store_dir(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def fixture_store(store_dir: Path) -> Path:
-    """A temporary store holding every table in tests/fixtures/."""
+    """A temporary store holding every table in tests/fixtures/, frozen as one data
+    version, FIXTURE_DATA_VERSION, as an ingestion run would leave it."""
     known = TABLES | TEST_TABLES
     for path in sorted(FIXTURES.glob("*.csv")):
         spec = known.get(path.stem)
         if spec is None:
             pytest.fail(f"{path.name} matches no table in app/data/tables.py")
         load_fixture(store_dir, spec, path)
+    write_manifest(store_dir, known.values(), now=FIXTURE_INGESTED_AT)
     return store_dir
 
 
