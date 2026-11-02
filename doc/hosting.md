@@ -273,7 +273,7 @@ fly ssh console -C "sh -c 'cd /data && rm -rf store.new && mkdir store.new && ta
 - [ ] Set `NEXT_PUBLIC_API_URL` on Vercel to the API's URL, and add any preview origins the frontend needs to `CORS_ORIGINS`.
 - [ ] Write a smoke test for after each deploy: `/health`, a macro value, a filing, and prices answering 403.
 - [ ] Script the store upload above, until ingestion runs on a schedule (S15.5).
-- [ ] Upload the universe v1 store (S6.5, ingested 2026-10-31) to whichever host the D4 decision picks. Copy all of `DATA_DIR/store`, including `_versions/`, the data-version manifests (S3.7), so the API serves and echoes the same versions as the machine that ingested. On Lambda, that's the private S3 bucket; the Fly commands above already copy the whole folder.
+- [ ] Upload the universe v1 store (S6.5, ingested 2026-10-31, with its XBRL facts added on 2026-11-01 by S5.5: 8.6 MB in all) to whichever host the D4 decision picks: Railway once it reopens, or AWS Lambda. Copy all of `DATA_DIR/store`, including `_versions/`, the data-version manifests (S3.7), so the API serves and echoes the same versions as the machine that ingested. On Lambda, that's the private S3 bucket; the Fly commands above already copy the whole folder.
 - [ ] Run the container as a non-root user.
 - [ ] With S8.4's real timings, pick the backtest memory size on Lambda, or the backtest CPU and `min_machines_running` on Fly.
 - [ ] Keep `SERVE_RAW_PRICES` unset until D2's display rights are settled.

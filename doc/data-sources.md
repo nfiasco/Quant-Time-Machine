@@ -232,6 +232,35 @@ Retrieved 2026-10-11: Apple's revenue for the quarter ended March 28, 2020 (`Rev
   - which concepts they used;
   - which periods none of them covered.
 
+**What the first full load showed (2026-11-01).**
+
+- **The load.** `ingest sec --refresh` made 364 requests in 79 seconds: 311 for submissions, 52 for company facts, and SEC's ticker file. Every member's CIK has company facts; SPY has none.
+- **What it stored.** 60,708 facts from 52 CIKs.
+- **Assumed times.** Only proxy statements' facts needed the end-of-day fallback: 160 from DEF 14A and its variants. After the refresh, every 10-Q and 10-K fact found its filing.
+
+Coverage, from `uv run python -m app.data.coverage` on data version `20261101T202624Z`: 3,049 original 10-Qs and 10-Ks, from each company's first XBRL fact on.
+
+| Metric | Filings covered | Companies with the most gaps |
+| --- | ---: | --- |
+| `revenue` | 94.4% | Discover (60), Wells Fargo (34), ExxonMobil (28), Pioneer (21), Goldman Sachs (17), then ten with one or two |
+| `net_income` | 99.0% | AbbVie (14: 2013 to 2016), then twelve with one or two |
+| `eps_diluted` | 96.6% | H&R Block (38), Airbnb (22), Alphabet (10), Tesla (10), Eli Lilly (6) |
+| `operating_cash_flow` | 99.4% | Marathon Oil (5), then eleven with one or two |
+| `total_assets` | 99.5% | Thirteen with one or two |
+| `shares_outstanding` | 91.0% | Alphabet (70), Mastercard (66), Meta (58), CrowdStrike (25), Palantir (24), Airbnb (22): each reports the cover-page count by share class |
+
+- **The overrides it led to.** Revenue coverage went from 91.3% to 94.4% with nine more overrides, each with its numbers and a filing in `metrics.toml`:
+  - Wells Fargo takes `RevenuesNetOfInterestExpense` first, like JPMorgan, for the same reason: its recasts are tagged that way.
+  - Mastercard, Walmart, ExxonMobil, and Marathon Oil take `Revenues`. Their `RevenueFromContractWithCustomer…` facts are a different measure: gross revenue before rebates, net sales without membership income, or sales without other income. The default order would have switched measures around 2018.
+  - Pfizer takes `Revenues` first, because its 2023 10-K recast 2021's contract revenue to leave out revenue that its total revenues include.
+  - Coca-Cola, Johnson & Johnson, and AMD add `SalesRevenueGoodsNet`, which held their revenue until 2018 (2012 for AMD).
+- **Gaps that stay.**
+  - Wells Fargo before 2017 and Discover never tagged a revenue total. Their 10-Qs tag net interest income and noninterest income separately: Wells Fargo's second quarter of 2012 was $11,037 million and $10,252 million. A list of concepts can't add them up.
+  - ExxonMobil's 10-Qs before 2017 tag revenue only with its own extension concepts, which company facts leave out.
+  - Goldman Sachs's own filings before 2014 tagged net revenues with no listed concept. Its later filings' comparatives fill in those quarters, known from 2014.
+  - Pioneer tagged only its oil and gas revenue (`OilAndGasRevenue`) before 2014, and Kohl's net sales became total revenue, other revenue included, with ASC 606.
+  - A filing here and there has no facts at all for its own period, such as Citigroup's first two 10-Qs of 2026, so it's a gap in every metric.
+
 **Limits, cost, and terms:** the same as the submissions API. XBRL data usually updates within a minute of a filing.
 
 ## Daily prices (decision D2)

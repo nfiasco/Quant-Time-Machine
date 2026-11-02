@@ -44,6 +44,114 @@ the values first reported: the first quarter of 2014 was $22,993 million in its 
 and $23,215 million as recast in the 10-Q for the first quarter of 2015."""
 source = "https://www.sec.gov/Archives/edgar/data/19617/000001961715000318/corpq12015.htm"
 
+[[metrics.overrides]]
+security = "wells-fargo"
+concepts = ["us-gaap:RevenuesNetOfInterestExpense", "us-gaap:Revenues"]
+reason = """\
+Wells Fargo reports total revenue: net interest income plus noninterest income. Its \
+filings moved it from Revenues to RevenuesNetOfInterestExpense, recast years \
+included: 2019 was $85,063 million as Revenues in its 2019 10-K and $86,832 million \
+as recast in its 2021 10-K."""
+source = "https://www.sec.gov/Archives/edgar/data/72971/000007297122000096/wfc-20211231.htm"
+
+[[metrics.overrides]]
+security = "mastercard"
+concepts = ["us-gaap:Revenues", "us-gaap:SalesRevenueNet"]
+reason = """\
+Mastercard's net revenue is Revenues, and SalesRevenueNet from 2015 to mid-2018. Its \
+RevenueFromContractWithCustomer... facts are gross revenue before rebates and \
+incentives: $6,069 million against net revenue of $4,113 million for the second \
+quarter of 2019."""
+source = "https://www.sec.gov/Archives/edgar/data/1141391/000114139119000128/ma06302019-10xq.htm"
+
+[[metrics.overrides]]
+security = "walmart"
+concepts = ["us-gaap:Revenues"]
+reason = """\
+Walmart's total revenues, Revenues, include membership and other income; its \
+RevenueFromContractWithCustomer... facts are net sales alone: $139,207 million \
+against total revenues of $140,525 million for the quarter ended October 31, 2021. \
+Revenues runs through its whole history."""
+source = "https://www.sec.gov/Archives/edgar/data/104169/000010416921000072/wmt-20211031.htm"
+
+[[metrics.overrides]]
+security = "exxon-mobil"
+concepts = ["us-gaap:Revenues"]
+reason = """\
+From its 2019 10-K on, ExxonMobil tags total revenues and other income as Revenues \
+($264,938 million for 2019) and sales and other operating revenue as \
+RevenueFromContractWithCustomer... ($255,583 million), which stops in mid-2023. \
+Revenues alone keeps recent quarters one measure; its 10-Qs before 2017 tag no \
+revenue concept SEC's company facts include."""
+source = "https://www.sec.gov/Archives/edgar/data/34088/000003408820000016/xom10k2019.htm"
+
+[[metrics.overrides]]
+security = "marathon-oil"
+concepts = ["us-gaap:Revenues"]
+reason = """\
+Marathon Oil's total revenues and other income is Revenues throughout; its \
+RevenueFromContractWithCustomer... facts, from 2018 on, leave out other income: \
+$5,063 million against $5,190 million for 2019."""
+source = "https://www.sec.gov/Archives/edgar/data/101778/000010177820000023/mro-20191231x10k2019.htm"
+
+[[metrics.overrides]]
+security = "pfizer"
+concepts = [
+    "us-gaap:Revenues",
+    "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+    "us-gaap:SalesRevenueNet",
+    "us-gaap:SalesRevenueGoodsNet",
+]
+reason = """\
+Pfizer tagged total revenues SalesRevenueNet until mid-2014, SalesRevenueGoodsNet \
+until 2018 ($48,851 million for 2015), RevenueFromContractWithCustomer... until \
+2023, and Revenues since. Its 2023 10-K recast 2021's contract revenue to $73,636 \
+million, leaving out revenue that total revenues of $81,288 million include, so \
+Revenues comes first."""
+source = "https://www.sec.gov/Archives/edgar/data/78003/000007800324000039/pfe-20231231.htm"
+
+[[metrics.overrides]]
+security = "coca-cola"
+concepts = [
+    "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+    "us-gaap:RevenueFromContractWithCustomerIncludingAssessedTax",
+    "us-gaap:Revenues",
+    "us-gaap:SalesRevenueNet",
+    "us-gaap:SalesRevenueGoodsNet",
+]
+reason = """\
+Coca-Cola tagged its net operating revenues SalesRevenueGoodsNet until 2018: \
+$13,085 million for the second quarter of 2012."""
+source = "https://www.sec.gov/Archives/edgar/data/21344/000002134412000037/a2012062910q.htm"
+
+[[metrics.overrides]]
+security = "johnson-johnson"
+concepts = [
+    "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+    "us-gaap:RevenueFromContractWithCustomerIncludingAssessedTax",
+    "us-gaap:Revenues",
+    "us-gaap:SalesRevenueNet",
+    "us-gaap:SalesRevenueGoodsNet",
+]
+reason = """\
+Johnson & Johnson tagged its sales to customers SalesRevenueGoodsNet until 2018: \
+$16,475 million for the second quarter of 2012."""
+source = "https://www.sec.gov/Archives/edgar/data/200406/000020040612000119/jnj2q71201210q.htm"
+
+[[metrics.overrides]]
+security = "amd"
+concepts = [
+    "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax",
+    "us-gaap:RevenueFromContractWithCustomerIncludingAssessedTax",
+    "us-gaap:Revenues",
+    "us-gaap:SalesRevenueNet",
+    "us-gaap:SalesRevenueGoodsNet",
+]
+reason = """\
+AMD tagged its net revenue SalesRevenueGoodsNet from 2010 to 2012: $1,574 million for \
+the second quarter of 2011."""
+source = "https://www.sec.gov/Archives/edgar/data/2488/000119312511218202/d10q.htm"
+
 [[metrics]]
 name = "net_income"
 label = "net income"
