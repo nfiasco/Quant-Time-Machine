@@ -660,9 +660,9 @@ Every story in one table, like the Project's table view. Select an ID to jump to
 | [S5.2](#s52-company-identity-cik-tickers-share-classes) | Company identity: CIK, tickers, share classes | E5 | P0 | M | 2 | M2 | ✅ Done |
 | [S5.3](#s53-ingest-filing-histories) | Ingest filing histories | E5 | P0 | M | 2 | M2 | ✅ Done |
 | [S5.4](#s54-get_latest_filing_as_of) | `get_latest_filing_as_of` | E5 | P0 | S | 2 | M2 | ✅ Done |
-| [S5.5](#s55-ingest-xbrl-company-facts) | Ingest XBRL company facts | E5 | P0 | M | 3 | M3 | Backlog |
-| [S5.6](#s56-map-xbrl-tags-to-standard-metrics) | Map XBRL tags to standard metrics | E5 | P0 | M | 3 | M3 | Backlog |
-| [S5.7](#s57-quarterly-fundamentals-as-known-at-a-time) | Quarterly fundamentals as known at a time | E5 | P0 | L | 3 | M3 | Backlog |
+| [S5.5](#s55-ingest-xbrl-company-facts) | Ingest XBRL company facts | E5 | P0 | M | 3 | M3 | In review |
+| [S5.6](#s56-map-xbrl-tags-to-standard-metrics) | Map XBRL tags to standard metrics | E5 | P0 | M | 3 | M3 | In review |
+| [S5.7](#s57-quarterly-fundamentals-as-known-at-a-time) | Quarterly fundamentals as known at a time | E5 | P0 | L | 3 | M3 | In review |
 | [S5.8](#s58-bulk-backfill-from-sec-bulk-files) | Bulk backfill from SEC bulk files | E5 | P2 | M | 7 | M6 | Backlog |
 | [S6.1](#s61-spike-choose-a-daily-price-source) | Spike: choose a daily price source | E6 | P0 | S | 1 | M1 | ✅ Done |
 | [S6.2](#s62-ingest-raw-prices-and-corporate-actions) | Ingest raw prices and corporate actions | E6 | P0 | M | 2 | M2 | ✅ Done |
@@ -680,7 +680,7 @@ Every story in one table, like the Project's table view. Select an ID to jump to
 | [S7.7](#s77-run-records-determinism-and-audit-log) | Run records, determinism, and audit log | E7 | P0 | M | 4 | M4 | Backlog |
 | [S7.8](#s78-run-the-canonical-example-end-to-end) | Run the canonical example end to end | E7 | P0 | S | 4 | M4 | Backlog |
 | [S8.1](#s81-api-conventions) | API conventions | E8 | P0 | S | 2 | M2 | ✅ Done |
-| [S8.2](#s82-as-of-data-endpoints) | As-of data endpoints | E8 | P0 | M | 2–3 | M3 | In progress |
+| [S8.2](#s82-as-of-data-endpoints) | As-of data endpoints | E8 | P0 | M | 2–3 | M3 | In review |
 | [S8.3](#s83-knowledge-snapshot-endpoint) | Knowledge snapshot endpoint | E8 | P0 | M | 3 | M3 | Backlog |
 | [S8.4](#s84-backtest-endpoints) | Backtest endpoints | E8 | P0 | M | 4 | M4 | Backlog |
 | [S8.5](#s85-catalog-endpoints) | Catalog endpoints | E8 | P0 | S | 3 | M3 | Backlog |
@@ -1331,10 +1331,10 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Tasks**
 
-- [ ] Fetch company facts for each CIK
-- [ ] Normalize the facts and join each accession number to its acceptance time
-- [ ] Drop exact duplicates only
-- [ ] Write fixture tests
+- [x] Fetch company facts for each CIK: [`sources/xbrl.py`](../backend/app/data/sources/xbrl.py), run by `ingest sec` right after each XBRL filer's filings
+- [x] Normalize the facts and join each accession number to its acceptance time: the `xbrl_facts` table; a fact whose filing isn't in `filings` counts from the end of its filed date, flagged (rule 11)
+- [x] Drop exact duplicates only: the value is part of each row's key
+- [x] Write fixture tests: [`tests/test_xbrl.py`](../backend/tests/test_xbrl.py), with the data side of `test_fact_versions_follow_filing_acceptance`
 
 #### S5.6 Map XBRL tags to standard metrics
 
@@ -1350,10 +1350,10 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Tasks**
 
-- [ ] Write the mapping config
-- [ ] Implement the resolution logic
-- [ ] Test companies whose tags changed around the 2018 revenue-recognition switch (ASC 606)
-- [ ] Generate the coverage report
+- [x] Write the mapping config: [`sources/metrics.toml`](../backend/app/data/sources/metrics.toml), six metrics, with JPMorgan's revenue override
+- [x] Implement the resolution logic: [`app/data/fundamentals.py`](../backend/app/data/fundamentals.py); for each period, the first concept with a value, which comes with it
+- [x] Test companies whose tags changed around the 2018 revenue-recognition switch (ASC 606): Microsoft's quarter ended March 31, 2018, and JPMorgan's recast 2014
+- [x] Generate the coverage report: `uv run python -m app.data.coverage`, with the first full load's results in [`doc/data-sources.md`](data-sources.md#sec-xbrl-reported-financials-company-facts)
 
 #### S5.7 Quarterly fundamentals as known at a time
 
@@ -1370,10 +1370,10 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Tasks**
 
-- [ ] Classify fact durations (quarter, year-to-date, annual)
-- [ ] Derive Q4
-- [ ] Select the as-of value for each period
-- [ ] Write tests, including a synthetic restatement
+- [x] Classify fact durations (quarter, year-to-date, annual), allowing 13- and 14-week quarters and 52- and 53-week years
+- [x] Derive Q4, and Q2 and Q3 from year-to-date totals too (decided 2026-11-01), since 10-Qs report cash flows only year to date; per-share amounts are never derived
+- [x] Select the as-of value for each period: `PointInTimeView.get_fundamentals_as_of`, the latest filed value, citing its accession numbers
+- [x] Write tests, including a synthetic restatement: [`tests/test_fundamentals.py`](../backend/tests/test_fundamentals.py), with `test_restatement_applies_from_amendment` (a made-up 10-K/A), Apple's fiscal 2021 Q4, and Microsoft's June fiscal year
 
 #### S5.8 Bulk backfill from SEC bulk files
 
@@ -1710,7 +1710,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 #### S8.2 As-of data endpoints
 
-**Priority:** P0 · **Size:** M · **Sprint:** 2–3 · **Milestone:** M3 · **Area:** api · **Depends on:** S8.1, S4.4, S5.4, S6.3, S5.7 · **Reqs:** FR-A1 · **Status:** In progress (the Sprint 2 endpoints are done)
+**Priority:** P0 · **Size:** M · **Sprint:** 2–3 · **Milestone:** M3 · **Area:** api · **Depends on:** S8.1, S4.4, S5.4, S6.3, S5.7 · **Reqs:** FR-A1 · **Status:** In review (fundamentals added in Sprint 3)
 
 **Story:** As a frontend developer, I want HTTP endpoints for each as-of query, so that the web app can show point-in-time data.
 
@@ -1722,9 +1722,9 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Tasks**
 
-- [ ] Write the routers and response models for each domain
-- [ ] Write the tests
-- [ ] Add OpenAPI examples
+- [x] Write the routers and response models for each domain, `GET /v1/fundamentals/{ticker}` included ([`app/api/fundamentals.py`](../backend/app/api/fundamentals.py))
+- [x] Write the tests
+- [x] Add OpenAPI examples
 
 #### S8.3 Knowledge snapshot endpoint
 
