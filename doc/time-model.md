@@ -213,15 +213,21 @@ Universe v1, `starter_large_caps` (D3), dates its members exactly this way: each
 | July 2020 | Wed 2020-07-01 09:30 EDT (13:30Z) | |
 | November 2012 | Thu 2012-11-01 09:30 EDT (13:30Z) | Markets reopened October 31 after Hurricane Sandy |
 | January 2021 | Mon 2021-01-04 09:30 EST (14:30Z) | January 1 is a holiday |
+| July 2023 | Mon 2023-07-03 09:30 EDT (13:30Z) | An early close: the market closed at 13:00 ET |
 
 ### 10. Fills: strictly after the decision; by default, the decision day's close (D5)
 
-A decision at 09:30 ET on Monday, June 1, 2020 sees prices through Friday, May 29's close, and its trades fill at June 1's close (16:00 ET, 20:00Z). On an early-close day, the fill is at 13:00 ET. A decision can never see the bar it trades at.
+A decision at 09:30 ET on Monday, June 1, 2020 sees prices through Friday, May 29's close, and its trades fill at June 1's close (16:00 ET, 20:00Z). On an early-close day, the fill is at 13:00 ET: July's decision on Monday, July 3, 2023 fills at 17:00Z. A decision can never see the bar it trades at.
 
 **D5, decided 2026-10-11.** The default is a 09:30 ET decision with a same-day close fill. The alternative was a fill at the next day's open.
 
 - **Why same-day close:** it keeps the decision and the fill in one session. The 6.5-hour gap is realistic for a monthly strategy. It also matches the experiment spec (`"fill": "same_day_close"`, roadmap §3.4).
 - **What stays configurable:** both options satisfy "fill strictly after the decision". The spec keeps the fill setting (S7.2), and the timing stress test (S14.3) compares them.
+
+**In code (S7.2).** [`app/backtest/schedule.py`](../backend/app/backtest/schedule.py) makes each decision and its fill.
+
+- **A same-day close fill must come after its decision.** A spec with a 16:00 decision and that fill is invalid. One with a 13:30 decision fails on the early-close days it covers, such as July 3 in 2006, 2017, and 2023, and the error names each one.
+- **A next-day open fill** is at the next session's open. After Friday, October 26, 2012, that was Wednesday, October 31's, because Hurricane Sandy closed the market for two days.
 
 ### 11. Missing or unclear timestamps: use the later plausible time, and flag it
 
@@ -260,7 +266,7 @@ The pitfalls table in [roadmap §2.4](roadmap.md#24-where-look-ahead-bias-creeps
 ## Known limitations and open questions
 
 1. **Earnings releases come first, so our rule is conservative.** Companies announce results in an 8-K press release before the 10-Q. Apple's 8-K for fiscal Q2 2020 was accepted at 16:30:41 ET on April 30, 2020, and the 10-Q at 18:03:10 ET. For other companies the gap can be days. We date fundamentals by the filing their XBRL numbers come from, so they become usable slightly later than in reality. That's acceptable for v1; say so on the methodology page.
-2. **A decision at exactly 16:00.** The bar is known at 16:00 (the comparison is inclusive), so a 16:00 decision can use that close. But fills must be strictly after the decision, so its earliest fill is the next session. A same-day close fill is allowed only for decisions before the close.
+2. **A decision at exactly 16:00.** The bar is known at 16:00 (the comparison is inclusive), so a 16:00 decision can use that close. But fills must be strictly after the decision, so its earliest fill is the next session. A same-day close fill is allowed only for decisions before the close, and the spec and the schedule enforce it (S7.2).
 3. **Release times are today's schedules.** ALFRED has dates only, so the release-time table (rule 7) supplies the time of day, with two limits:
    - **The times are applied to every vintage.** BLS's 08:30 is documented back to 1998 by its own footnote, and the January 1990 example above assumes it. BEA's and the Fed's times are documented only for recent years.
    - **Not every vintage date is a scheduled release.** A vintage dated on another day, such as a FRED correction, still gets its release's time, unless it's listed as an exception. For example, PAYEMS has a vintage dated Monday, May 11, 2020, three days after the April 2020 jobs report, that changed three observations (April from 131,072 to 131,045 thousand). It counts as known at 08:30 that day.
@@ -302,6 +308,9 @@ Each rule becomes at least one golden test, built on small committed fixtures (n
 | `test_unknown_release_time_is_end_of_day_and_flagged` | 7, 11 | A vintage with no release time | `available_at` is 23:59:59.999999 ET that day; flagged |
 | `test_universe_change_applies_from_effective_date` | 8 | TSLA added effective 2020-12-21 | Not a member on 2020-12-01; a member on 2021-01-04 |
 | `test_first_trading_day_of_month` | 9 | 2020-06, 2020-07, 2012-11, 2021-01 | June 1, July 1, November 1, January 4 at 09:30 ET |
-| `test_fill_strictly_after_decision` | 10 | Decision 2020-06-01 09:30 ET | Fill at 2020-06-01 16:00 ET; signals see bars through May 29 only |
+| `test_fill_strictly_after_decision` | 10 | Decision 2020-06-01 09:30 ET, then every month since 2005 by both fill rules | Fill at 2020-06-01 16:00 ET; signals see bars through May 29 only; every fill comes after its decision |
+| `test_a_1600_decision_cannot_fill_at_that_close` | 10 | Decision 2020-06-01 16:00 ET | No same-day close fill; the next-day open fill is at 2020-06-02 09:30 ET |
+| `test_an_early_close_day_fills_at_1300` | 2, 10 | July 2023's decision, 2023-07-03 09:30 ET | Fill at 13:00 ET (17:00Z); a 13:00 decision that day can't fill at the close |
+| `test_november_2012_after_hurricane_sandy` | 2, 9, 10 | October and November 2012 | Decisions on October 1 and November 1; a next-day open fill after October 26 is at October 31's open |
 | `test_poisoned_future_row_never_returned` | All | Add a row with `available_at` in 2099 | It never appears in any query result (S3.3) |
 | `test_pinned_data_version_ignores_later_rows` | Two clocks | Pin a data version, then ingest more rows | The pinned query's result doesn't change (S3.7) |
