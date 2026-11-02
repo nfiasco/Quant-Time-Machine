@@ -5,7 +5,7 @@ import pytest
 
 from app.data.calendar import CalendarError
 from app.data.errors import LookAheadError, NotFoundError
-from app.data.records import PriceBar
+from app.data.records import CorporateAction, PriceBar
 from app.data.timeutil import parse_knowledge_time
 from app.data.view import AccessRecord, PointInTimeView
 
@@ -172,3 +172,72 @@ def test_reads_are_in_the_access_log(fixture_store: Path) -> None:
                 source_ref="made up: AAPL 2020-06-04",
             ),
         )
+
+
+def test_a_price_series_covers_its_dates_inclusively(fixture_store: Path) -> None:
+    def series(
+        as_of: str, start: date | None = None, end: date | None = None
+    ) -> list[date]:
+        with view_at(fixture_store, as_of) as view:
+            bars = view.get_price_series_as_of("AAPL", start, end)
+        return [b.session_date for b in bars]
+
+    assert series("2020-07-07", date(2020, 6, 4), date(2020, 7, 2)) == [
+        date(2020, 6, 4),
+        date(2020, 6, 5),
+        date(2020, 7, 2),
+    ]
+    assert series("2020-06-03") == [date(2020, 6, 1), date(2020, 6, 2)]  # known so far
+    # July 3 had no session, so the series skips it rather than filling it.
+    assert series("2020-07-07", start=date(2020, 7, 2)) == [
+        date(2020, 7, 2),
+        date(2020, 7, 6),
+    ]
+
+
+def test_fb_in_2020_reads_facebooks_series(fixture_store: Path) -> None:
+    with view_at(fixture_store, "2020-06-05T16:00") as view:
+        bars = view.get_price_series_as_of("FB")
+
+    assert [(b.security_id, b.ticker, b.session_date) for b in bars] == [
+        ("meta", "FB", date(2020, 6, 4)),
+        ("meta", "FB", date(2020, 6, 5)),
+    ]
+
+
+def test_a_corporate_action_is_known_at_its_ex_dates_close(
+    fixture_store: Path,
+) -> None:
+    def actions(as_of: str, start: date | None = None) -> list[tuple[date, str, float]]:
+        with view_at(fixture_store, as_of) as view:
+            found = view.get_corporate_actions_as_of("AAPL", start)
+        return [(a.ex_date, a.action, a.value) for a in found]
+
+    dividend = (date(2020, 8, 7), "dividend", 0.82)
+    split = (date(2020, 8, 31), "split", 4.0)
+    assert actions("2020-08-07T15:59") == []
+    assert actions("2020-08-07T16:00") == [dividend]
+    assert actions("2020-09-01") == [dividend, split]
+    assert actions("2020-09-01", start=date(2020, 8, 8)) == [split]
+    # The canary, a split of 99 known only in 2099, never comes back.
+    assert actions("2098-12-31") == [dividend, split]
+
+
+def test_a_corporate_action_comes_back_under_the_tickers_identity(
+    fixture_store: Path,
+) -> None:
+    with view_at(fixture_store, "2020-08-07T16:00") as view:
+        (dividend,) = view.get_corporate_actions_as_of("AAPL")
+
+    assert dividend == CorporateAction(
+        security_id="apple",
+        ticker="AAPL",
+        cik=320193,
+        ex_date=date(2020, 8, 7),
+        action="dividend",
+        value=0.82,
+        available_at=utc(2020, 8, 7, 20),  # the ex-date's close, 16:00 EDT
+        time_assumed=False,
+        source="tiingo",
+        source_ref="Apple's announced dividend (not Tiingo's data)",
+    )

@@ -1,5 +1,8 @@
-"""Backtesting engine (placeholder).
+"""The backtest engine: deterministic, reproducible strategy simulations.
 
-Planned home for deterministic, reproducible strategy simulations. Backtests
-should read data only through the point-in-time data layer (`app.data`).
+It reads data only through the point-in-time data layer (`app.data`), never the store
+itself. So far it has:
+
+- `returns`: daily and monthly total returns from raw prices, splits, and dividends
+  (S6.4)
 """

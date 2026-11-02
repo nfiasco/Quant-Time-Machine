@@ -100,6 +100,21 @@ A bar's open, high, low, close, and volume form one record, known at that day's 
 - **An early close.** On Friday, November 27, 2020, the market closed at 13:00 ET, so that day's bar is known at `18:00Z`.
 - **Vendor timing isn't market timing.** Vendors publish end-of-day data later; Tiingo says around 17:30 ET, with corrections until 20:00 ET. The close was known to the market at the close, so that's what we use, and a vendor's correction to the same bar isn't a new version.
 
+**Total returns (S6.4).** Prices are stored and read as traded, so a signal that needs a price level, such as market cap, uses a raw close. Splits and dividends enter only through returns, in [`app/backtest/returns.py`](../backend/app/backtest/returns.py). A session's total return is
+
+```text
+r_t = k_t × (close_t + div_t) / close_(t−1) − 1
+```
+
+- **The terms.** `k_t` is the split factor with ex-date *t*, or 1. `div_t` is the cash dividend per share with ex-date *t*, or 0, reinvested at that day's close. The return is known at the session's close, with its bar.
+- **Split factors are rounded** to the simple ratio they stand for, one whose smaller side is at most 10, when they're within 0.001% of it. Tiingo sends Apple's 7-for-1 of 2014 as 7.000007, and NVIDIA's 3-for-2 of 2007 as 1.49999925.
+- **Spin-offs.** A factor that no simple ratio explains is kept as given. Tiingo folds a spin-off into the split factor, such as IBM's 1.046 for Kyndryl on 2021-11-04, so the spun-off shares count as reinvested in the parent.
+- **A month's return** compounds its sessions' daily returns, from the previous month's last close.
+- **Checked against Tiingo's adjusted closes on 2026-11-01**, for the 43 curated securities that trade today: 209,397 days and 9,950 months.
+  - The largest difference is 1.0 × 10⁻⁶, on Apple's split day in June 2014, from the rounding.
+  - Every other day agrees to within 10⁻⁹.
+  - The check reads the raw cache, which can't be committed, so it runs only locally: `uv run pytest -m local_data`.
+
 ### 5. An SEC filing is known at its EDGAR acceptance time
 
 The acceptance time is when EDGAR accepted the filing, which is effectively when it became public. Two other dates are tempting and wrong:
@@ -272,6 +287,10 @@ Each rule becomes at least one golden test, built on small committed fixtures (n
 | `test_market_time_takes_the_later_repeated_instant` | 11 | Ingestion's `market_time` for 01:30 on 2020-11-01 | `06:30Z`, the later of the two instants |
 | `test_bar_known_only_after_close` | 4 | AAPL bars, *T* = 2020-06-05 09:30 ET | Latest bar is June 4; June 5 raises `LookAheadError` |
 | `test_early_close_bar_known_at_1300` | 4 | Bar for 2020-11-27 | `available_at` = 18:00Z |
+| `test_a_dividend_is_reinvested_on_its_ex_date` | 4 | A made-up $100 close, then $99 with a $2 dividend | A 1% return: (99 + 2) / 100 − 1 |
+| `test_split_factors_round_to_simple_ratios` | 4 | Tiingo's 7.000007 and 1.49999925, and IBM's 1.046 | 7, 3/2, and 1.046 as given |
+| `test_a_return_is_known_at_its_close` | 4 | Apple's made-up 4-for-1 split day, 2020-08-31 | No return at 15:59 ET; +4% at 16:00 |
+| `test_returns_match_tiingos_adjusted_closes` (local only) | 4 | Each listed security's whole history, from the local store | Within 10⁻⁵ of Tiingo's adjusted closes, daily and monthly |
 | `test_filing_known_from_acceptance_time` | 5 | Apple filings, *T* = 2020-06-05 09:30 ET | Latest 10-Q is 0000320193-20-000052; -20-000062 is invisible |
 | `test_filing_visible_after_acceptance_not_filing_date` | 5 | *T* = 2020-04-30 18:05 ET | The fiscal Q2 10-Q is already visible (its filing date is May 1) |
 | `test_edgar_acceptance_time_correction` | 5 | JSON `2020-05-01T02:03:10.000Z` and `2020-01-29T04:02:44.000Z` | `2020-04-30T22:03:10Z` and `2020-01-28T23:02:44Z` |

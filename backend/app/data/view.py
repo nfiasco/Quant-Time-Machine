@@ -17,8 +17,10 @@ app/data/records.py:
 
 - `get_macro_as_of` and `get_macro_series_as_of`: macro series as published (S4.4)
 - `resolve_ticker`: the security that used a ticker at the time (S5.2)
-- `get_price_as_of` and `get_price_history_as_of`: daily bars whose sessions had
-  closed (S6.3)
+- `get_price_as_of`, `get_price_history_as_of`, and `get_price_series_as_of`: daily
+  bars whose sessions had closed (S6.3, S6.4)
+- `get_corporate_actions_as_of`: splits and cash dividends by ex-date, known with their
+  bars (S6.4)
 - `get_latest_filing_as_of` and `list_filings_as_of`: filings EDGAR had accepted (S5.4)
 - `universe_as_of`: a universe's members, from their effective dates (S6.5)
 - `get_fundamentals_as_of`: a standard metric's last quarters, from the XBRL facts filed
@@ -46,6 +48,7 @@ from app.config import get_settings
 from app.data import calendar, fundamentals, versions
 from app.data.errors import DataVersionError, LookAheadError, NotFoundError
 from app.data.records import (
+    CorporateAction,
     Filing,
     Fundamental,
     FundamentalsCoverage,
@@ -375,6 +378,64 @@ class PointInTimeView:
             limit=lookback,
         )
         return [_price_bar(security, row) for row in reversed(rows)]
+
+    def get_price_series_as_of(
+        self, ticker: str, start: date | None = None, end: date | None = None
+    ) -> list[PriceBar]:
+        """A security's daily bars known at the knowledge time, oldest first.
+
+        Each session from `start` through `end` (both optional and inclusive) whose bar
+        was known by then, for total returns (app/backtest/returns.py). A session
+        without a bar is skipped, not filled. The ticker is resolved as for
+        `get_price_as_of`, so FB in 2020 reads Facebook's whole history.
+        """
+        security = self.resolve_ticker(ticker)
+        where = "security_id = ?"
+        params: list[object] = [security.security_id]
+        if start is not None:
+            where += " AND session_date >= ?"
+            params.append(start)
+        if end is not None:
+            where += " AND session_date <= ?"
+            params.append(end)
+        rows = self._select(
+            "price_bars",
+            where=where,
+            params=params,
+            latest_per_key=True,
+            order_by="session_date",
+        )
+        return [_price_bar(security, row) for row in rows]
+
+    def get_corporate_actions_as_of(
+        self, ticker: str, start: date | None = None, end: date | None = None
+    ) -> list[CorporateAction]:
+        """A security's splits and cash dividends known at the knowledge time, oldest
+        first.
+
+        Ex-dates run from `start` through `end` (both optional and inclusive). Each
+        action came with its ex-date's bar, so it's known at that session's close: at
+        15:59 ET on August 31, 2020, Apple's 4-for-1 split that day isn't known yet.
+        Split factors are the vendor's, such as 7.000007; total returns round them
+        (app/backtest/returns.py). The ticker is resolved as for `get_price_as_of`.
+        """
+        security = self.resolve_ticker(ticker)
+        where = "security_id = ?"
+        params: list[object] = [security.security_id]
+        if start is not None:
+            where += " AND ex_date >= ?"
+            params.append(start)
+        if end is not None:
+            where += " AND ex_date <= ?"
+            params.append(end)
+        rows = self._select(
+            "corporate_actions",
+            where=where,
+            params=params,
+            latest_per_key=True,
+            order_by="ex_date, action",
+        )
+        return [_corporate_action(security, row) for row in rows]
 
     def get_latest_filing_as_of(
         self, ticker: str, form: str = "10-Q", include_amendments: bool = False
@@ -770,6 +831,23 @@ def _price_bar(security: Security, row: Mapping[str, Any]) -> PriceBar:
         low=row["low"],
         close=row["close"],
         volume=row["volume"],
+        available_at=row["available_at"],
+        time_assumed=row["time_assumed"],
+        source=row["source"],
+        source_ref=row["source_ref"],
+    )
+
+
+def _corporate_action(security: Security, row: Mapping[str, Any]) -> CorporateAction:
+    """A `corporate_actions` row as a record, under the ticker and CIK the security had
+    at the knowledge time."""
+    return CorporateAction(
+        security_id=security.security_id,
+        ticker=security.ticker,
+        cik=security.cik,
+        ex_date=row["ex_date"],
+        action=row["action"],
+        value=row["value"],
         available_at=row["available_at"],
         time_assumed=row["time_assumed"],
         source=row["source"],
