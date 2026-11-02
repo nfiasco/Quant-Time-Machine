@@ -1,6 +1,8 @@
 // Experiment spec v1, as sketched in doc/roadmap.md §3.4: the JSON document that fully
-// describes a backtest. The engine validates it (S7.1). Once the API publishes its
-// OpenAPI schema, generate these types from it instead (S8.6).
+// describes a backtest. The engine validates it with the models in
+// backend/app/backtest/spec.py, and a backend test checks that both use the same
+// fields and values, so change them together. Once the API publishes its OpenAPI
+// schema, generate these types from it instead (S8.6).
 
 export type SignalSpec =
   | { type: "revenue_growth_acceleration"; basis: "yoy_quarterly" }

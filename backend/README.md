@@ -5,7 +5,7 @@ The Quant Time Machine API, built with [FastAPI](https://fastapi.tiangolo.com). 
 - the point-in-time data layer: the store and its writer, `PointInTimeView`, and the NYSE calendar;
 - the ingestion client and CLI;
 - the `/v1` as-of endpoints for macro series, prices, filings, and fundamentals, with their conventions;
-- the start of the [backtest engine](#backtest-engine): total returns from raw prices, splits, and dividends.
+- the start of the [backtest engine](#backtest-engine): total returns from raw prices, splits, and dividends, and the experiment spec.
 
 Three sources are in, each ingested and readable as of any moment:
 
@@ -227,6 +227,7 @@ The engine in [`app/backtest/`](app/backtest/) reads data only through `PointInT
 | Module | What it does |
 | --- | --- |
 | [`returns.py`](app/backtest/returns.py) | Daily and monthly total returns from raw prices, splits, and dividends, as known at a time (S6.4). Split factors are rounded to the ratio they stand for, such as 7 for Tiingo's 7.000007. The returns match Tiingo's adjusted closes to within 10⁻⁶ |
+| [`spec.py`](app/backtest/spec.py) | The experiment spec, version 1: Pydantic models that match the frontend's `ExperimentSpec` type field for field (S7.1). `parse_spec` raises `SpecError`, whose problems each name a field: "schedule.fill must be 'same_day_close' or 'next_day_open'." |
 
 ```python
 from datetime import date
@@ -241,6 +242,8 @@ with PointInTimeView(parse_knowledge_time("2020-09-01")) as view:
 ```
 
 Price levels stay raw: only returns account for splits and dividends. The formula, the rounding, and how it was checked are in [`doc/time-model.md`](../doc/time-model.md), rule 4.
+
+The spec's JSON Schema, for the API and the assistant, is [`doc/experiment-spec-v1.schema.json`](../doc/experiment-spec-v1.schema.json). After changing the models, regenerate it, or a test fails: `uv run python -m app.backtest.spec > ../doc/experiment-spec-v1.schema.json`. A test also checks the models against the frontend's [`types.ts`](../frontend/features/backtests/types.ts), so change both together.
 
 ## Ingestion
 

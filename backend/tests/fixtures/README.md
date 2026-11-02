@@ -19,6 +19,10 @@ Small, committed tables that the tests load into a temporary point-in-time store
 - **`universe_members.csv` copies the spells it lists** from [`app/data/sources/universes.toml`](../../app/data/sources/universes.toml): Apple, Meta, Tesla (rule 8's golden test), and Twitter, which left. A test checks it the same way.
 - **`xbrl_facts.csv` holds real company facts from SEC, timed as ingestion times them**: each at its filing's acceptance time in `filings.csv`, or at the end of its filed date, flagged, when its filing isn't there. A test checks it.
 
+## Experiment specs
+
+[`specs/`](specs/) holds experiment specs as JSON, for [`test_spec.py`](../test_spec.py). They aren't tables, so they need no canary row. [`specs/canonical.json`](specs/canonical.json) is the example in [roadmap §3.4](../../../doc/roadmap.md#34-the-experiment-spec-where-the-ai-stops-and-code-starts), exactly, and a test checks that the two match.
+
 ## Using them
 
 In a test, the `fixture_store` fixture is a temporary store holding every file here, and `store_dir` is an empty one. Both are defined in [`conftest.py`](../conftest.py). The fixture store is one data version, `20261019T120000Z` (`FIXTURE_DATA_VERSION`), which the API tests and the `/docs` examples echo.

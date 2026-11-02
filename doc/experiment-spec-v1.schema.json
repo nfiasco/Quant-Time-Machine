@@ -1,0 +1,293 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "CostsSpec": {
+      "additionalProperties": false,
+      "description": "What trading costs.",
+      "properties": {
+        "bps_per_trade": {
+          "description": "Basis points of the value traded, charged on every trade: 10 is 0.1%.",
+          "minimum": 0,
+          "title": "Bps Per Trade",
+          "type": "number"
+        }
+      },
+      "required": [
+        "bps_per_trade"
+      ],
+      "title": "CostsSpec",
+      "type": "object"
+    },
+    "FilterSpec": {
+      "additionalProperties": false,
+      "description": "A condition every holding must meet at a decision, such as rev_accel > 0.",
+      "properties": {
+        "signal": {
+          "description": "The ID of a signal in `signals`.",
+          "title": "Signal",
+          "type": "string"
+        },
+        "op": {
+          "enum": [
+            ">",
+            ">=",
+            "<",
+            "<="
+          ],
+          "title": "Op",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "signal",
+        "op",
+        "value"
+      ],
+      "title": "FilterSpec",
+      "type": "object"
+    },
+    "MomentumSignal": {
+      "additionalProperties": false,
+      "description": "The total return over a lookback, leaving out the most recent months.",
+      "properties": {
+        "type": {
+          "const": "momentum",
+          "title": "Type",
+          "type": "string"
+        },
+        "lookback_months": {
+          "description": "How many months back the return starts: 12 for 12-1 momentum.",
+          "minimum": 1,
+          "title": "Lookback Months",
+          "type": "integer"
+        },
+        "skip_months": {
+          "description": "How many of the latest months to leave out: 1 for 12-1 momentum. Fewer than\n`lookback_months`.",
+          "minimum": 0,
+          "title": "Skip Months",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "lookback_months",
+        "skip_months"
+      ],
+      "title": "MomentumSignal",
+      "type": "object"
+    },
+    "PeriodSpec": {
+      "additionalProperties": false,
+      "description": "The dates the backtest covers, both included.",
+      "properties": {
+        "start": {
+          "format": "date",
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "description": "After `start`.",
+          "format": "date",
+          "title": "End",
+          "type": "string"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "PeriodSpec",
+      "type": "object"
+    },
+    "PortfolioSpec": {
+      "additionalProperties": false,
+      "description": "How the securities that pass the filters are weighted.",
+      "properties": {
+        "weighting": {
+          "description": "\"value\" weights by market cap.",
+          "enum": [
+            "equal",
+            "value"
+          ],
+          "title": "Weighting",
+          "type": "string"
+        },
+        "long_only": {
+          "title": "Long Only",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "weighting",
+        "long_only"
+      ],
+      "title": "PortfolioSpec",
+      "type": "object"
+    },
+    "RevenueGrowthAccelerationSignal": {
+      "additionalProperties": false,
+      "description": "This quarter's year-over-year revenue growth minus last quarter's.",
+      "properties": {
+        "type": {
+          "const": "revenue_growth_acceleration",
+          "title": "Type",
+          "type": "string"
+        },
+        "basis": {
+          "const": "yoy_quarterly",
+          "description": "Each quarter's growth over the same quarter a year earlier.",
+          "title": "Basis",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "basis"
+      ],
+      "title": "RevenueGrowthAccelerationSignal",
+      "type": "object"
+    },
+    "ScheduleSpec": {
+      "additionalProperties": false,
+      "description": "When decisions are made, and when their trades fill.",
+      "properties": {
+        "rebalance": {
+          "const": "monthly",
+          "title": "Rebalance",
+          "type": "string"
+        },
+        "decision": {
+          "description": "The first trading day of each month at a New York time, such as the default,\n\"first_trading_day 09:30 America/New_York\".",
+          "pattern": "^first_trading_day ([01][0-9]|2[0-3]):([0-5][0-9]) America/New_York$",
+          "title": "Decision",
+          "type": "string"
+        },
+        "fill": {
+          "description": "\"same_day_close\", the default, fills at the decision day's close, and\n\"next_day_open\" at the next session's open. Either comes strictly after the\ndecision.",
+          "enum": [
+            "same_day_close",
+            "next_day_open"
+          ],
+          "title": "Fill",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rebalance",
+        "decision",
+        "fill"
+      ],
+      "title": "ScheduleSpec",
+      "type": "object"
+    },
+    "UniverseSpec": {
+      "additionalProperties": false,
+      "description": "Which securities are eligible at each decision.",
+      "properties": {
+        "type": {
+          "const": "point_in_time_list",
+          "description": "A curated list whose members change on their effective dates.",
+          "title": "Type",
+          "type": "string"
+        },
+        "id": {
+          "description": "The list, such as \"starter_large_caps\".",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "id"
+      ],
+      "title": "UniverseSpec",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Experiment spec version 1: everything that defines a backtest.",
+  "properties": {
+    "spec_version": {
+      "const": 1,
+      "title": "Spec Version",
+      "type": "integer"
+    },
+    "name": {
+      "description": "What the experiment tests, in a few words.",
+      "title": "Name",
+      "type": "string"
+    },
+    "universe": {
+      "$ref": "#/$defs/UniverseSpec"
+    },
+    "period": {
+      "$ref": "#/$defs/PeriodSpec"
+    },
+    "schedule": {
+      "$ref": "#/$defs/ScheduleSpec"
+    },
+    "signals": {
+      "additionalProperties": {
+        "discriminator": {
+          "mapping": {
+            "momentum": "#/$defs/MomentumSignal",
+            "revenue_growth_acceleration": "#/$defs/RevenueGrowthAccelerationSignal"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/RevenueGrowthAccelerationSignal"
+          },
+          {
+            "$ref": "#/$defs/MomentumSignal"
+          }
+        ]
+      },
+      "description": "The signals the filters use, each under an ID of lowercase letters, digits, and\nunderscores, such as \"mom_12_1\".",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*$"
+      },
+      "title": "Signals",
+      "type": "object"
+    },
+    "filters": {
+      "description": "Conditions every holding must meet, all of them.",
+      "items": {
+        "$ref": "#/$defs/FilterSpec"
+      },
+      "title": "Filters",
+      "type": "array"
+    },
+    "portfolio": {
+      "$ref": "#/$defs/PortfolioSpec"
+    },
+    "benchmark": {
+      "description": "The ticker the results are compared with, such as \"SPY\".",
+      "pattern": "^[A-Z0-9][A-Z0-9.-]*$",
+      "title": "Benchmark",
+      "type": "string"
+    },
+    "costs": {
+      "$ref": "#/$defs/CostsSpec"
+    }
+  },
+  "required": [
+    "spec_version",
+    "name",
+    "universe",
+    "period",
+    "schedule",
+    "signals",
+    "filters",
+    "portfolio",
+    "benchmark",
+    "costs"
+  ],
+  "title": "ExperimentSpec",
+  "type": "object"
+}

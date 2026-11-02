@@ -671,4 +671,6 @@ export type Snapshot = {
 | `GET /v1/catalog/series`, `/companies`, `/signals` | S8.5 | 3 |
 | `POST /v1/backtests`, `GET /v1/backtests/{id}`, `GET /v1/backtests/{id}/audit` | S8.4 | 4 |
 
+`POST /v1/backtests` will take an experiment spec as its body: the model in [`app/backtest/spec.py`](../backend/app/backtest/spec.py), whose JSON Schema is [`experiment-spec-v1.schema.json`](experiment-spec-v1.schema.json) (S7.1).
+
 A price history and a whole macro series as known at a time (`get_price_history_as_of` and `get_macro_series_as_of`) will get endpoints when a page needs them, using the same envelope.
