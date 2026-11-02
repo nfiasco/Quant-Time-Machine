@@ -5,7 +5,7 @@ The Quant Time Machine API, built with [FastAPI](https://fastapi.tiangolo.com). 
 - the point-in-time data layer: the store and its writer, `PointInTimeView`, and the NYSE calendar;
 - the ingestion client and CLI;
 - the `/v1` as-of endpoints for macro series, prices, filings, and fundamentals, with their conventions;
-- the start of the [backtest engine](#backtest-engine): total returns from raw prices, splits, and dividends, and the experiment spec.
+- the start of the [backtest engine](#backtest-engine): total returns from raw prices, splits, and dividends, the experiment spec, and the rebalance schedule.
 
 Three sources are in, each ingested and readable as of any moment:
 
@@ -228,6 +228,7 @@ The engine in [`app/backtest/`](app/backtest/) reads data only through `PointInT
 | --- | --- |
 | [`returns.py`](app/backtest/returns.py) | Daily and monthly total returns from raw prices, splits, and dividends, as known at a time (S6.4). Split factors are rounded to the ratio they stand for, such as 7 for Tiingo's 7.000007. The returns match Tiingo's adjusted closes to within 10⁻⁶ |
 | [`spec.py`](app/backtest/spec.py) | The experiment spec, version 1: Pydantic models that match the frontend's `ExperimentSpec` type field for field (S7.1). `parse_spec` raises `SpecError`, whose problems each name a field: "schedule.fill must be 'same_day_close' or 'next_day_open'." |
+| [`schedule.py`](app/backtest/schedule.py) | A spec's decisions, on the first trading day of each month, and their fills (S7.2). A fill is at the same day's close (13:00 ET on an early close) or the next session's open, always strictly after its decision; `ScheduleError` names any day it can't be |
 
 ```python
 from datetime import date

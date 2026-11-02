@@ -7,4 +7,6 @@ itself. So far it has:
   (S6.4)
 - `spec`: the experiment spec, a validated document that describes a backtest, with
   its JSON Schema (S7.1)
+- `schedule`: decision times and their fills, which always come strictly after them
+  (S7.2)
 """

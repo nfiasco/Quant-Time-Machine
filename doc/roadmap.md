@@ -672,7 +672,7 @@ Every story in one table, like the Project's table view. Select an ID to jump to
 | [S6.6](#s66-universe-v2-top-n-by-market-cap-as-of-each-date) | Universe v2: top N by market cap as of each date | E6 | P1 | L | 7 | M6 | Backlog |
 | [S6.7](#s67-delistings-and-coverage-report) | Delistings and coverage report | E6 | P1 | M | 4 | M4 | Backlog |
 | [S7.1](#s71-experiment-spec-v1) | Experiment spec v1 | E7 | P0 | M | 3 | M3 | In review |
-| [S7.2](#s72-rebalance-schedule-and-decision-and-fill-timing) | Rebalance schedule and decision and fill timing | E7 | P0 | S | 3 | M3 | Backlog |
+| [S7.2](#s72-rebalance-schedule-and-decision-and-fill-timing) | Rebalance schedule and decision and fill timing | E7 | P0 | S | 3 | M3 | In review |
 | [S7.3](#s73-simulation-loop) | Simulation loop | E7 | P0 | L | 4 | M4 | Backlog |
 | [S7.4](#s74-signal-library-v1) | Signal library v1 | E7 | P0 | M | 4 | M4 | Backlog |
 | [S7.5](#s75-portfolio-construction-and-costs) | Portfolio construction and costs | E7 | P0 | M | 4 | M4 | Backlog |
@@ -1564,9 +1564,9 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Tasks**
 
-- [ ] Write the schedule generator
-- [ ] Implement the fill rules
-- [ ] Write the tests
+- [x] Write the schedule generator: [`app/backtest/schedule.py`](../backend/app/backtest/schedule.py), the first trading day of each month at the spec's New York time
+- [x] Implement the fill rules: the same day's close (13:00 ET on an early close) or the next session's open, always strictly after the decision. A same-day close fill that wouldn't be raises an error that names each day
+- [x] Write the tests: [`tests/test_schedule.py`](../backend/tests/test_schedule.py), with `test_fill_strictly_after_decision` over every month since 2005, a 16:00 decision, July 3, 2023's early close, and November 2012 after Hurricane Sandy
 
 #### S7.3 Simulation loop
 
