@@ -83,9 +83,9 @@ CORPORATE_ACTIONS = TableSpec(
 """Splits and cash dividends by ex-date, from the same bars (S6.2).
 
 `action` is "split", where `value` is the vendor's split factor as given (new shares
-per old share, such as 7.000007 for Apple's 7-for-1 in 2014; S6.4 rounds it), or
-"dividend", where `value` is the cash paid per share. Each is part of its ex-date's
-bar, so it's known at that session's close."""
+per old share, such as 7.000007 for Apple's 7-for-1 in 2014, which total returns
+round: app/backtest/returns.py), or "dividend", where `value` is the cash paid per
+share. Each is part of its ex-date's bar, so it's known at that session's close."""
 
 FILINGS = TableSpec(
     name="filings",

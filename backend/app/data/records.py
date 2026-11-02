@@ -59,6 +59,31 @@ class PriceBar:
 
 
 @dataclass(frozen=True)
+class CorporateAction:
+    """A split or a cash dividend, as known at the knowledge time (S6.4).
+
+    Each came with its ex-date's bar, so it's known at that session's close.
+    """
+
+    security_id: str
+    ticker: str
+    """The ticker at the knowledge time."""
+    cik: int | None
+    ex_date: date
+    action: str
+    """"split" or "dividend"."""
+    value: float
+    """For a split, the vendor's factor as given: new shares per old share, such as
+    7.000007 for Apple's 7-for-1 in 2014, which total returns round
+    (app/backtest/returns.py). For a dividend, the cash paid per share."""
+    available_at: datetime
+    """The ex-date's close."""
+    time_assumed: bool
+    source: str
+    source_ref: str
+
+
+@dataclass(frozen=True)
 class Filing:
     """An SEC filing that EDGAR had accepted by the knowledge time (S5.4)."""
 

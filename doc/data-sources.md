@@ -314,7 +314,7 @@ What the test pull showed, and what follows:
 
 1. **Raw prices and corporate actions: confirmed.**
    - Store the raw fields and the split and dividend events. Never feed adjusted price levels into signals.
-   - In S6.4, round split ratios or allow a small tolerance (AAPL's 2014 split arrives as 7.000007), and reconcile computed returns against `adjClose`.
+   - S6.4 rounds split ratios (AAPL's 2014 split arrives as 7.000007) and reconciles computed returns against `adjClose`. They agree to within 10⁻⁶ ([time model, rule 4](time-model.md#4-a-daily-price-bar-is-known-at-its-sessions-close)).
 2. **Delisted companies: only partly covered.**
    - Recent delistings are there: Twitter's data runs to its last trading day. Its final bar, for October 28, 2022, the day the NYSE suspended trading before the open, has zero volume and repeats the previous close. It's a placeholder, not a trade, and delisting exits (S6.7) must treat it that way.
    - Coverage thins out before 2015 and is nearly absent before 2010; Lehman Brothers has no prices.
@@ -505,7 +505,7 @@ Loading all six takes six Tiingo requests, against the free plan's 50 per hour a
 | **Release times.** ALFRED has dates, not times. | A release could be visible too early, or too late | A release-time table plus the end-of-day default, flagged (S4.3). |
 | **ALFRED vintages start late** for some series. | Early values have no first-release record | Treat values before the first vintage as unknown (S4.3). The spike prints each starter series' first vintage. |
 | **EDGAR's acceptance time was shifted** by the Eastern UTC offset in most companies' files, but not all (Twitter's wasn't), until SEC switched to true UTC in late October 2026. Files cached earlier keep the shift. | Filings would appear 4 to 5 hours late, or early if the shift is removed where there's none | Detect the shift for each company's file and correct it in ingestion, with golden tests (S5.3, S3.6). A file without a majority for the shift is read as shown, the reading that can't make a filing visible early. Placeholder and impossible times fall back to the end of the filing date, flagged. |
-| **Corporate actions beyond splits and cash dividends** (spin-offs, mergers, special dividends). | Wrong total returns around those events | Check what Tiingo's `divCash` and `splitFactor` cover in S6.2. Reconcile returns against Tiingo's `adjClose` in S6.4, rounding split ratios such as 7.000007. |
+| **Corporate actions beyond splits and cash dividends** (spin-offs, mergers, special dividends). | Wrong total returns around those events | Tiingo folds a spin-off into `splitFactor`: IBM's 1.046 for Kyndryl on 2021-11-04, and Pfizer's 1.054 on 2020-11-17, for Viatris. Total returns keep those factors, and they match Tiingo's `adjClose` to within 10⁻⁶ (S6.4). A merger ends the price series, so delisting exits handle it (S6.7). |
 
 ## What the public app may show
 

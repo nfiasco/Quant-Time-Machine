@@ -667,7 +667,7 @@ Every story in one table, like the Project's table view. Select an ID to jump to
 | [S6.1](#s61-spike-choose-a-daily-price-source) | Spike: choose a daily price source | E6 | P0 | S | 1 | M1 | ✅ Done |
 | [S6.2](#s62-ingest-raw-prices-and-corporate-actions) | Ingest raw prices and corporate actions | E6 | P0 | M | 2 | M2 | ✅ Done |
 | [S6.3](#s63-get_price_as_of) | `get_price_as_of` | E6 | P0 | S | 2 | M2 | ✅ Done |
-| [S6.4](#s64-total-returns-without-look-ahead) | Total returns without look-ahead | E6 | P0 | M | 3 | M3 | Backlog |
+| [S6.4](#s64-total-returns-without-look-ahead) | Total returns without look-ahead | E6 | P0 | M | 3 | M3 | In review |
 | [S6.5](#s65-point-in-time-universe-v1) | Point-in-time universe v1 | E6 | P0 | M | 2–3 | M3 | In review |
 | [S6.6](#s66-universe-v2-top-n-by-market-cap-as-of-each-date) | Universe v2: top N by market cap as of each date | E6 | P1 | L | 7 | M6 | Backlog |
 | [S6.7](#s67-delistings-and-coverage-report) | Delistings and coverage report | E6 | P1 | M | 4 | M4 | Backlog |
@@ -1467,9 +1467,9 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Tasks**
 
-- [ ] Write the return calculator
-- [ ] Write the reconciliation test
-- [ ] Explain the approach briefly in `doc/time-model.md`
+- [x] Write the return calculator: [`app/backtest/returns.py`](../backend/app/backtest/returns.py), daily and monthly, with split factors such as 7.000007 rounded to the ratio they stand for
+- [x] Write the reconciliation test: [`tests/test_returns_vs_tiingo.py`](../backend/tests/test_returns_vs_tiingo.py) checks the 43 curated securities that trade today against Tiingo's adjusted closes, locally (`-m local_data`), within 10⁻⁶; CI checks made-up bars ([`tests/test_returns.py`](../backend/tests/test_returns.py))
+- [x] Explain the approach briefly in `doc/time-model.md`: [rule 4](time-model.md#4-a-daily-price-bar-is-known-at-its-sessions-close)
 
 #### S6.5 Point-in-time universe v1
 

@@ -4,7 +4,8 @@ The Quant Time Machine API, built with [FastAPI](https://fastapi.tiangolo.com). 
 
 - the point-in-time data layer: the store and its writer, `PointInTimeView`, and the NYSE calendar;
 - the ingestion client and CLI;
-- the `/v1` as-of endpoints for macro series, prices, filings, and fundamentals, with their conventions.
+- the `/v1` as-of endpoints for macro series, prices, filings, and fundamentals, with their conventions;
+- the start of the [backtest engine](#backtest-engine): total returns from raw prices, splits, and dividends.
 
 Three sources are in, each ingested and readable as of any moment:
 
@@ -62,6 +63,8 @@ The tests read small committed tables from [`tests/fixtures/`](tests/fixtures/),
 
 Tests that call real APIs are marked `network`. They're skipped by default, so CI never runs them. To run them, put keys in `.env` and use `uv run pytest -m network`. There are eight, each making a request or a few. Two call Tiingo's API and count against its limit of 50 an hour; a third downloads Tiingo's public ticker list, which doesn't.
 
+Tests marked `local_data` read your own `DATA_DIR`: the raw cache and the store. They're skipped by default too. `uv run pytest -m local_data` checks total returns against the adjusted closes in Tiingo's cached responses, which can't be committed (D2). It needs `ingest tiingo` first and takes a few seconds.
+
 ## Managing dependencies
 
 ```bash
@@ -90,7 +93,7 @@ backend/
 │   │   ├── filings.py        # GET /v1/filings/{ticker} and /latest
 │   │   └── fundamentals.py   # GET /v1/fundamentals/{ticker}
 │   ├── data/           # Point-in-time data layer (see below)
-│   └── backtest/       # Backtesting engine (placeholder)
+│   └── backtest/       # The backtest engine (see below)
 ├── spikes/             # Experiments behind the data, storage, and hosting decisions (not app code)
 ├── tests/              # pytest tests, plus fixtures/ (small committed tables)
 ├── data/               # DATA_DIR: downloads and the local store (git-ignored; created when needed)
@@ -179,6 +182,8 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | `resolve_ticker(ticker)` | The `Security` that used the ticker then: FB in 2020 is Facebook, and WB is Wachovia in 2005 but Weibo in 2020 (S5.2) |
 | `get_price_as_of(ticker, session=None)` | A `PriceBar`: the latest raw daily bar whose session had closed by then, so at 09:30 ET a bar from the day before; or one session's bar, raising `LookAheadError` if that session hadn't closed yet (S6.3) |
 | `get_price_history_as_of(ticker, lookback)` | The last `lookback` bars known then, oldest first, for signals (S6.3) |
+| `get_price_series_as_of(ticker, start=None, end=None)` | The bars known then from `start` through `end`, oldest first, for total returns (S6.4) |
+| `get_corporate_actions_as_of(ticker, start=None, end=None)` | The `CorporateAction`s known then: splits and cash dividends by ex-date, each known at that session's close. Split factors are as the vendor gave them, such as 7.000007 (S6.4) |
 | `get_latest_filing_as_of(ticker, form="10-Q", include_amendments=False)` | A `Filing`: the latest of a form family EDGAR had accepted by then, counted from its acceptance time, never its filing date (S5.4) |
 | `list_filings_as_of(ticker, forms=("10-K", "10-Q", "8-K"), include_amendments=False, limit=100)` | The filings accepted by then, newest first, across every CIK the security had (S5.4) |
 | `get_fundamentals_as_of(ticker, metric, quarters=8)` | The last `quarters` quarters of a metric in [`metrics.toml`](app/data/sources/metrics.toml), such as `revenue`, oldest first, as `Fundamental`s. Each is the latest value filed by then, with its concept and accession numbers. A quarter no filing reported, such as most fourth quarters, is derived from two year-to-date totals filed by then (S5.7) |
@@ -214,6 +219,28 @@ A data version is the store as one finished ingestion run left it, so a saved ru
   A pinned view first checks that every file the version lists is still there with the same size, and the first time in a process, the same hash. If one is missing or changed, it raises `DataVersionError` instead of answering from different data. Without `data_version`, a view reads every file stored now, including any a stopped run left.
 - **The API** pins each request to the store's newest version, `latest_data_version(store)`, and echoes it as `data_version`. It's `null` only if the store has no version yet: run any ingestion command once, even one that answers from the cache.
 - **Never delete or rewrite a file a version lists.** `write_rows` never does. Rebuilding a table by deleting its folder breaks the versions that list its files (see [Store](#point-in-time-data-layer)).
+
+## Backtest engine
+
+The engine in [`app/backtest/`](app/backtest/) reads data only through `PointInTimeView`, never the store itself.
+
+| Module | What it does |
+| --- | --- |
+| [`returns.py`](app/backtest/returns.py) | Daily and monthly total returns from raw prices, splits, and dividends, as known at a time (S6.4). Split factors are rounded to the ratio they stand for, such as 7 for Tiingo's 7.000007. The returns match Tiingo's adjusted closes to within 10⁻⁶ |
+
+```python
+from datetime import date
+
+from app.backtest.returns import monthly_total_returns, total_returns_as_of
+from app.data.timeutil import parse_knowledge_time
+from app.data.view import PointInTimeView
+
+with PointInTimeView(parse_knowledge_time("2020-09-01")) as view:
+    august = total_returns_as_of(view, "AAPL", start=date(2020, 7, 31))
+    monthly_total_returns(august)  # August 2020, with the 4-for-1 split of August 31
+```
+
+Price levels stay raw: only returns account for splits and dividends. The formula, the rounding, and how it was checked are in [`doc/time-model.md`](../doc/time-model.md), rule 4.
 
 ## Ingestion
 

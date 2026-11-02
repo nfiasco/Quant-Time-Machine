@@ -13,8 +13,9 @@ CRSP-based source would only implement the fetch:
   13:00 ET on early-close days (doc/time-model.md, rule 4). A bar dated on a day with
   no session is dropped and logged.
 - **Raw prices only.** Bars keep the prices they traded at. Splits and cash dividends
-  go to `corporate_actions` by ex-date, exactly as the vendor reports them (S6.4 rounds
-  split factors such as 7.000007), so later returns never rely on adjusted prices.
+  go to `corporate_actions` by ex-date, exactly as the vendor reports them, so returns
+  never rely on adjusted prices. Total returns round split factors such as 7.000007
+  (app/backtest/returns.py).
 - **Missing sessions.** Sessions inside a fetched range that came back without a bar
   are logged and returned in each security's summary; S6.7 reports coverage.
 """
