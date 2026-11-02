@@ -1,0 +1,22 @@
+{
+  "spec_version": 1,
+  "name": "Improving revenue growth + positive momentum",
+  "universe": { "type": "point_in_time_list", "id": "starter_large_caps" },
+  "period": { "start": "2010-01-01", "end": "2025-12-31" },
+  "schedule": {
+    "rebalance": "monthly",
+    "decision": "first_trading_day 09:30 America/New_York",
+    "fill": "same_day_close"
+  },
+  "signals": {
+    "rev_accel": { "type": "revenue_growth_acceleration", "basis": "yoy_quarterly" },
+    "mom_12_1": { "type": "momentum", "lookback_months": 12, "skip_months": 1 }
+  },
+  "filters": [
+    { "signal": "rev_accel", "op": ">", "value": 0 },
+    { "signal": "mom_12_1", "op": ">", "value": 0 }
+  ],
+  "portfolio": { "weighting": "equal", "long_only": true },
+  "benchmark": "SPY",
+  "costs": { "bps_per_trade": 10 }
+}

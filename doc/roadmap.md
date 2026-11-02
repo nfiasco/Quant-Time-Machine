@@ -258,7 +258,7 @@ Every backtest, whether built in the web form (498) or by the AI assistant (499)
 }
 ```
 
-Signals come from a fixed, documented library, not free-form code. When a spec asks for data outside our coverage, for example fundamentals before XBRL existed, the engine rejects it or warns, and says why.
+The model is [`app/backtest/spec.py`](../backend/app/backtest/spec.py), and its JSON Schema is [`experiment-spec-v1.schema.json`](experiment-spec-v1.schema.json) (S7.1). Signals come from a fixed, documented library, not free-form code. When a spec asks for data outside our coverage, for example fundamentals before XBRL existed, the engine rejects it or warns, and says why.
 
 ## 4. Requirements
 
@@ -671,7 +671,7 @@ Every story in one table, like the Project's table view. Select an ID to jump to
 | [S6.5](#s65-point-in-time-universe-v1) | Point-in-time universe v1 | E6 | P0 | M | 2–3 | M3 | In review |
 | [S6.6](#s66-universe-v2-top-n-by-market-cap-as-of-each-date) | Universe v2: top N by market cap as of each date | E6 | P1 | L | 7 | M6 | Backlog |
 | [S6.7](#s67-delistings-and-coverage-report) | Delistings and coverage report | E6 | P1 | M | 4 | M4 | Backlog |
-| [S7.1](#s71-experiment-spec-v1) | Experiment spec v1 | E7 | P0 | M | 3 | M3 | Backlog |
+| [S7.1](#s71-experiment-spec-v1) | Experiment spec v1 | E7 | P0 | M | 3 | M3 | In review |
 | [S7.2](#s72-rebalance-schedule-and-decision-and-fill-timing) | Rebalance schedule and decision and fill timing | E7 | P0 | S | 3 | M3 | Backlog |
 | [S7.3](#s73-simulation-loop) | Simulation loop | E7 | P0 | L | 4 | M4 | Backlog |
 | [S7.4](#s74-signal-library-v1) | Signal library v1 | E7 | P0 | M | 4 | M4 | Backlog |
@@ -1547,9 +1547,9 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Tasks**
 
-- [ ] Write the model and validators
-- [ ] Export the JSON Schema
-- [ ] Add example specs and invalid-spec tests
+- [x] Write the model and validators: [`app/backtest/spec.py`](../backend/app/backtest/spec.py), which matches the frontend's `ExperimentSpec` type field for field. Each error names its field: "schedule.fill must be 'same_day_close' or 'next_day_open'."
+- [x] Export the JSON Schema: [`experiment-spec-v1.schema.json`](experiment-spec-v1.schema.json), from `uv run python -m app.backtest.spec`, which a test keeps current
+- [x] Add example specs and invalid-spec tests: §3.4's example is [`tests/fixtures/specs/canonical.json`](../backend/tests/fixtures/specs/canonical.json), and [`tests/test_spec.py`](../backend/tests/test_spec.py) checks valid variants and 30 invalid ones
 
 #### S7.2 Rebalance schedule and decision and fill timing
 

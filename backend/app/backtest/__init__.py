@@ -5,4 +5,6 @@ itself. So far it has:
 
 - `returns`: daily and monthly total returns from raw prices, splits, and dividends
   (S6.4)
+- `spec`: the experiment spec, a validated document that describes a backtest, with
+  its JSON Schema (S7.1)
 """
