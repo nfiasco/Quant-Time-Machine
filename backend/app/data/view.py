@@ -16,6 +16,7 @@ Read functions are methods that call `_select` and return the records in
 app/data/records.py:
 
 - `get_macro_as_of` and `get_macro_series_as_of`: macro series as published (S4.4)
+- `get_revision_history`: every version of one observation published so far (S4.5)
 - `resolve_ticker`: the security that used a ticker at the time (S5.2)
 - `get_price_as_of`, `get_price_history_as_of`, and `get_price_series_as_of`: daily
   bars whose sessions had closed (S6.3, S6.4)
@@ -284,6 +285,27 @@ class PointInTimeView:
             params=params,
             latest_per_key=True,
             order_by="observation_date",
+        )
+        return [_macro_record(series, row) for row in rows]
+
+    def get_revision_history(
+        self, series_id: str, period: date
+    ) -> list[MacroObservation]:
+        """Every version of one observation published by the knowledge time, oldest
+        first, each with its vintage date and release time (S4.5).
+
+        `period` is an observation date, such as 1990-01-01 for January 1990, whose
+        unemployment rate was first published as 5.3% on February 2, 1990, and revised
+        to 5.4% on March 8, 1996: from then on, both versions are listed. A revision
+        published later stays invisible, as in every read. [] if nothing was published
+        yet. Raises NotFoundError for a series that isn't in the catalog.
+        """
+        series = _macro_series(series_id)
+        rows = self._select(
+            "macro_observations",
+            where="series_id = ? AND observation_date = ?",
+            params=[series.id, period],
+            order_by="available_at",
         )
         return [_macro_record(series, row) for row in rows]
 
