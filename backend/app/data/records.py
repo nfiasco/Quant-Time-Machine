@@ -136,6 +136,37 @@ class UniverseMember:
 
 
 @dataclass(frozen=True)
+class UniverseChange:
+    """A security joining or leaving a universe, read by the look-ahead module
+    (app/data/look_ahead.py) because it took effect after the knowledge time (S8.3)."""
+
+    universe: str
+    security_id: str
+    change: str
+    """"joins" or "leaves"."""
+    effective: date
+    """The first day of the change: the day it joined, or the first day it wasn't a
+    member any more."""
+    available_at: datetime
+    """00:00 ET on `effective`: a change applies from its effective date, never
+    earlier (doc/time-model.md, rule 8)."""
+    time_assumed: bool
+    source: str
+    source_ref: str
+    """The announcement or filing that dates it."""
+
+
+@dataclass(frozen=True)
+class NextBar:
+    """When a security's next daily bar became known, read by the look-ahead module
+    (S8.3). It carries no prices: they weren't known at the knowledge time."""
+
+    session_date: date
+    available_at: datetime
+    """The session's close."""
+
+
+@dataclass(frozen=True)
 class Security:
     """A security as identified at the knowledge time (S5.2)."""
 
