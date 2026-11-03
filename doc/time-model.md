@@ -253,8 +253,10 @@ This is the acceptance test for the snapshot endpoint (S8.3) and the Time Machin
 | The same revenue as re-reported in the fiscal 2020 10-K | 2020-10-29T22:06:25Z | ✗ |
 | Apple's 10-Q for the quarter ended June 27, 2020 | 2020-07-30T23:29:09Z | ✗ |
 | Any 10-Q/A or 10-K/A filed after June 5 | Its own acceptance time | ✗ |
-| Fed and other economic data as published by that morning | The latest vintage at or before *T* | ✓ |
-| Universe changes effective after June 5 | Their effective dates | ✗ |
+| Fed and other economic data as published by that morning | The latest vintage at or before *T*, such as May 2020's FEDFUNDS: 2020-06-01T20:15Z | ✓ |
+| Universe changes effective after June 5 | Their effective dates, such as Tesla's: 2020-12-21T05:00Z | ✗ |
+
+[`tests/test_api_snapshot.py`](../backend/tests/test_api_snapshot.py) checks every row against `GET /v1/snapshot?as_of=2020-06-05&tickers=AAPL,TSLA&series=UNRATE,FEDFUNDS` (S8.3). It reads this table, so a row added here fails until it's checked too. FEDFUNDS stands for the Fed's data: May 2020's average, 0.05%, was published at 16:15 ET on June 1. Tesla stands for the universe: it joined the S&P 500 on December 21, 2020.
 
 ## Where look-ahead bias creeps in
 
@@ -312,5 +314,6 @@ Each rule becomes at least one golden test, built on small committed fixtures (n
 | `test_a_1600_decision_cannot_fill_at_that_close` | 10 | Decision 2020-06-01 16:00 ET | No same-day close fill; the next-day open fill is at 2020-06-02 09:30 ET |
 | `test_an_early_close_day_fills_at_1300` | 2, 10 | July 2023's decision, 2023-07-03 09:30 ET | Fill at 13:00 ET (17:00Z); a 13:00 decision that day can't fill at the close |
 | `test_november_2012_after_hurricane_sandy` | 2, 9, 10 | October and November 2012 | Decisions on October 1 and November 1; a next-day open fill after October 26 is at October 31's open |
+| `test_june_5_2020_table` | All | `GET /v1/snapshot` for AAPL, TSLA, UNRATE, and FEDFUNDS at 09:30 ET on 2020-06-05 | Each row of the June 5 table is in `known` or `not_yet_known`, as marked, with its exact timestamp (S8.3) |
 | `test_poisoned_future_row_never_returned` | All | Add a row with `available_at` in 2099 | It never appears in any query result (S3.3) |
 | `test_pinned_data_version_ignores_later_rows` | Two clocks | Pin a data version, then ingest more rows | The pinned query's result doesn't change (S3.7) |

@@ -681,7 +681,7 @@ Every story in one table, like the Project's table view. Select an ID to jump to
 | [S7.8](#s78-run-the-canonical-example-end-to-end) | Run the canonical example end to end | E7 | P0 | S | 4 | M4 | Backlog |
 | [S8.1](#s81-api-conventions) | API conventions | E8 | P0 | S | 2 | M2 | ✅ Done |
 | [S8.2](#s82-as-of-data-endpoints) | As-of data endpoints | E8 | P0 | M | 2–3 | M3 | In review |
-| [S8.3](#s83-knowledge-snapshot-endpoint) | Knowledge snapshot endpoint | E8 | P0 | M | 3 | M3 | Backlog |
+| [S8.3](#s83-knowledge-snapshot-endpoint) | Knowledge snapshot endpoint | E8 | P0 | M | 3 | M3 | In review |
 | [S8.4](#s84-backtest-endpoints) | Backtest endpoints | E8 | P0 | M | 4 | M4 | Backlog |
 | [S8.5](#s85-catalog-endpoints) | Catalog endpoints | E8 | P0 | S | 3 | M3 | In review |
 | [S8.6](#s86-typed-client-and-response-caching) | Typed client and response caching | E8 | P2 | S | 5 | M5 | Backlog |
@@ -1740,9 +1740,9 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Tasks**
 
-- [ ] Write the snapshot service (the known part uses `PointInTimeView`)
-- [ ] Write the separate, teaching-only look-ahead query
-- [ ] Add the endpoint and golden test
+- [x] Write the snapshot service: [`app/api/snapshot.py`](../backend/app/api/snapshot.py), whose known part reads the request's `PointInTimeView`. Each company also gets its latest revenue quarter and its universes, so every row of the June 5 table is covered.
+- [x] Write the separate, teaching-only look-ahead query: [`app/data/look_ahead.py`](../backend/app/data/look_ahead.py). It reads through a view bound to the moment the data version was cut, so the fixtures' 2099 canaries never show. [`tests/test_look_ahead.py`](../backend/tests/test_look_ahead.py) fails if anything in `app/backtest/` imports it, directly or through another module, or if anything but the snapshot route does.
+- [x] Add the endpoint and golden test: [`tests/test_api_snapshot.py`](../backend/tests/test_api_snapshot.py) checks every row of the June 5 table in [`time-model.md`](time-model.md#june-5-2020-at-0930-et-1330z), which it reads from the doc
 
 #### S8.4 Backtest endpoints
 
