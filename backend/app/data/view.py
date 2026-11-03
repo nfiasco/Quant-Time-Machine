@@ -3,9 +3,11 @@
 A view is bound to one knowledge time T and answers only from rows with
 `available_at <= T` (doc/time-model.md). It opens its own in-memory DuckDB connection
 and defines one SQL view per table with that condition built in, so no query on the
-connection can see a later row, even one that forgets to filter. Every read goes
+connection can see a later row, even one that forgets to filter. Every read of rows goes
 through `_select`, which also re-checks each row and records it in the access log that
-feeds a run's audit (S7.7) and the bias checks (E12).
+feeds a run's audit (S7.7) and the bias checks (E12). The catalogs' coverage reads go
+through `_spans`, which returns date ranges rather than rows, so they add nothing to the
+log.
 
 A view can also be pinned to a data version (S3.7, app/data/versions.py). It then
 reads only the files that version lists, and only rows ingested by then, so a saved
@@ -190,21 +192,7 @@ class PointInTimeView:
             }
             available_at = row["available_at"]
             assert isinstance(available_at, datetime)
-            # The table views make both of these impossible, so the store or this class
-            # is broken.
-            if available_at > self.knowledge_time:
-                raise RuntimeError(
-                    f"{table} returned a row available at {available_at.isoformat()}, "
-                    f"after the knowledge time {self.knowledge_time.isoformat()}"
-                )
-            if (
-                self._version is not None
-                and row["ingested_at"] > self._version.ingested_through
-            ):
-                raise RuntimeError(
-                    f"{table} returned a row ingested at {row['ingested_at'].isoformat()}, "
-                    f"after data version {self.data_version}"
-                )
+            self._check_known(table, available_at, row["ingested_at"])
             self._log.append(
                 AccessRecord(
                     table=table,
@@ -215,6 +203,61 @@ class PointInTimeView:
             )
             rows.append(row)
         return rows
+
+    def _spans(
+        self,
+        table: str,
+        column: str,
+        *,
+        by: str,
+        where: str = "true",
+        params: Sequence[object] = (),
+    ) -> dict[Any, tuple[Any, Any]]:
+        """The first and last `column` among each `by` group's rows known by the
+        knowledge time, for catalogs, which need how far data reaches, not its rows.
+
+        `where` and `params` work as in `_select`. Like `_select`, it reads only the
+        table's view, so it can't see a later row, and it checks each group's newest
+        `available_at` and `ingested_at` the way `_select` checks each row. It returns
+        no rows, so it adds nothing to the access log. Datetimes come back in UTC.
+        """
+        spec = self._tables.get(table)
+        if spec is None:
+            raise ValueError(f"this view has no table named {table!r}")
+        # Both names end up in SQL.
+        if unknown := sorted({column, by} - set(spec.all_columns)):
+            raise ValueError(f"{table} has no columns named {unknown}")
+
+        cursor = self._connection.execute(
+            f"SELECT {by}, min({column}), max({column}), max(available_at), "
+            f"max(ingested_at) FROM {spec.name} WHERE ({where}) GROUP BY {by}",
+            list(params),
+        )
+        spans: dict[Any, tuple[Any, Any]] = {}
+        for group, first, last, available_at, ingested_at in cursor.fetchall():
+            self._check_known(table, to_utc(available_at), to_utc(ingested_at))
+            spans[group] = (
+                to_utc(first) if isinstance(first, datetime) else first,
+                to_utc(last) if isinstance(last, datetime) else last,
+            )
+        return spans
+
+    def _check_known(
+        self, table: str, available_at: datetime, ingested_at: datetime
+    ) -> None:
+        """Raise RuntimeError for a row read after the knowledge time, or ingested
+        after the pinned data version. The table views make both impossible, so the
+        store or this class is broken."""
+        if available_at > self.knowledge_time:
+            raise RuntimeError(
+                f"{table} returned a row available at {available_at.isoformat()}, "
+                f"after the knowledge time {self.knowledge_time.isoformat()}"
+            )
+        if self._version is not None and ingested_at > self._version.ingested_through:
+            raise RuntimeError(
+                f"{table} returned a row ingested at {ingested_at.isoformat()}, "
+                f"after data version {self.data_version}"
+            )
 
     def _require_known_by(self, moment: datetime, what: str) -> None:
         """Raise LookAheadError if `what` only became known at `moment`, after this view's

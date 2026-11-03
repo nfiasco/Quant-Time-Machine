@@ -247,3 +247,38 @@ def test_only_the_store_module_touches_duckdb_and_parquet() -> None:
     ]
 
     assert offenders == []
+
+
+def test_spans_cover_only_rows_known_then(fixture_store: Path) -> None:
+    with view_at(fixture_store, DEMO) as view:
+        spans = view._spans("test_observations", "period", by="series_id")
+
+        # May's revision and June's first print came on July 2, and the canary in 2099.
+        assert spans == {
+            "TEST": (date(2020, 4, 1), date(2020, 5, 1)),
+            "TEST_EOD": (date(2020, 5, 1), date(2020, 5, 1)),
+        }
+        # Spans aren't rows, so nothing is logged.
+        assert view.access_log == ()
+
+
+def test_spans_come_back_with_utc_datetimes(fixture_store: Path) -> None:
+    with view_at(fixture_store, DEMO) as view:
+        [(first, last)] = view._spans(
+            "test_observations",
+            "available_at",
+            by="series_id",
+            where="series_id = ?",
+            params=["TEST"],
+        ).values()
+
+    assert (first, last) == (utc(2020, 5, 8, 12, 30), utc(2020, 6, 5, 12, 30))
+    assert first.tzinfo is UTC
+
+
+def test_spans_need_the_tables_own_columns(store_dir: Path) -> None:
+    with (
+        PointInTimeView(DEMO, store=store_dir, tables=[TEST_OBSERVATIONS]) as view,
+        pytest.raises(ValueError, match="no columns named"),
+    ):
+        view._spans("test_observations", "period; DROP TABLE x", by="series_id")
