@@ -86,6 +86,8 @@ def test_response_models_have_readable_names() -> None:
         "CompanyCatalogResponse",
         "CatalogCompany",
         "DateRange",
+        "SignalCatalogResponse",
+        "SignalType",
         "ErrorResponse",
     } <= set(SPEC["components"]["schemas"])
 

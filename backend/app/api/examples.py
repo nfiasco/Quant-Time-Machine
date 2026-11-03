@@ -4,7 +4,8 @@ Each example's description is the request that produces it. tests/test_api_examp
 replays every one against the test fixtures and requires the same answer, so an example
 can't drift from what the API returns. The macro, filing, and fundamentals examples are
 real SEC and FRED values. The price example is made up, because Tiingo's terms don't
-allow sharing its data (D2).
+allow sharing its data (D2). The signal catalog's example is built from the spec's own
+models, whose schemas tests/test_api_catalog.py pins to the committed JSON Schema.
 """
 
 from typing import Any
@@ -12,6 +13,7 @@ from typing import Any
 from fastapi import FastAPI
 
 from app.api.errors import ErrorResponse
+from app.backtest.spec import signal_types
 
 type Responses = dict[int | str, dict[str, Any]]
 
@@ -630,6 +632,26 @@ CATALOG_COMPANIES: Responses = {
     ),
 }
 
+CATALOG_SIGNALS: Responses = {
+    200: _ok(
+        spec_v1=example(
+            "/v1/catalog/signals",
+            "The signals experiment spec version 1 accepts, with their JSON Schemas",
+            {
+                "spec_version": 1,
+                "data": [
+                    {
+                        "type": signal.type,
+                        "description": signal.description,
+                        "parameters": signal.schema,
+                    }
+                    for signal in signal_types()
+                ],
+            },
+        ),
+    ),
+}
+
 
 def keep_nulls(app: FastAPI) -> None:
     """Make `app.openapi()` keep the nulls in these examples.
@@ -650,6 +672,7 @@ def keep_nulls(app: FastAPI) -> None:
             FUNDAMENTALS,
             CATALOG_SERIES,
             CATALOG_COMPANIES,
+            CATALOG_SIGNALS,
         )
         for status, response in responses.items()
         for example in _examples_in(response).values()

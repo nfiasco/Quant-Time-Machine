@@ -13,6 +13,9 @@ two in sync.
 
       uv run python -m app.backtest.spec
 
+- `signal_types()` lists the kinds of signal a spec can use, each with its own JSON
+  Schema, for the catalog (S8.5).
+
 A spec checks only what it can on its own: shapes, names, and the rules between its
 fields. Whether our data covers it, such as fundamentals before XBRL, or whether the
 engine supports an option, such as value weights, is for the engine to say (S7.3).
@@ -23,7 +26,7 @@ import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, time
-from typing import Annotated, Any, Literal, Self
+from typing import Annotated, Any, Literal, Self, get_args
 
 from pydantic import (
     BaseModel,
@@ -318,6 +321,30 @@ def json_schema() -> dict[str, Any]:
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         **ExperimentSpec.model_json_schema(),
     }
+
+
+@dataclass(frozen=True)
+class SignalType:
+    """A kind of signal a spec can use (S8.5)."""
+
+    type: str
+    """As a spec writes it, such as "momentum"."""
+    description: str
+    schema: dict[str, Any]
+    """The JSON Schema of its object in a spec's `signals`, `type` included: the
+    schema `json_schema()` lists under $defs."""
+
+
+def signal_types() -> list[SignalType]:
+    """Each kind of signal in the library, in the order `SignalSpec` lists them. A
+    signal added to `SignalSpec` (S7.4) is listed with no other change."""
+    (union, _) = get_args(SignalSpec)
+    found = []
+    for model in get_args(union):
+        schema = model.model_json_schema()
+        (kind,) = get_args(model.model_fields["type"].annotation)
+        found.append(SignalType(kind, schema["description"], schema))
+    return found
 
 
 def _problem(error: ErrorDetails) -> SpecProblem:

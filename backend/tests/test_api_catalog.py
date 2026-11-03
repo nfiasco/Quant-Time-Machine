@@ -1,9 +1,16 @@
-from typing import Any
+import json
+from pathlib import Path
+from typing import Any, get_args
 
 import pytest
 from fastapi.testclient import TestClient
 
+from app.backtest.spec import SignalSpec
 from app.data.sources.alfred import SERIES
+
+SCHEMA_FILE = (
+    Path(__file__).resolve().parents[2] / "doc" / "experiment-spec-v1.schema.json"
+)
 
 
 def catalog(client: TestClient, what: str, **params: str) -> Any:
@@ -131,3 +138,26 @@ def test_the_series_and_companies_catalogs_need_as_of(client: TestClient) -> Non
 
         assert response.status_code == 422
         assert response.json()["error"]["message"] == "as_of is required."
+
+
+def test_signals_are_the_specs_signal_types_and_need_no_as_of(
+    client: TestClient,
+) -> None:
+    body = catalog(client, "signals")
+    (union, _) = get_args(SignalSpec)
+
+    assert set(body) == {"spec_version", "data"}
+    assert body["spec_version"] == 1
+    assert [signal["type"] for signal in body["data"]] == [
+        get_args(model.model_fields["type"].annotation)[0] for model in get_args(union)
+    ]
+
+
+def test_signal_schemas_are_the_committed_json_schemas(client: TestClient) -> None:
+    committed = json.loads(SCHEMA_FILE.read_text(encoding="utf-8"))["$defs"]
+
+    for signal in catalog(client, "signals")["data"]:
+        schema = signal["parameters"]
+        assert schema == committed[schema["title"]], signal["type"]
+        assert schema["properties"]["type"]["const"] == signal["type"]
+        assert signal["description"] == schema["description"]

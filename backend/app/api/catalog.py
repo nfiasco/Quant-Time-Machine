@@ -1,18 +1,21 @@
-"""GET /v1/catalog/series and /companies: the choices forms and search boxes can offer
-(S8.5).
+"""GET /v1/catalog/series, /companies, and /signals: the choices forms and search boxes
+can offer (S8.5).
 
-Both are as known at the knowledge time, like every other read: the universe's members
-then, under the tickers and names they used then, and how far each one's data reaches
-by then.
+Series and companies are as known at the knowledge time, like every other read: the
+universe's members then, under the tickers and names they used then, and how far each
+one's data reaches by then. Signals don't depend on time or data, so /signals takes no
+`as_of`.
 """
 
 from datetime import date
+from typing import Any, Literal
 
 from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api import examples
 from app.api.conventions import DataResponse, View
+from app.backtest.spec import signal_types
 from app.data.sources.universes import HISTORY_START, UNIVERSES
 from app.data.timeutil import describe_time
 
@@ -97,6 +100,29 @@ class CompanyCatalogResponse(DataResponse[list[CatalogCompany]]):
     """The universe's members at the knowledge time, or [] with a reason."""
 
 
+class SignalType(BaseModel):
+    """A kind of signal an experiment spec can use."""
+
+    type: str = Field(description='As a spec writes it, such as "momentum".')
+    description: str
+    parameters: dict[str, Any] = Field(
+        description=(
+            "The JSON Schema of the signal's object in a spec's signals, type included: "
+            "the schema doc/experiment-spec-v1.schema.json lists under $defs."
+        )
+    )
+
+
+class SignalCatalogResponse(BaseModel):
+    """The kinds of signal an experiment spec can use. They don't depend on time or
+    data, so the response has no knowledge_time or data_version."""
+
+    spec_version: Literal[1] = Field(
+        description="The experiment spec version they belong to."
+    )
+    data: list[SignalType]
+
+
 @router.get("/series", responses=examples.CATALOG_SERIES)
 def list_series(view: View) -> SeriesCatalogResponse:
     """Every series in our catalog, in its order, with how much of it was published by
@@ -130,4 +156,22 @@ def list_companies(view: View) -> CompanyCatalogResponse:
         data_version=view.data_version,
         data=companies,
         reason=reason,
+    )
+
+
+@router.get("/signals", responses=examples.CATALOG_SIGNALS)
+def list_signals() -> SignalCatalogResponse:
+    """The kinds of signal an experiment spec can use, each with the JSON Schema of its
+    object in a spec. They don't depend on time or data, so there's no as_of. The
+    library grows in Sprint 4 (S7.4)."""
+    return SignalCatalogResponse(
+        spec_version=1,
+        data=[
+            SignalType(
+                type=signal.type,
+                description=signal.description,
+                parameters=signal.schema,
+            )
+            for signal in signal_types()
+        ],
     )
