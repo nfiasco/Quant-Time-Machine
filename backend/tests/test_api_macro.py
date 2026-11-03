@@ -124,3 +124,70 @@ def test_period_must_be_a_date(client: TestClient, period: str) -> None:
     assert response.json()["error"]["details"] == [
         {"field": "period", "message": "period must be a date such as 2020-04-01."}
     ]
+
+
+def revisions(client: TestClient, series_id: str = "UNRATE", **params: str) -> Any:
+    response = client.get(f"/v1/macro/{series_id}/revisions", params=params)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_revisions_list_every_version_known_then(client: TestClient) -> None:
+    body = revisions(client, as_of="2020-06-05", period="1990-01-01")
+
+    assert (body["knowledge_time"], body["data_version"], body["reason"]) == (
+        "2020-06-05T09:30:00-04:00",
+        FIXTURE_DATA_VERSION,
+        None,
+    )
+    assert [
+        (version["value"], version["vintage_date"], version["available_at"])
+        for version in body["data"]
+    ] == [
+        (5.3, "1990-02-02", "1990-02-02T08:30:00-05:00"),
+        (5.4, "1996-03-08", "1996-03-08T08:30:00-05:00"),
+    ]
+
+
+def test_a_later_revision_stays_invisible(client: TestClient) -> None:
+    # May 2020 was revised to 13.2% on January 7, 2022.
+    data = revisions(client, as_of="2020-06-05", period="2020-05-01")["data"]
+
+    assert [version["value"] for version in data] == [13.3]
+
+
+def test_no_versions_yet_is_empty_with_a_reason(client: TestClient) -> None:
+    body = revisions(client, as_of="2020-06-05", period="2020-06-01")
+
+    assert body["data"] == []
+    assert body["reason"] == (
+        "No UNRATE value for 2020-06-01 had been published by June 5, 2020, 9:30 AM ET."
+    )
+
+
+def test_revisions_of_a_series_outside_the_catalog_are_404(client: TestClient) -> None:
+    response = client.get(
+        "/v1/macro/DGS10/revisions",
+        params={"as_of": "2020-06-05", "period": "2020-05-01"},
+    )
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "unknown_series"
+
+
+@pytest.mark.parametrize("period", [None, "2020-4-1", "2020-04-01T00:00:00"])
+def test_revisions_need_one_period(client: TestClient, period: str | None) -> None:
+    params = {"as_of": "2020-06-05"} | ({} if period is None else {"period": period})
+
+    response = client.get("/v1/macro/UNRATE/revisions", params=params)
+
+    assert response.status_code == 422
+    [detail] = response.json()["error"]["details"]
+    assert detail == {
+        "field": "period",
+        "message": (
+            "period is required."
+            if period is None
+            else "period must be a date such as 2020-04-01."
+        ),
+    }

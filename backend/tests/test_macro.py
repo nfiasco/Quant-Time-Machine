@@ -195,3 +195,71 @@ def test_reads_are_in_the_access_log(fixture_store: Path) -> None:
                 source_ref="UNRATE vintage 2020-06-05",
             ),
         )
+
+
+def history(store: Path, knowledge_time: str, period: date) -> list[tuple[float, date]]:
+    """The values and vintage dates of an UNRATE observation's versions, known then."""
+    with view_at(store, knowledge_time) as view:
+        versions = view.get_revision_history("UNRATE", period)
+    return [(version.value, version.vintage_date) for version in versions]
+
+
+@pytest.mark.parametrize(
+    ("knowledge_time", "expected"),
+    [
+        ("1990-02-02T08:29", []),  # before the first print
+        ("1996-03-08T08:29", [(5.3, date(1990, 2, 2))]),
+        ("1996-03-08T08:30", [(5.3, date(1990, 2, 2)), (5.4, date(1996, 3, 8))]),
+        # The canary version of 2099 is never returned.
+        ("2098-12-31", [(5.3, date(1990, 2, 2)), (5.4, date(1996, 3, 8))]),
+    ],
+)
+def test_revision_history_lists_each_version_known_then(
+    fixture_store: Path, knowledge_time: str, expected: list[tuple[float, date]]
+) -> None:
+    assert history(fixture_store, knowledge_time, JANUARY_1990) == expected
+
+
+def test_revision_history_on_june_5_2020_is_mays_first_print(
+    fixture_store: Path,
+) -> None:
+    # The revision to 13.2% came in January 2022's jobs report.
+    may = date(2020, 5, 1)
+
+    assert history(fixture_store, "2020-06-05", may) == [(13.3, date(2020, 6, 5))]
+    assert history(fixture_store, "2022-01-07T08:30", may) == [
+        (13.3, date(2020, 6, 5)),
+        (13.2, date(2022, 1, 7)),
+    ]
+
+
+def test_revision_history_records_are_full_observations(fixture_store: Path) -> None:
+    with view_at(fixture_store, "2020-06-05") as view:
+        [first, revised] = view.get_revision_history("unrate", JANUARY_1990)
+
+    assert first == MacroObservation(
+        series_id="UNRATE",
+        title="Unemployment Rate",
+        units="Percent",
+        frequency="Monthly",
+        seasonal_adjustment="Seasonally Adjusted",
+        release="Employment Situation",
+        period=JANUARY_1990,
+        value=5.3,
+        vintage_date=date(1990, 2, 2),
+        available_at=datetime(1990, 2, 2, 13, 30, tzinfo=UTC),
+        time_assumed=False,
+        source="alfred",
+        source_ref="UNRATE vintage 1990-02-02",
+    )
+    assert revised.available_at == datetime(1996, 3, 8, 13, 30, tzinfo=UTC)
+
+
+def test_revision_history_of_a_series_outside_the_catalog_is_not_found(
+    fixture_store: Path,
+) -> None:
+    with (
+        view_at(fixture_store, "2020-06-05") as view,
+        pytest.raises(NotFoundError, match="unknown series: DGS10"),
+    ):
+        view.get_revision_history("DGS10", JANUARY_1990)

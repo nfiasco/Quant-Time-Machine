@@ -1,6 +1,6 @@
 # Research API v1: response contract
 
-> **Stories S8.1 and S8.2.** Drafted 2026-10-19 as the contract for S9.1's M2 demo page, and implemented in Sprint 2. [`GET /v1/fundamentals/{ticker}`](#get-v1fundamentalsticker) followed in Sprint 3 (S5.7, 2026-11-01). The API's own docs at `/docs` show the examples below, each labeled with the request that produces it. A test replays every one against the test fixtures, so they can't drift. S8.6 will generate TypeScript types from the OpenAPI schema. To change the contract, update this file and the backend in the same pull request, and tell the frontend. The [snapshot section](#draft-for-sprint-3-get-v1snapshot) is a draft for S8.3 (2026-10-29), ahead of its code.
+> **Stories S8.1, S8.2, and S4.5.** Drafted 2026-10-19 as the contract for S9.1's M2 demo page, and implemented in Sprint 2. Sprint 3 added [`GET /v1/fundamentals/{ticker}`](#get-v1fundamentalsticker) (S5.7, 2026-11-01), then [revision history](#get-v1macroseries_idrevisions) (S4.5) on 2026-11-02. The API's own docs at `/docs` show the examples below, each labeled with the request that produces it. A test replays every one against the test fixtures, so they can't drift. S8.6 will generate TypeScript types from the OpenAPI schema. To change the contract, update this file and the backend in the same pull request, and tell the frontend. The [snapshot section](#draft-for-sprint-3-get-v1snapshot) is a draft for S8.3 (2026-10-29), ahead of its code.
 
 ## Conventions
 
@@ -366,6 +366,62 @@ A company's last quarters of a standard metric, as filed by the knowledge time, 
 - **Nothing filed yet.** `data` is `[]` with a reason. `GET /v1/fundamentals/SPY?as_of=2020-06-05` gives "No filing EDGAR had accepted from SPDR S&P 500 ETF Trust by June 5, 2020, 9:30 AM ET reported quarterly revenue."
 - **Errors.** An unknown ticker is a 404, and an unknown metric is a 422.
 
+### `GET /v1/macro/{series_id}/revisions`
+
+Every version of one observation published by the knowledge time, oldest first (S4.5), for the revision viewer (S9.3).
+
+| Parameter | Required | Meaning |
+| --- | --- | --- |
+| `as_of` | Yes | Knowledge time |
+| `period` | Yes | The observation date, written exactly `YYYY-MM-DD`, such as `1990-01-01` for January 1990 |
+
+`GET /v1/macro/UNRATE/revisions?as_of=2020-06-05&period=1990-01-01`:
+
+```json
+{
+  "knowledge_time": "2020-06-05T09:30:00-04:00",
+  "data_version": "20261019T120000Z",
+  "data": [
+    {
+      "series_id": "UNRATE",
+      "title": "Unemployment Rate",
+      "units": "Percent",
+      "frequency": "Monthly",
+      "seasonal_adjustment": "Seasonally Adjusted",
+      "release": "Employment Situation",
+      "period": "1990-01-01",
+      "value": 5.3,
+      "vintage_date": "1990-02-02",
+      "available_at": "1990-02-02T08:30:00-05:00",
+      "time_assumed": false,
+      "source": "alfred",
+      "source_ref": "UNRATE vintage 1990-02-02"
+    },
+    {
+      "series_id": "UNRATE",
+      "title": "Unemployment Rate",
+      "units": "Percent",
+      "frequency": "Monthly",
+      "seasonal_adjustment": "Seasonally Adjusted",
+      "release": "Employment Situation",
+      "period": "1990-01-01",
+      "value": 5.4,
+      "vintage_date": "1996-03-08",
+      "available_at": "1996-03-08T08:30:00-05:00",
+      "time_assumed": false,
+      "source": "alfred",
+      "source_ref": "UNRATE vintage 1996-03-08"
+    }
+  ],
+  "reason": null
+}
+```
+
+- **Each version is a `MacroObservation`**, as in `GET /v1/macro/{series_id}`. `vintage_date` is when it was published, and `available_at` when it became public.
+- **Versions published later stay invisible**, as in every read. On June 5, 2020, May 2020's history is its first print alone, 13.3%. The revision to 13.2% came on January 7, 2022.
+- **Nothing published yet** gives `data: []` with the same reason as `GET /v1/macro/{series_id}`: "No UNRATE value for 2020-06-01 had been published by June 5, 2020, 9:30 AM ET."
+- **Errors.** An unknown series is a 404, and a missing `period` is a 422.
+
 ## Errors
 
 Every error has the same shape, which replaces FastAPI's default `{"detail": ...}`:
@@ -475,6 +531,8 @@ export type Fundamental = Provenance & {
   derived: boolean;
   accession_numbers: string[];
 };
+
+// GET /v1/macro/{series_id}/revisions returns V1Response<MacroObservation[]>.
 
 export type V1Error = {
   error: {
@@ -666,7 +724,6 @@ export type Snapshot = {
 
 | Endpoint | Story | Sprint |
 | --- | --- | --- |
-| `GET /v1/macro/{series_id}/revisions` | S4.5 | 3 |
 | `GET /v1/snapshot` | S8.3 ([draft above](#draft-for-sprint-3-get-v1snapshot)) | 3 |
 | `GET /v1/catalog/series`, `/companies`, `/signals` | S8.5 | 3 |
 | `POST /v1/backtests`, `GET /v1/backtests/{id}`, `GET /v1/backtests/{id}/audit` | S8.4 | 4 |

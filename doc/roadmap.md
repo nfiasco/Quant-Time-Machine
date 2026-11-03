@@ -654,7 +654,7 @@ Every story in one table, like the Project's table view. Select an ID to jump to
 | [S4.2](#s42-ingest-vintage-history-for-the-starter-series) | Ingest vintage history for the starter series | E4 | P0 | M | 2 | M2 | ✅ Done |
 | [S4.3](#s43-model-release-times) | Model release times | E4 | P0 | S | 2 | M2 | ✅ Done |
 | [S4.4](#s44-get_macro_as_of) | `get_macro_as_of` | E4 | P0 | M | 2 | M2 | ✅ Done |
-| [S4.5](#s45-revision-history) | Revision history | E4 | P1 | S | 3 | M3 | Backlog |
+| [S4.5](#s45-revision-history) | Revision history | E4 | P1 | S | 3 | M3 | In review |
 | [S4.6](#s46-expand-the-series-catalog) | Expand the series catalog | E4 | P2 | M | 7 | M6 | Backlog |
 | [S5.1](#s51-spike-explore-the-edgar-apis) | Spike: explore the EDGAR APIs | E5 | P0 | S | 1 | M1 | ✅ Done |
 | [S5.2](#s52-company-identity-cik-tickers-share-classes) | Company identity: CIK, tickers, share classes | E5 | P0 | M | 2 | M2 | ✅ Done |
@@ -1217,8 +1217,8 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Tasks**
 
-- [ ] Write the query and tests
-- [ ] Add the API route
+- [x] Write the query and tests: `get_revision_history` in [`app/data/view.py`](../backend/app/data/view.py) lists every version known at the knowledge time, oldest first, tested in [`tests/test_macro.py`](../backend/tests/test_macro.py)
+- [x] Add the API route: `GET /v1/macro/{series_id}/revisions?as_of&period` in [`app/api/macro.py`](../backend/app/api/macro.py)
 
 #### S4.6 Expand the series catalog
 

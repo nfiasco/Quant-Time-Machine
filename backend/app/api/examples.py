@@ -69,6 +69,21 @@ _UNRATE = {
     "source": "alfred",
 }
 
+
+def _unrate_version(
+    period: str, value: float, vintage_date: str, available_at: str
+) -> dict[str, Any]:
+    """One published version of an UNRATE observation."""
+    return {
+        **_UNRATE,
+        "period": period,
+        "value": value,
+        "vintage_date": vintage_date,
+        "available_at": available_at,
+        "source_ref": f"UNRATE vintage {vintage_date}",
+    }
+
+
 _DST_GAP = (
     "2:30 AM on March 8, 2020 never happened in New York: clocks jumped from 2:00 to "
     "3:00 AM. Add an offset, or choose another time."
@@ -81,14 +96,9 @@ MACRO: Responses = {
             "May 2020's first print, from the 08:30 jobs report",
             _known_at(
                 JUNE_5_2020,
-                {
-                    **_UNRATE,
-                    "period": "2020-05-01",
-                    "value": 13.3,
-                    "vintage_date": "2020-06-05",
-                    "available_at": "2020-06-05T08:30:00-04:00",
-                    "source_ref": "UNRATE vintage 2020-06-05",
-                },
+                _unrate_version(
+                    "2020-05-01", 13.3, "2020-06-05", "2020-06-05T08:30:00-04:00"
+                ),
             ),
         ),
         before_jobs_report=example(
@@ -96,14 +106,9 @@ MACRO: Responses = {
             "Half an hour earlier, the latest value is April's first print",
             _known_at(
                 "2020-06-05T08:00:00-04:00",
-                {
-                    **_UNRATE,
-                    "period": "2020-04-01",
-                    "value": 14.7,
-                    "vintage_date": "2020-05-08",
-                    "available_at": "2020-05-08T08:30:00-04:00",
-                    "source_ref": "UNRATE vintage 2020-05-08",
-                },
+                _unrate_version(
+                    "2020-04-01", 14.7, "2020-05-08", "2020-05-08T08:30:00-04:00"
+                ),
             ),
         ),
         not_published_yet=example(
@@ -131,6 +136,52 @@ MACRO: Responses = {
             "/v1/macro/UNRATE?as_of=2020-03-08T02:30",
             "A New York time skipped by daylight saving",
             _error_body("invalid_request", _DST_GAP, "as_of"),
+        ),
+    ),
+}
+
+REVISIONS: Responses = {
+    200: _ok(
+        january_1990=example(
+            "/v1/macro/UNRATE/revisions?as_of=2020-06-05&period=1990-01-01",
+            "January 1990: first published as 5.3%, revised to 5.4% in March 1996",
+            _known_at(
+                JUNE_5_2020,
+                [
+                    _unrate_version(
+                        "1990-01-01", 5.3, "1990-02-02", "1990-02-02T08:30:00-05:00"
+                    ),
+                    _unrate_version(
+                        "1990-01-01", 5.4, "1996-03-08", "1996-03-08T08:30:00-05:00"
+                    ),
+                ],
+            ),
+        ),
+        not_published_yet=example(
+            "/v1/macro/UNRATE/revisions?as_of=2020-06-05&period=2020-06-01",
+            "June 2020 wasn't published until July 2",
+            _known_at(
+                JUNE_5_2020,
+                [],
+                "No UNRATE value for 2020-06-01 had been published by June 5, 2020, "
+                "9:30 AM ET.",
+            ),
+        ),
+    ),
+    404: _error(
+        "The series isn't in our catalog",
+        unknown_series=example(
+            "/v1/macro/DGS10/revisions?as_of=2020-06-05&period=2020-05-01",
+            "A series we don't load",
+            _error_body("unknown_series", "DGS10 isn't a series in our catalog."),
+        ),
+    ),
+    422: _error(
+        "A parameter is missing or invalid",
+        period_required=example(
+            "/v1/macro/UNRATE/revisions?as_of=2020-06-05",
+            "The history is of one observation, so period is required",
+            _error_body("invalid_request", "period is required.", "period"),
         ),
     ),
 }
@@ -439,7 +490,14 @@ def keep_nulls(app: FastAPI) -> None:
     """
     originals = {
         (str(status), example["description"]): example["value"]
-        for responses in (MACRO, PRICES, LATEST_FILING, FILINGS, FUNDAMENTALS)
+        for responses in (
+            MACRO,
+            REVISIONS,
+            PRICES,
+            LATEST_FILING,
+            FILINGS,
+            FUNDAMENTALS,
+        )
         for status, response in responses.items()
         for example in _examples_in(response).values()
     }
