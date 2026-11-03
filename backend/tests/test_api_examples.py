@@ -79,6 +79,7 @@ def test_response_models_have_readable_names() -> None:
         "Filing",
         "FundamentalListResponse",
         "Fundamental",
+        "RevisionHistoryResponse",
         "ErrorResponse",
     } <= set(SPEC["components"]["schemas"])
 

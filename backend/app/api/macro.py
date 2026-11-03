@@ -1,4 +1,5 @@
-"""GET /v1/macro/{series_id}: a macro series as it was published at the knowledge time."""
+"""GET /v1/macro/{series_id} and /revisions: a macro series as it was published at the
+knowledge time, and every version of one observation published by then."""
 
 import re
 from datetime import date
@@ -11,6 +12,7 @@ from pydantic_core import PydanticCustomError
 from app.api import examples
 from app.api.conventions import DataResponse, Provenance, View
 from app.data.timeutil import describe_time
+from app.data.view import PointInTimeView
 
 router = APIRouter(prefix="/macro", tags=["macro"])
 
@@ -39,6 +41,11 @@ class MacroResponse(DataResponse[MacroObservation | None]):
     """A macro observation as published at the knowledge time, or null with a reason."""
 
 
+class RevisionHistoryResponse(DataResponse[list[MacroObservation]]):
+    """Every version of one observation published by the knowledge time, oldest first,
+    or [] with a reason."""
+
+
 def _iso_date(value: Any) -> Any:
     # A plain date parameter would also take 1585699200 or 2020-04-01T00:00:00.
     if isinstance(value, str) and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
@@ -49,12 +56,14 @@ def _iso_date(value: Any) -> Any:
 IsoDate = Annotated[date, BeforeValidator(_iso_date)]
 """A date written YYYY-MM-DD, and nothing else."""
 
+SeriesId = Annotated[
+    str, Path(description="A series in our catalog, such as UNRATE, in any case.")
+]
+
 
 @router.get("/{series_id}", responses=examples.MACRO)
 def get_macro(
-    series_id: Annotated[
-        str, Path(description="A series in our catalog, such as UNRATE, in any case.")
-    ],
+    series_id: SeriesId,
     view: View,
     period: Annotated[
         IsoDate | None,
@@ -69,15 +78,40 @@ def get_macro(
     """A series' latest observation as published at the knowledge time, or the latest
     version of one period's. Revisions published later stay invisible."""
     observation = view.get_macro_as_of(series_id, period)
-    reason = None
-    if observation is None:
-        what = f"No {series_id.strip().upper()} value"
-        if period is not None:
-            what += f" for {period.isoformat()}"
-        reason = f"{what} had been published by {describe_time(view.knowledge_time)}."
     return MacroResponse(
         knowledge_time=view.knowledge_time,
         data_version=view.data_version,
         data=observation,
-        reason=reason,
+        reason=None if observation else _nothing_published(view, series_id, period),
     )
+
+
+@router.get("/{series_id}/revisions", responses=examples.REVISIONS)
+def get_revisions(
+    series_id: SeriesId,
+    view: View,
+    period: Annotated[
+        IsoDate,
+        Query(description="The observation date, such as 1990-01-01 for January 1990."),
+    ],
+) -> RevisionHistoryResponse:
+    """Every version of one observation published by the knowledge time, oldest first,
+    each with its vintage date and the time it became public. Versions published later
+    stay invisible, as in every read (S4.5)."""
+    versions = view.get_revision_history(series_id, period)
+    return RevisionHistoryResponse(
+        knowledge_time=view.knowledge_time,
+        data_version=view.data_version,
+        data=versions,
+        reason=None if versions else _nothing_published(view, series_id, period),
+    )
+
+
+def _nothing_published(
+    view: PointInTimeView, series_id: str, period: date | None
+) -> str:
+    """Why nothing came back: "No UNRATE value for 2020-06-01 had been published by…"."""
+    what = f"No {series_id.strip().upper()} value"
+    if period is not None:
+        what += f" for {period.isoformat()}"
+    return f"{what} had been published by {describe_time(view.knowledge_time)}."
