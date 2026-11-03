@@ -4,7 +4,7 @@ The Quant Time Machine API, built with [FastAPI](https://fastapi.tiangolo.com). 
 
 - the point-in-time data layer: the store and its writer, `PointInTimeView`, and the NYSE calendar;
 - the ingestion client and CLI;
-- the `/v1` as-of endpoints for macro series, prices, filings, and fundamentals, with their conventions;
+- the `/v1` as-of endpoints for macro series and their revisions, prices, filings, and fundamentals, with their conventions;
 - the start of the [backtest engine](#backtest-engine): total returns from raw prices, splits, and dividends, the experiment spec, and the rebalance schedule.
 
 Three sources are in, each ingested and readable as of any moment:
@@ -88,7 +88,7 @@ backend/
 │   │   ├── errors.py         # The error body and the handlers that produce it
 │   │   ├── examples.py       # The example responses shown in /docs
 │   │   ├── knowledge_time.py # GET /v1/knowledge-time
-│   │   ├── macro.py          # GET /v1/macro/{series_id}
+│   │   ├── macro.py          # GET /v1/macro/{series_id} and /revisions
 │   │   ├── prices.py         # GET /v1/prices/{ticker}
 │   │   ├── filings.py        # GET /v1/filings/{ticker} and /latest
 │   │   └── fundamentals.py   # GET /v1/fundamentals/{ticker}
@@ -147,8 +147,9 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | `GET /v1/filings/{ticker}/latest?as_of&form&include_amendments` | The latest 10-K, 10-Q, or 8-K accepted by EDGAR then | `get_latest_filing_as_of` |
 | `GET /v1/filings/{ticker}?as_of&form&include_amendments&limit` | The filings accepted by then, newest first | `list_filings_as_of` |
 | `GET /v1/fundamentals/{ticker}?as_of&metric&quarters` | A metric's last quarters as filed by then, oldest first, each with its concept and accession numbers; a quarter no filing reported is derived from year-to-date totals | `get_fundamentals_as_of` |
+| `GET /v1/macro/{series_id}/revisions?as_of&period` | Every version of one observation published by then, oldest first | `get_revision_history` |
 
-`/revisions` and `/snapshot` follow in Sprint 3 ([`doc/api-v1.md`](../doc/api-v1.md#coming-after-m2)).
+The catalogs and `/snapshot` follow in Sprint 3 ([`doc/api-v1.md`](../doc/api-v1.md#coming-after-m2)).
 
 ## Point-in-time data layer
 
@@ -179,6 +180,7 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | --- | --- |
 | `get_macro_as_of(series_id, period=None)` | A `MacroObservation`: the latest observation published by then, or the given period's latest version; `None` if nothing was published yet (S4.4) |
 | `get_macro_series_as_of(series_id, start=None, end=None)` | The whole series as it looked then, each observation at its latest version, oldest first (S4.4) |
+| `get_revision_history(series_id, period)` | Every version of one observation published by then, oldest first: January 1990's UNRATE is 5.3% from February 2, 1990, and also 5.4% from March 8, 1996 (S4.5) |
 | `resolve_ticker(ticker)` | The `Security` that used the ticker then: FB in 2020 is Facebook, and WB is Wachovia in 2005 but Weibo in 2020 (S5.2) |
 | `get_price_as_of(ticker, session=None)` | A `PriceBar`: the latest raw daily bar whose session had closed by then, so at 09:30 ET a bar from the day before; or one session's bar, raising `LookAheadError` if that session hadn't closed yet (S6.3) |
 | `get_price_history_as_of(ticker, lookback)` | The last `lookback` bars known then, oldest first, for signals (S6.3) |
