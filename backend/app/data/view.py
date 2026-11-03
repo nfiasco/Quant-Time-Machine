@@ -3,9 +3,11 @@
 A view is bound to one knowledge time T and answers only from rows with
 `available_at <= T` (doc/time-model.md). It opens its own in-memory DuckDB connection
 and defines one SQL view per table with that condition built in, so no query on the
-connection can see a later row, even one that forgets to filter. Every read goes
+connection can see a later row, even one that forgets to filter. Every read of rows goes
 through `_select`, which also re-checks each row and records it in the access log that
-feeds a run's audit (S7.7) and the bias checks (E12).
+feeds a run's audit (S7.7) and the bias checks (E12). The catalogs' coverage reads go
+through `_spans`, which returns date ranges rather than rows, so they add nothing to the
+log.
 
 A view can also be pinned to a data version (S3.7, app/data/versions.py). It then
 reads only the files that version lists, and only rows ingested by then, so a saved
@@ -17,6 +19,7 @@ app/data/records.py:
 
 - `get_macro_as_of` and `get_macro_series_as_of`: macro series as published (S4.4)
 - `get_revision_history`: every version of one observation published so far (S4.5)
+- `series_coverage`: each catalog series, and how much of it was published (S8.5)
 - `resolve_ticker`: the security that used a ticker at the time (S5.2)
 - `get_price_as_of`, `get_price_history_as_of`, and `get_price_series_as_of`: daily
   bars whose sessions had closed (S6.3, S6.4)
@@ -24,6 +27,7 @@ app/data/records.py:
   bars (S6.4)
 - `get_latest_filing_as_of` and `list_filings_as_of`: filings EDGAR had accepted (S5.4)
 - `universe_as_of`: a universe's members, from their effective dates (S6.5)
+- `universe_coverage`: those members, and how far their data reaches (S8.5)
 - `get_fundamentals_as_of`: a standard metric's last quarters, from the XBRL facts filed
   by then (S5.7)
 - `fundamentals_coverage`: how a standard metric's XBRL concepts cover each universe
@@ -49,13 +53,16 @@ from app.config import get_settings
 from app.data import calendar, fundamentals, versions
 from app.data.errors import DataVersionError, LookAheadError, NotFoundError
 from app.data.records import (
+    CompanyCoverage,
     CorporateAction,
+    DateRange,
     Filing,
     Fundamental,
     FundamentalsCoverage,
     MacroObservation,
     PriceBar,
     Security,
+    SeriesCoverage,
     UniverseMember,
 )
 from app.data.sources import metrics
@@ -64,7 +71,7 @@ from app.data.sources.edgar import FORM_FAMILIES
 from app.data.sources.universes import UNIVERSES, Universe
 from app.data.store import TableSpec, connect, sql_timestamp, store_dir, table_source
 from app.data.tables import TABLES
-from app.data.timeutil import to_utc
+from app.data.timeutil import ET, to_utc
 
 __all__ = [
     "AccessRecord",
@@ -190,21 +197,7 @@ class PointInTimeView:
             }
             available_at = row["available_at"]
             assert isinstance(available_at, datetime)
-            # The table views make both of these impossible, so the store or this class
-            # is broken.
-            if available_at > self.knowledge_time:
-                raise RuntimeError(
-                    f"{table} returned a row available at {available_at.isoformat()}, "
-                    f"after the knowledge time {self.knowledge_time.isoformat()}"
-                )
-            if (
-                self._version is not None
-                and row["ingested_at"] > self._version.ingested_through
-            ):
-                raise RuntimeError(
-                    f"{table} returned a row ingested at {row['ingested_at'].isoformat()}, "
-                    f"after data version {self.data_version}"
-                )
+            self._check_known(table, available_at, row["ingested_at"])
             self._log.append(
                 AccessRecord(
                     table=table,
@@ -215,6 +208,61 @@ class PointInTimeView:
             )
             rows.append(row)
         return rows
+
+    def _spans(
+        self,
+        table: str,
+        column: str,
+        *,
+        by: str,
+        where: str = "true",
+        params: Sequence[object] = (),
+    ) -> dict[Any, tuple[Any, Any]]:
+        """The first and last `column` among each `by` group's rows known by the
+        knowledge time, for catalogs, which need how far data reaches, not its rows.
+
+        `where` and `params` work as in `_select`. Like `_select`, it reads only the
+        table's view, so it can't see a later row, and it checks each group's newest
+        `available_at` and `ingested_at` the way `_select` checks each row. It returns
+        no rows, so it adds nothing to the access log. Datetimes come back in UTC.
+        """
+        spec = self._tables.get(table)
+        if spec is None:
+            raise ValueError(f"this view has no table named {table!r}")
+        # Both names end up in SQL.
+        if unknown := sorted({column, by} - set(spec.all_columns)):
+            raise ValueError(f"{table} has no columns named {unknown}")
+
+        cursor = self._connection.execute(
+            f"SELECT {by}, min({column}), max({column}), max(available_at), "
+            f"max(ingested_at) FROM {spec.name} WHERE ({where}) GROUP BY {by}",
+            list(params),
+        )
+        spans: dict[Any, tuple[Any, Any]] = {}
+        for group, first, last, available_at, ingested_at in cursor.fetchall():
+            self._check_known(table, to_utc(available_at), to_utc(ingested_at))
+            spans[group] = (
+                to_utc(first) if isinstance(first, datetime) else first,
+                to_utc(last) if isinstance(last, datetime) else last,
+            )
+        return spans
+
+    def _check_known(
+        self, table: str, available_at: datetime, ingested_at: datetime
+    ) -> None:
+        """Raise RuntimeError for a row read after the knowledge time, or ingested
+        after the pinned data version. The table views make both impossible, so the
+        store or this class is broken."""
+        if available_at > self.knowledge_time:
+            raise RuntimeError(
+                f"{table} returned a row available at {available_at.isoformat()}, "
+                f"after the knowledge time {self.knowledge_time.isoformat()}"
+            )
+        if self._version is not None and ingested_at > self._version.ingested_through:
+            raise RuntimeError(
+                f"{table} returned a row ingested at {ingested_at.isoformat()}, "
+                f"after data version {self.data_version}"
+            )
 
     def _require_known_by(self, moment: datetime, what: str) -> None:
         """Raise LookAheadError if `what` only became known at `moment`, after this view's
@@ -308,6 +356,30 @@ class PointInTimeView:
             order_by="available_at",
         )
         return [_macro_record(series, row) for row in rows]
+
+    def series_coverage(self) -> list[SeriesCoverage]:
+        """Every series in the macro catalog, in its order, with how much of it was
+        published by the knowledge time (S8.5).
+
+        At 09:30 ET on June 5, 2020, UNRATE's observations run through May 2020, whose
+        first print came out in that morning's vintage. A series with nothing published
+        yet has neither: GDP's archive starts with the vintage of December 4, 1991.
+        """
+        periods = self._spans("macro_observations", "observation_date", by="series_id")
+        vintages = self._spans("macro_observations", "vintage_date", by="series_id")
+        return [
+            SeriesCoverage(
+                series_id=series.id,
+                title=series.title,
+                units=series.units,
+                frequency=series.frequency,
+                seasonal_adjustment=series.seasonal_adjustment,
+                release=series.release.name,
+                observations=_date_range(periods.get(series.id)),
+                vintages=_date_range(vintages.get(series.id)),
+            )
+            for series in SERIES.values()
+        ]
 
     def resolve_ticker(self, ticker: str) -> Security:
         """The security that used `ticker` at the knowledge time, in any case.
@@ -588,6 +660,53 @@ class PointInTimeView:
             for spell in spells
         ]
 
+    def universe_coverage(self, name: str) -> list[CompanyCoverage]:
+        """A universe's members at the knowledge time, as `universe_as_of` gives them,
+        each with how far its prices, filings, and XBRL facts reach by then (S8.5).
+
+        Filings and facts count across every CIK the security had by then, such as
+        Google Inc.'s and then Alphabet's, and are dated by the New York day EDGAR
+        accepted them. Raises NotFoundError for a universe that isn't in
+        app/data/sources/universes.toml.
+        """
+        members = self.universe_as_of(name)
+        if not members:
+            return []
+        ids = [member.security_id for member in members]
+        in_ids = f"security_id IN ({', '.join('?' * len(ids))})"
+        ciks: dict[str, set[int]] = {security_id: set() for security_id in ids}
+        for row in self._select("securities", where=in_ids, params=ids):
+            if row["cik"] is not None:
+                ciks[row["security_id"]].add(row["cik"])
+
+        prices = self._spans(
+            "price_bars", "session_date", by="security_id", where=in_ids, params=ids
+        )
+        filings: dict[Any, tuple[Any, Any]] = {}
+        facts: dict[Any, tuple[Any, Any]] = {}
+        if every_cik := sorted(set().union(*ciks.values())):
+            in_ciks = f"cik IN ({', '.join('?' * len(every_cik))})"
+            filings = self._spans(
+                "filings", "available_at", by="cik", where=in_ciks, params=every_cik
+            )
+            facts = self._spans(
+                "xbrl_facts", "available_at", by="cik", where=in_ciks, params=every_cik
+            )
+        return [
+            CompanyCoverage(
+                universe=member.universe,
+                security_id=member.security_id,
+                ticker=member.ticker,
+                name=member.name,
+                cik=member.cik,
+                added=member.added,
+                prices=_date_range(prices.get(member.security_id)),
+                filings=_new_york_days(filings, ciks[member.security_id]),
+                fundamentals=_new_york_days(facts, ciks[member.security_id]),
+            )
+            for member in members
+        ]
+
     def get_fundamentals_as_of(
         self, ticker: str, metric: str, quarters: int = 8
     ) -> list[Fundamental]:
@@ -716,6 +835,25 @@ class PointInTimeView:
             f"PointInTimeView(knowledge_time={self.knowledge_time.isoformat()}, "
             f"data_version={self.data_version!r})"
         )
+
+
+def _date_range(span: tuple[date, date] | None) -> DateRange | None:
+    """A `_spans` entry of dates as a record."""
+    return None if span is None else DateRange(*span)
+
+
+def _new_york_days(
+    spans: Mapping[Any, tuple[datetime, datetime]], keys: Iterable[Any]
+) -> DateRange | None:
+    """The New York days of the earliest and latest instants among the `spans` of some
+    keys, such as a security's CIKs; None if none of them has any."""
+    found = [spans[key] for key in keys if key in spans]
+    if not found:
+        return None
+    return DateRange(
+        min(first for first, _ in found).astimezone(ET).date(),
+        max(last for _, last in found).astimezone(ET).date(),
+    )
 
 
 def _macro_series(series_id: str) -> Series:

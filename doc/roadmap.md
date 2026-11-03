@@ -683,7 +683,7 @@ Every story in one table, like the Project's table view. Select an ID to jump to
 | [S8.2](#s82-as-of-data-endpoints) | As-of data endpoints | E8 | P0 | M | 2–3 | M3 | In review |
 | [S8.3](#s83-knowledge-snapshot-endpoint) | Knowledge snapshot endpoint | E8 | P0 | M | 3 | M3 | Backlog |
 | [S8.4](#s84-backtest-endpoints) | Backtest endpoints | E8 | P0 | M | 4 | M4 | Backlog |
-| [S8.5](#s85-catalog-endpoints) | Catalog endpoints | E8 | P0 | S | 3 | M3 | Backlog |
+| [S8.5](#s85-catalog-endpoints) | Catalog endpoints | E8 | P0 | S | 3 | M3 | In review |
 | [S8.6](#s86-typed-client-and-response-caching) | Typed client and response caching | E8 | P2 | S | 5 | M5 | Backlog |
 | [S9.1](#s91-app-shell-and-api-client) | App shell and API client | E9 | P0 | S | 2 | M2 | In progress |
 | [S9.2](#s92-time-machine-explorer) | Time Machine explorer | E9 | P0 | L | 3 | M3 | Backlog |
@@ -1775,7 +1775,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Tasks**
 
-- [ ] Write the endpoints and tests
+- [x] Write the endpoints and tests: [`app/api/catalog.py`](../backend/app/api/catalog.py) and [`tests/test_api_catalog.py`](../backend/tests/test_api_catalog.py). Series and companies are as known at `as_of`, with coverage dates from the store. Signals come from the spec's models (S7.1) and take no `as_of`.
 
 #### S8.6 Typed client and response caching
 

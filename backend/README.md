@@ -4,7 +4,7 @@ The Quant Time Machine API, built with [FastAPI](https://fastapi.tiangolo.com). 
 
 - the point-in-time data layer: the store and its writer, `PointInTimeView`, and the NYSE calendar;
 - the ingestion client and CLI;
-- the `/v1` as-of endpoints for macro series and their revisions, prices, filings, and fundamentals, with their conventions;
+- the `/v1` as-of endpoints for macro series and their revisions, prices, filings, and fundamentals, with their conventions, plus the catalogs;
 - the start of the [backtest engine](#backtest-engine): total returns from raw prices, splits, and dividends, the experiment spec, and the rebalance schedule.
 
 Three sources are in, each ingested and readable as of any moment:
@@ -13,7 +13,7 @@ Three sources are in, each ingested and readable as of any moment:
 - raw daily prices from Tiingo (S6.2, S6.3);
 - filing histories from SEC EDGAR (S5.3, S5.4), with the XBRL facts reported in them, read as standard metrics such as revenue (S5.5–S5.7).
 
-Company identity ties tickers to securities over time (S5.2), universe v1 says which companies were eligible when (S6.5), and the as-of endpoints serve the data (S8.2). Every response says which [data version](#data-versions) it read (S3.7).
+Company identity ties tickers to securities over time (S5.2), universe v1 says which companies were eligible when (S6.5), and the as-of endpoints serve the data (S8.2). The catalogs list the series, companies, and signals forms can offer (S8.5). Every response says which [data version](#data-versions) it read (S3.7).
 
 ## Getting started
 
@@ -91,7 +91,8 @@ backend/
 │   │   ├── macro.py          # GET /v1/macro/{series_id} and /revisions
 │   │   ├── prices.py         # GET /v1/prices/{ticker}
 │   │   ├── filings.py        # GET /v1/filings/{ticker} and /latest
-│   │   └── fundamentals.py   # GET /v1/fundamentals/{ticker}
+│   │   ├── fundamentals.py   # GET /v1/fundamentals/{ticker}
+│   │   └── catalog.py        # GET /v1/catalog/series, /companies, and /signals
 │   ├── data/           # Point-in-time data layer (see below)
 │   └── backtest/       # The backtest engine (see below)
 ├── spikes/             # Experiments behind the data, storage, and hosting decisions (not app code)
@@ -148,8 +149,11 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | `GET /v1/filings/{ticker}?as_of&form&include_amendments&limit` | The filings accepted by then, newest first | `list_filings_as_of` |
 | `GET /v1/fundamentals/{ticker}?as_of&metric&quarters` | A metric's last quarters as filed by then, oldest first, each with its concept and accession numbers; a quarter no filing reported is derived from year-to-date totals | `get_fundamentals_as_of` |
 | `GET /v1/macro/{series_id}/revisions?as_of&period` | Every version of one observation published by then, oldest first | `get_revision_history` |
+| `GET /v1/catalog/series?as_of` | Every series in the catalog, with the observations and vintages published by then | `series_coverage` |
+| `GET /v1/catalog/companies?as_of` | Each universe's members then, under their tickers then, with the dates their prices, filings, and XBRL facts reach by then | `universe_coverage` |
+| `GET /v1/catalog/signals` | The signal types a spec can use, with their JSON Schemas; no `as_of`, since they don't depend on time or data | `signal_types` in [`spec.py`](app/backtest/spec.py) |
 
-The catalogs and `/snapshot` follow in Sprint 3 ([`doc/api-v1.md`](../doc/api-v1.md#coming-after-m2)).
+`/snapshot` follows in Sprint 3 ([`doc/api-v1.md`](../doc/api-v1.md#coming-after-m2)).
 
 ## Point-in-time data layer
 
@@ -181,6 +185,7 @@ The catalogs and `/snapshot` follow in Sprint 3 ([`doc/api-v1.md`](../doc/api-v1
 | `get_macro_as_of(series_id, period=None)` | A `MacroObservation`: the latest observation published by then, or the given period's latest version; `None` if nothing was published yet (S4.4) |
 | `get_macro_series_as_of(series_id, start=None, end=None)` | The whole series as it looked then, each observation at its latest version, oldest first (S4.4) |
 | `get_revision_history(series_id, period)` | Every version of one observation published by then, oldest first: January 1990's UNRATE is 5.3% from February 2, 1990, and also 5.4% from March 8, 1996 (S4.5) |
+| `series_coverage()` | Every series in the catalog, with its first and last observations and vintages published by then (S8.5) |
 | `resolve_ticker(ticker)` | The `Security` that used the ticker then: FB in 2020 is Facebook, and WB is Wachovia in 2005 but Weibo in 2020 (S5.2) |
 | `get_price_as_of(ticker, session=None)` | A `PriceBar`: the latest raw daily bar whose session had closed by then, so at 09:30 ET a bar from the day before; or one session's bar, raising `LookAheadError` if that session hadn't closed yet (S6.3) |
 | `get_price_history_as_of(ticker, lookback)` | The last `lookback` bars known then, oldest first, for signals (S6.3) |
@@ -190,6 +195,7 @@ The catalogs and `/snapshot` follow in Sprint 3 ([`doc/api-v1.md`](../doc/api-v1
 | `list_filings_as_of(ticker, forms=("10-K", "10-Q", "8-K"), include_amendments=False, limit=100)` | The filings accepted by then, newest first, across every CIK the security had (S5.4) |
 | `get_fundamentals_as_of(ticker, metric, quarters=8)` | The last `quarters` quarters of a metric in [`metrics.toml`](app/data/sources/metrics.toml), such as `revenue`, oldest first, as `Fundamental`s. Each is the latest value filed by then, with its concept and accession numbers. A quarter no filing reported, such as most fourth quarters, is derived from two year-to-date totals filed by then (S5.7) |
 | `universe_as_of(name)` | The `UniverseMember`s of a universe in [`universes.toml`](app/data/sources/universes.toml), such as `starter_large_caps`, each with its ticker, name, and CIK then. A company counts from 00:00 ET on the effective date it joined until the date it left: Tesla is in from December 21, 2020 (S6.5) |
+| `universe_coverage(name)` | The members `universe_as_of` gives, each with the dates its prices, filings, and XBRL facts reach by then, across every CIK it had (S8.5) |
 | `fundamentals_coverage(universe, metric)` | For every company in the universe by then, those that left included: how many of its 10-Qs and 10-Ks reported one of the metric's concepts for their own period, which concepts they used, and the periods none covered (S5.6) |
 
 ```python
@@ -229,7 +235,7 @@ The engine in [`app/backtest/`](app/backtest/) reads data only through `PointInT
 | Module | What it does |
 | --- | --- |
 | [`returns.py`](app/backtest/returns.py) | Daily and monthly total returns from raw prices, splits, and dividends, as known at a time (S6.4). Split factors are rounded to the ratio they stand for, such as 7 for Tiingo's 7.000007. The returns match Tiingo's adjusted closes to within 10⁻⁶ |
-| [`spec.py`](app/backtest/spec.py) | The experiment spec, version 1: Pydantic models that match the frontend's `ExperimentSpec` type field for field (S7.1). `parse_spec` raises `SpecError`, whose problems each name a field: "schedule.fill must be 'same_day_close' or 'next_day_open'." |
+| [`spec.py`](app/backtest/spec.py) | The experiment spec, version 1: Pydantic models that match the frontend's `ExperimentSpec` type field for field (S7.1). `parse_spec` raises `SpecError`, whose problems each name a field: "schedule.fill must be 'same_day_close' or 'next_day_open'." `signal_types()` lists the kinds of signal, with their JSON Schemas, for `/v1/catalog/signals` (S8.5) |
 | [`schedule.py`](app/backtest/schedule.py) | A spec's decisions, on the first trading day of each month, and their fills (S7.2). A fill is at the same day's close (13:00 ET on an early close) or the next session's open, always strictly after its decision; `ScheduleError` names any day it can't be |
 
 ```python

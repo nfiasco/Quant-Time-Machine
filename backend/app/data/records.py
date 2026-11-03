@@ -190,6 +190,58 @@ class FundamentalsCoverage:
 
 
 @dataclass(frozen=True)
+class DateRange:
+    """The first and last dates of something in our data, both included."""
+
+    first: date
+    last: date
+
+
+@dataclass(frozen=True)
+class SeriesCoverage:
+    """A series in the macro catalog, and how much of it was published by the knowledge
+    time (S8.5)."""
+
+    series_id: str
+    title: str
+    units: str
+    frequency: str
+    seasonal_adjustment: str
+    release: str
+    observations: DateRange | None
+    """The first and last observation dates published by then; None if none was."""
+    vintages: DateRange | None
+    """The dates of the first and last vintages published by then. ALFRED's archive
+    starts later than the data for every starter series, so an observation is unknown
+    until the first vintage that has it."""
+
+
+@dataclass(frozen=True)
+class CompanyCoverage:
+    """A universe's member at the knowledge time, and how far its data reaches by then
+    (S8.5)."""
+
+    universe: str
+    security_id: str
+    ticker: str | None
+    """The ticker at the knowledge time, or None if the security had stopped trading
+    but hadn't left the universe yet."""
+    name: str
+    """The name at the knowledge time."""
+    cik: int | None
+    added: date
+    """The first day of its membership."""
+    prices: DateRange | None
+    """The sessions of its first and last daily bars known then."""
+    filings: DateRange | None
+    """The New York dates on which EDGAR accepted its first and last 10-K, 10-Q, or
+    8-K, or an amendment, known then, across every CIK it had."""
+    fundamentals: DateRange | None
+    """The New York dates on which EDGAR accepted the first and last filings whose
+    XBRL facts we have, known then."""
+
+
+@dataclass(frozen=True)
 class Fundamental:
     """One quarter of a standard metric, as known at the knowledge time (S5.7).
 

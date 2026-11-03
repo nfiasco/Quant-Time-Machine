@@ -1,6 +1,6 @@
 # Research API v1: response contract
 
-> **Stories S8.1, S8.2, and S4.5.** Drafted 2026-10-19 as the contract for S9.1's M2 demo page, and implemented in Sprint 2. Sprint 3 added [`GET /v1/fundamentals/{ticker}`](#get-v1fundamentalsticker) (S5.7, 2026-11-01), then [revision history](#get-v1macroseries_idrevisions) (S4.5) on 2026-11-02. The API's own docs at `/docs` show the examples below, each labeled with the request that produces it. A test replays every one against the test fixtures, so they can't drift. S8.6 will generate TypeScript types from the OpenAPI schema. To change the contract, update this file and the backend in the same pull request, and tell the frontend. The [snapshot section](#draft-for-sprint-3-get-v1snapshot) is a draft for S8.3 (2026-10-29), ahead of its code.
+> **Stories S8.1, S8.2, S4.5, and S8.5.** Drafted 2026-10-19 as the contract for S9.1's M2 demo page, and implemented in Sprint 2. Sprint 3 added [`GET /v1/fundamentals/{ticker}`](#get-v1fundamentalsticker) (S5.7, 2026-11-01), then [revision history](#get-v1macroseries_idrevisions) (S4.5) and [the catalogs](#get-v1catalogseries) (S8.5) on 2026-11-02. The API's own docs at `/docs` show the examples below, each labeled with the request that produces it. A test replays every one against the test fixtures, so they can't drift. S8.6 will generate TypeScript types from the OpenAPI schema. To change the contract, update this file and the backend in the same pull request, and tell the frontend. The [snapshot section](#draft-for-sprint-3-get-v1snapshot) is a draft for S8.3 (2026-10-29), ahead of its code.
 
 ## Conventions
 
@@ -42,11 +42,15 @@ Every successful response has the same four fields:
 
 "Nothing was known yet" is not an error: it's a 200 with a reason.
 
-`GET /v1/knowledge-time?as_of=…` is the one exception. It only resolves an `as_of` value, so it returns just the first two fields, with the data version the data endpoints read now:
+Two endpoints are exceptions:
 
-```json
-{ "knowledge_time": "2020-06-05T09:30:00-04:00", "data_version": "20261019T120000Z" }
-```
+- `GET /v1/knowledge-time?as_of=…` only resolves an `as_of` value, so it returns just the first two fields, with the data version the data endpoints read now:
+
+  ```json
+  { "knowledge_time": "2020-06-05T09:30:00-04:00", "data_version": "20261019T120000Z" }
+  ```
+
+- [`GET /v1/catalog/signals`](#get-v1catalogsignals) depends on neither time nor data, so it takes no `as_of` and returns `spec_version` and `data`.
 
 ## Fields on every record
 
@@ -422,6 +426,154 @@ Every version of one observation published by the knowledge time, oldest first (
 - **Nothing published yet** gives `data: []` with the same reason as `GET /v1/macro/{series_id}`: "No UNRATE value for 2020-06-01 had been published by June 5, 2020, 9:30 AM ET."
 - **Errors.** An unknown series is a 404, and a missing `period` is a 422.
 
+### `GET /v1/catalog/series`
+
+Every series in our catalog, in its order, with how much of it was published by the knowledge time (S8.5).
+
+| Parameter | Required | Meaning |
+| --- | --- | --- |
+| `as_of` | Yes | Knowledge time |
+
+`GET /v1/catalog/series?as_of=2020-06-05` lists all six series. Here are two:
+
+```json
+{
+  "knowledge_time": "2020-06-05T09:30:00-04:00",
+  "data_version": "20261019T120000Z",
+  "data": [
+    {
+      "series_id": "UNRATE",
+      "title": "Unemployment Rate",
+      "units": "Percent",
+      "frequency": "Monthly",
+      "seasonal_adjustment": "Seasonally Adjusted",
+      "release": "Employment Situation",
+      "observations": { "first": "1990-01-01", "last": "2020-05-01" },
+      "vintages": { "first": "1990-02-02", "last": "2020-06-05" }
+    },
+    {
+      "series_id": "PAYEMS",
+      "title": "All Employees, Total Nonfarm",
+      "units": "Thousands of Persons",
+      "frequency": "Monthly",
+      "seasonal_adjustment": "Seasonally Adjusted",
+      "release": "Employment Situation",
+      "observations": null,
+      "vintages": null
+    }
+  ],
+  "reason": null
+}
+```
+
+- **`observations`** spans the first and last observation dates published by then. The test data starts UNRATE in 1990; the real store starts it in 1948.
+- **`vintages`** spans the dates of the first and last vintages published by then. ALFRED's archive starts later than the data, so an observation is unknown until the first vintage that has it. GDP's first vintage, for example, is December 4, 1991.
+- **Both are `null`** for a series with nothing published yet. Every series in the catalog is always listed.
+
+### `GET /v1/catalog/companies`
+
+The members of each universe at the knowledge time, under the tickers and names they used then, with how far each one's data reaches by then (S8.5). For now that's universe v1, `starter_large_caps` (D3).
+
+| Parameter | Required | Meaning |
+| --- | --- | --- |
+| `as_of` | Yes | Knowledge time |
+
+`GET /v1/catalog/companies?as_of=2020-06-05`, on the test data:
+
+```json
+{
+  "knowledge_time": "2020-06-05T09:30:00-04:00",
+  "data_version": "20261019T120000Z",
+  "data": [
+    {
+      "ticker": "AAPL",
+      "name": "Apple Inc.",
+      "cik": 320193,
+      "universe": "starter_large_caps",
+      "added": "2010-01-01",
+      "prices": { "first": "2020-06-01", "last": "2020-06-04" },
+      "filings": { "first": "2001-12-21", "last": "2020-04-30" },
+      "fundamentals": { "first": "2020-01-28", "last": "2020-04-30" }
+    },
+    {
+      "ticker": "FB",
+      "name": "Facebook, Inc.",
+      "cik": 1326801,
+      "universe": "starter_large_caps",
+      "added": "2013-12-23",
+      "prices": { "first": "2020-06-04", "last": "2020-06-04" },
+      "filings": { "first": "2012-07-31", "last": "2012-07-31" },
+      "fundamentals": null
+    },
+    {
+      "ticker": "TWTR",
+      "name": "Twitter, Inc.",
+      "cik": 1418091,
+      "universe": "starter_large_caps",
+      "added": "2018-06-07",
+      "prices": null,
+      "filings": null,
+      "fundamentals": null
+    }
+  ],
+  "reason": null
+}
+```
+
+- **Tickers and names are those at the knowledge time.** Facebook is FB in 2020 and META from June 9, 2022. `ticker` is `null` for a member that had stopped trading but hadn't left yet, such as Twitter from October 28 to November 1, 2022.
+- **Membership follows effective dates.** `added` is the first day. Tesla joins on December 21, 2020, and a company drops off the list on the day it leaves.
+- **Coverage.** Each range is `null` when nothing is known:
+  - `prices`: the sessions of the first and last daily bars;
+  - `filings`: the New York dates on which EDGAR accepted the first and last 10-K, 10-Q, or 8-K, or an amendment, across every CIK the company had;
+  - `fundamentals`: the same dates for the first and last filings whose XBRL facts we have.
+- **Before 2010** the universe is empty, so `data` is `[]` with the reason "No company was in a universe as of June 1, 2009, 9:30 AM ET: membership history starts on 2010-01-01."
+
+### `GET /v1/catalog/signals`
+
+The kinds of signal an experiment spec can use, each with the JSON Schema of its object in a spec's `signals` (S8.5). They depend on neither time nor data, so there's no `as_of`, and the response has no `knowledge_time` or `data_version`. `GET /v1/catalog/signals`, with one schema shortened:
+
+```json
+{
+  "spec_version": 1,
+  "data": [
+    {
+      "type": "revenue_growth_acceleration",
+      "description": "This quarter's year-over-year revenue growth minus last quarter's.",
+      "parameters": { "title": "RevenueGrowthAccelerationSignal", "type": "object" }
+    },
+    {
+      "type": "momentum",
+      "description": "The total return over a lookback, leaving out the most recent months.",
+      "parameters": {
+        "additionalProperties": false,
+        "description": "The total return over a lookback, leaving out the most recent months.",
+        "properties": {
+          "type": { "const": "momentum", "title": "Type", "type": "string" },
+          "lookback_months": {
+            "description": "How many months back the return starts: 12 for 12-1 momentum.",
+            "minimum": 1,
+            "title": "Lookback Months",
+            "type": "integer"
+          },
+          "skip_months": {
+            "description": "How many of the latest months to leave out: 1 for 12-1 momentum. Fewer than\n`lookback_months`.",
+            "minimum": 0,
+            "title": "Skip Months",
+            "type": "integer"
+          }
+        },
+        "required": ["type", "lookback_months", "skip_months"],
+        "title": "MomentumSignal",
+        "type": "object"
+      }
+    }
+  ]
+}
+```
+
+- **`parameters`** is the schema that [`experiment-spec-v1.schema.json`](experiment-spec-v1.schema.json) lists under `$defs`, `type` included, so a form can build its fields from it. A test keeps the two equal.
+- **The library grows in Sprint 4.** Each signal S7.4 adds to the spec shows up here with no other change.
+
 ## Errors
 
 Every error has the same shape, which replaces FastAPI's default `{"detail": ...}`:
@@ -532,7 +684,39 @@ export type Fundamental = Provenance & {
   accession_numbers: string[];
 };
 
-// GET /v1/macro/{series_id}/revisions returns V1Response<MacroObservation[]>.
+export type DateRange = { first: string; last: string };
+
+export type CatalogSeries = {
+  series_id: string;
+  title: string;
+  units: string;
+  frequency: string;
+  seasonal_adjustment: string;
+  release: string;
+  observations: DateRange | null;
+  vintages: DateRange | null;
+};
+
+export type CatalogCompany = {
+  ticker: string | null;
+  name: string;
+  cik: number | null;
+  universe: string;
+  added: string;
+  prices: DateRange | null;
+  filings: DateRange | null;
+  fundamentals: DateRange | null;
+};
+
+// GET /v1/catalog/signals has no knowledge_time or data_version.
+export type SignalCatalog = {
+  spec_version: 1;
+  data: { type: string; description: string; parameters: Record<string, unknown> }[];
+};
+
+// GET /v1/macro/{series_id}/revisions returns V1Response<MacroObservation[]>,
+// GET /v1/catalog/series V1Response<CatalogSeries[]>, and GET /v1/catalog/companies
+// V1Response<CatalogCompany[]>.
 
 export type V1Error = {
   error: {
@@ -725,7 +909,6 @@ export type Snapshot = {
 | Endpoint | Story | Sprint |
 | --- | --- | --- |
 | `GET /v1/snapshot` | S8.3 ([draft above](#draft-for-sprint-3-get-v1snapshot)) | 3 |
-| `GET /v1/catalog/series`, `/companies`, `/signals` | S8.5 | 3 |
 | `POST /v1/backtests`, `GET /v1/backtests/{id}`, `GET /v1/backtests/{id}/audit` | S8.4 | 4 |
 
 `POST /v1/backtests` will take an experiment spec as its body: the model in [`app/backtest/spec.py`](../backend/app/backtest/spec.py), whose JSON Schema is [`experiment-spec-v1.schema.json`](experiment-spec-v1.schema.json) (S7.1).

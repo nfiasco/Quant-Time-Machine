@@ -4,7 +4,8 @@ Each example's description is the request that produces it. tests/test_api_examp
 replays every one against the test fixtures and requires the same answer, so an example
 can't drift from what the API returns. The macro, filing, and fundamentals examples are
 real SEC and FRED values. The price example is made up, because Tiingo's terms don't
-allow sharing its data (D2).
+allow sharing its data (D2). The signal catalog's example is built from the spec's own
+models, whose schemas tests/test_api_catalog.py pins to the committed JSON Schema.
 """
 
 from typing import Any
@@ -12,6 +13,7 @@ from typing import Any
 from fastapi import FastAPI
 
 from app.api.errors import ErrorResponse
+from app.backtest.spec import signal_types
 
 type Responses = dict[int | str, dict[str, Any]]
 
@@ -480,6 +482,177 @@ FUNDAMENTALS: Responses = {
 }
 
 
+def _span(first: str, last: str | None = None) -> dict[str, str]:
+    """A date range, as the catalogs write it: one day when `last` is left out."""
+    return {"first": first, "last": first if last is None else last}
+
+
+def _catalog_series(
+    series_id: str,
+    title: str,
+    units: str,
+    frequency: str,
+    seasonal_adjustment: str,
+    release: str,
+    observations: dict[str, str] | None = None,
+    vintages: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    return {
+        "series_id": series_id,
+        "title": title,
+        "units": units,
+        "frequency": frequency,
+        "seasonal_adjustment": seasonal_adjustment,
+        "release": release,
+        "observations": observations,
+        "vintages": vintages,
+    }
+
+
+CATALOG_SERIES: Responses = {
+    200: _ok(
+        june_5_2020=example(
+            "/v1/catalog/series?as_of=2020-06-05",
+            "Each series, with what was published by 09:30 on June 5, 2020",
+            _known_at(
+                JUNE_5_2020,
+                [
+                    _catalog_series(
+                        "UNRATE",
+                        "Unemployment Rate",
+                        "Percent",
+                        "Monthly",
+                        "Seasonally Adjusted",
+                        "Employment Situation",
+                        _span("1990-01-01", "2020-05-01"),
+                        _span("1990-02-02", "2020-06-05"),
+                    ),
+                    _catalog_series(
+                        "PAYEMS",
+                        "All Employees, Total Nonfarm",
+                        "Thousands of Persons",
+                        "Monthly",
+                        "Seasonally Adjusted",
+                        "Employment Situation",
+                    ),
+                    _catalog_series(
+                        "CPIAUCSL",
+                        "Consumer Price Index for All Urban Consumers: All Items in "
+                        "U.S. City Average",
+                        "Index 1982-1984=100",
+                        "Monthly",
+                        "Seasonally Adjusted",
+                        "Consumer Price Index",
+                    ),
+                    _catalog_series(
+                        "GDP",
+                        "Gross Domestic Product",
+                        "Billions of Dollars",
+                        "Quarterly",
+                        "Seasonally Adjusted Annual Rate",
+                        "Gross Domestic Product",
+                        _span("1985-01-01"),
+                        _span("1991-12-04"),
+                    ),
+                    _catalog_series(
+                        "FEDFUNDS",
+                        "Federal Funds Effective Rate",
+                        "Percent",
+                        "Monthly",
+                        "Not Seasonally Adjusted",
+                        "H.15 Selected Interest Rates",
+                        _span("2020-05-01"),
+                        _span("2020-06-01"),
+                    ),
+                    _catalog_series(
+                        "TB3MS",
+                        "3-Month Treasury Bill Secondary Market Rate, Discount Basis",
+                        "Percent",
+                        "Monthly",
+                        "Not Seasonally Adjusted",
+                        "H.15 Selected Interest Rates",
+                    ),
+                ],
+            ),
+        ),
+    ),
+}
+
+CATALOG_COMPANIES: Responses = {
+    200: _ok(
+        june_5_2020=example(
+            "/v1/catalog/companies?as_of=2020-06-05",
+            "Universe v1's members then, under their tickers then (test data)",
+            _known_at(
+                JUNE_5_2020,
+                [
+                    {
+                        "ticker": "AAPL",
+                        "name": "Apple Inc.",
+                        "cik": 320193,
+                        "universe": "starter_large_caps",
+                        "added": "2010-01-01",
+                        "prices": _span("2020-06-01", "2020-06-04"),
+                        "filings": _span("2001-12-21", "2020-04-30"),
+                        "fundamentals": _span("2020-01-28", "2020-04-30"),
+                    },
+                    {
+                        "ticker": "FB",
+                        "name": "Facebook, Inc.",
+                        "cik": 1326801,
+                        "universe": "starter_large_caps",
+                        "added": "2013-12-23",
+                        "prices": _span("2020-06-04"),
+                        "filings": _span("2012-07-31"),
+                        "fundamentals": None,
+                    },
+                    {
+                        "ticker": "TWTR",
+                        "name": "Twitter, Inc.",
+                        "cik": 1418091,
+                        "universe": "starter_large_caps",
+                        "added": "2018-06-07",
+                        "prices": None,
+                        "filings": None,
+                        "fundamentals": None,
+                    },
+                ],
+            ),
+        ),
+        before_2010=example(
+            "/v1/catalog/companies?as_of=2009-06-01",
+            "Universe v1 starts on January 1, 2010 (D3)",
+            _known_at(
+                "2009-06-01T09:30:00-04:00",
+                [],
+                "No company was in a universe as of June 1, 2009, 9:30 AM ET: "
+                "membership history starts on 2010-01-01.",
+            ),
+        ),
+    ),
+}
+
+CATALOG_SIGNALS: Responses = {
+    200: _ok(
+        spec_v1=example(
+            "/v1/catalog/signals",
+            "The signals experiment spec version 1 accepts, with their JSON Schemas",
+            {
+                "spec_version": 1,
+                "data": [
+                    {
+                        "type": signal.type,
+                        "description": signal.description,
+                        "parameters": signal.schema,
+                    }
+                    for signal in signal_types()
+                ],
+            },
+        ),
+    ),
+}
+
+
 def keep_nulls(app: FastAPI) -> None:
     """Make `app.openapi()` keep the nulls in these examples.
 
@@ -497,6 +670,9 @@ def keep_nulls(app: FastAPI) -> None:
             LATEST_FILING,
             FILINGS,
             FUNDAMENTALS,
+            CATALOG_SERIES,
+            CATALOG_COMPANIES,
+            CATALOG_SIGNALS,
         )
         for status, response in responses.items()
         for example in _examples_in(response).values()
