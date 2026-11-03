@@ -576,6 +576,60 @@ CATALOG_SERIES: Responses = {
     ),
 }
 
+CATALOG_COMPANIES: Responses = {
+    200: _ok(
+        june_5_2020=example(
+            "/v1/catalog/companies?as_of=2020-06-05",
+            "Universe v1's members then, under their tickers then (test data)",
+            _known_at(
+                JUNE_5_2020,
+                [
+                    {
+                        "ticker": "AAPL",
+                        "name": "Apple Inc.",
+                        "cik": 320193,
+                        "universe": "starter_large_caps",
+                        "added": "2010-01-01",
+                        "prices": _span("2020-06-01", "2020-06-04"),
+                        "filings": _span("2001-12-21", "2020-04-30"),
+                        "fundamentals": _span("2020-01-28", "2020-04-30"),
+                    },
+                    {
+                        "ticker": "FB",
+                        "name": "Facebook, Inc.",
+                        "cik": 1326801,
+                        "universe": "starter_large_caps",
+                        "added": "2013-12-23",
+                        "prices": _span("2020-06-04"),
+                        "filings": _span("2012-07-31"),
+                        "fundamentals": None,
+                    },
+                    {
+                        "ticker": "TWTR",
+                        "name": "Twitter, Inc.",
+                        "cik": 1418091,
+                        "universe": "starter_large_caps",
+                        "added": "2018-06-07",
+                        "prices": None,
+                        "filings": None,
+                        "fundamentals": None,
+                    },
+                ],
+            ),
+        ),
+        before_2010=example(
+            "/v1/catalog/companies?as_of=2009-06-01",
+            "Universe v1 starts on January 1, 2010 (D3)",
+            _known_at(
+                "2009-06-01T09:30:00-04:00",
+                [],
+                "No company was in a universe as of June 1, 2009, 9:30 AM ET: "
+                "membership history starts on 2010-01-01.",
+            ),
+        ),
+    ),
+}
+
 
 def keep_nulls(app: FastAPI) -> None:
     """Make `app.openapi()` keep the nulls in these examples.
@@ -595,6 +649,7 @@ def keep_nulls(app: FastAPI) -> None:
             FILINGS,
             FUNDAMENTALS,
             CATALOG_SERIES,
+            CATALOG_COMPANIES,
         )
         for status, response in responses.items()
         for example in _examples_in(response).values()

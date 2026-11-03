@@ -27,6 +27,7 @@ app/data/records.py:
   bars (S6.4)
 - `get_latest_filing_as_of` and `list_filings_as_of`: filings EDGAR had accepted (S5.4)
 - `universe_as_of`: a universe's members, from their effective dates (S6.5)
+- `universe_coverage`: those members, and how far their data reaches (S8.5)
 - `get_fundamentals_as_of`: a standard metric's last quarters, from the XBRL facts filed
   by then (S5.7)
 - `fundamentals_coverage`: how a standard metric's XBRL concepts cover each universe
@@ -52,6 +53,7 @@ from app.config import get_settings
 from app.data import calendar, fundamentals, versions
 from app.data.errors import DataVersionError, LookAheadError, NotFoundError
 from app.data.records import (
+    CompanyCoverage,
     CorporateAction,
     DateRange,
     Filing,
@@ -69,7 +71,7 @@ from app.data.sources.edgar import FORM_FAMILIES
 from app.data.sources.universes import UNIVERSES, Universe
 from app.data.store import TableSpec, connect, sql_timestamp, store_dir, table_source
 from app.data.tables import TABLES
-from app.data.timeutil import to_utc
+from app.data.timeutil import ET, to_utc
 
 __all__ = [
     "AccessRecord",
@@ -658,6 +660,53 @@ class PointInTimeView:
             for spell in spells
         ]
 
+    def universe_coverage(self, name: str) -> list[CompanyCoverage]:
+        """A universe's members at the knowledge time, as `universe_as_of` gives them,
+        each with how far its prices, filings, and XBRL facts reach by then (S8.5).
+
+        Filings and facts count across every CIK the security had by then, such as
+        Google Inc.'s and then Alphabet's, and are dated by the New York day EDGAR
+        accepted them. Raises NotFoundError for a universe that isn't in
+        app/data/sources/universes.toml.
+        """
+        members = self.universe_as_of(name)
+        if not members:
+            return []
+        ids = [member.security_id for member in members]
+        in_ids = f"security_id IN ({', '.join('?' * len(ids))})"
+        ciks: dict[str, set[int]] = {security_id: set() for security_id in ids}
+        for row in self._select("securities", where=in_ids, params=ids):
+            if row["cik"] is not None:
+                ciks[row["security_id"]].add(row["cik"])
+
+        prices = self._spans(
+            "price_bars", "session_date", by="security_id", where=in_ids, params=ids
+        )
+        filings: dict[Any, tuple[Any, Any]] = {}
+        facts: dict[Any, tuple[Any, Any]] = {}
+        if every_cik := sorted(set().union(*ciks.values())):
+            in_ciks = f"cik IN ({', '.join('?' * len(every_cik))})"
+            filings = self._spans(
+                "filings", "available_at", by="cik", where=in_ciks, params=every_cik
+            )
+            facts = self._spans(
+                "xbrl_facts", "available_at", by="cik", where=in_ciks, params=every_cik
+            )
+        return [
+            CompanyCoverage(
+                universe=member.universe,
+                security_id=member.security_id,
+                ticker=member.ticker,
+                name=member.name,
+                cik=member.cik,
+                added=member.added,
+                prices=_date_range(prices.get(member.security_id)),
+                filings=_new_york_days(filings, ciks[member.security_id]),
+                fundamentals=_new_york_days(facts, ciks[member.security_id]),
+            )
+            for member in members
+        ]
+
     def get_fundamentals_as_of(
         self, ticker: str, metric: str, quarters: int = 8
     ) -> list[Fundamental]:
@@ -791,6 +840,20 @@ class PointInTimeView:
 def _date_range(span: tuple[date, date] | None) -> DateRange | None:
     """A `_spans` entry of dates as a record."""
     return None if span is None else DateRange(*span)
+
+
+def _new_york_days(
+    spans: Mapping[Any, tuple[datetime, datetime]], keys: Iterable[Any]
+) -> DateRange | None:
+    """The New York days of the earliest and latest instants among the `spans` of some
+    keys, such as a security's CIKs; None if none of them has any."""
+    found = [spans[key] for key in keys if key in spans]
+    if not found:
+        return None
+    return DateRange(
+        min(first for first, _ in found).astimezone(ET).date(),
+        max(last for _, last in found).astimezone(ET).date(),
+    )
 
 
 def _macro_series(series_id: str) -> Series:
