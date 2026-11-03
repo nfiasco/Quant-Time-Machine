@@ -480,6 +480,103 @@ FUNDAMENTALS: Responses = {
 }
 
 
+def _span(first: str, last: str | None = None) -> dict[str, str]:
+    """A date range, as the catalogs write it: one day when `last` is left out."""
+    return {"first": first, "last": first if last is None else last}
+
+
+def _catalog_series(
+    series_id: str,
+    title: str,
+    units: str,
+    frequency: str,
+    seasonal_adjustment: str,
+    release: str,
+    observations: dict[str, str] | None = None,
+    vintages: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    return {
+        "series_id": series_id,
+        "title": title,
+        "units": units,
+        "frequency": frequency,
+        "seasonal_adjustment": seasonal_adjustment,
+        "release": release,
+        "observations": observations,
+        "vintages": vintages,
+    }
+
+
+CATALOG_SERIES: Responses = {
+    200: _ok(
+        june_5_2020=example(
+            "/v1/catalog/series?as_of=2020-06-05",
+            "Each series, with what was published by 09:30 on June 5, 2020",
+            _known_at(
+                JUNE_5_2020,
+                [
+                    _catalog_series(
+                        "UNRATE",
+                        "Unemployment Rate",
+                        "Percent",
+                        "Monthly",
+                        "Seasonally Adjusted",
+                        "Employment Situation",
+                        _span("1990-01-01", "2020-05-01"),
+                        _span("1990-02-02", "2020-06-05"),
+                    ),
+                    _catalog_series(
+                        "PAYEMS",
+                        "All Employees, Total Nonfarm",
+                        "Thousands of Persons",
+                        "Monthly",
+                        "Seasonally Adjusted",
+                        "Employment Situation",
+                    ),
+                    _catalog_series(
+                        "CPIAUCSL",
+                        "Consumer Price Index for All Urban Consumers: All Items in "
+                        "U.S. City Average",
+                        "Index 1982-1984=100",
+                        "Monthly",
+                        "Seasonally Adjusted",
+                        "Consumer Price Index",
+                    ),
+                    _catalog_series(
+                        "GDP",
+                        "Gross Domestic Product",
+                        "Billions of Dollars",
+                        "Quarterly",
+                        "Seasonally Adjusted Annual Rate",
+                        "Gross Domestic Product",
+                        _span("1985-01-01"),
+                        _span("1991-12-04"),
+                    ),
+                    _catalog_series(
+                        "FEDFUNDS",
+                        "Federal Funds Effective Rate",
+                        "Percent",
+                        "Monthly",
+                        "Not Seasonally Adjusted",
+                        "H.15 Selected Interest Rates",
+                        _span("2020-05-01"),
+                        _span("2020-06-01"),
+                    ),
+                    _catalog_series(
+                        "TB3MS",
+                        "3-Month Treasury Bill Secondary Market Rate, Discount Basis",
+                        "Percent",
+                        "Monthly",
+                        "Not Seasonally Adjusted",
+                        "H.15 Selected Interest Rates",
+                    ),
+                ],
+            ),
+        ),
+    ),
+}
+
+
 def keep_nulls(app: FastAPI) -> None:
     """Make `app.openapi()` keep the nulls in these examples.
 
@@ -497,6 +594,7 @@ def keep_nulls(app: FastAPI) -> None:
             LATEST_FILING,
             FILINGS,
             FUNDAMENTALS,
+            CATALOG_SERIES,
         )
         for status, response in responses.items()
         for example in _examples_in(response).values()

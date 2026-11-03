@@ -19,6 +19,7 @@ app/data/records.py:
 
 - `get_macro_as_of` and `get_macro_series_as_of`: macro series as published (S4.4)
 - `get_revision_history`: every version of one observation published so far (S4.5)
+- `series_coverage`: each catalog series, and how much of it was published (S8.5)
 - `resolve_ticker`: the security that used a ticker at the time (S5.2)
 - `get_price_as_of`, `get_price_history_as_of`, and `get_price_series_as_of`: daily
   bars whose sessions had closed (S6.3, S6.4)
@@ -52,12 +53,14 @@ from app.data import calendar, fundamentals, versions
 from app.data.errors import DataVersionError, LookAheadError, NotFoundError
 from app.data.records import (
     CorporateAction,
+    DateRange,
     Filing,
     Fundamental,
     FundamentalsCoverage,
     MacroObservation,
     PriceBar,
     Security,
+    SeriesCoverage,
     UniverseMember,
 )
 from app.data.sources import metrics
@@ -351,6 +354,30 @@ class PointInTimeView:
             order_by="available_at",
         )
         return [_macro_record(series, row) for row in rows]
+
+    def series_coverage(self) -> list[SeriesCoverage]:
+        """Every series in the macro catalog, in its order, with how much of it was
+        published by the knowledge time (S8.5).
+
+        At 09:30 ET on June 5, 2020, UNRATE's observations run through May 2020, whose
+        first print came out in that morning's vintage. A series with nothing published
+        yet has neither: GDP's archive starts with the vintage of December 4, 1991.
+        """
+        periods = self._spans("macro_observations", "observation_date", by="series_id")
+        vintages = self._spans("macro_observations", "vintage_date", by="series_id")
+        return [
+            SeriesCoverage(
+                series_id=series.id,
+                title=series.title,
+                units=series.units,
+                frequency=series.frequency,
+                seasonal_adjustment=series.seasonal_adjustment,
+                release=series.release.name,
+                observations=_date_range(periods.get(series.id)),
+                vintages=_date_range(vintages.get(series.id)),
+            )
+            for series in SERIES.values()
+        ]
 
     def resolve_ticker(self, ticker: str) -> Security:
         """The security that used `ticker` at the knowledge time, in any case.
@@ -759,6 +786,11 @@ class PointInTimeView:
             f"PointInTimeView(knowledge_time={self.knowledge_time.isoformat()}, "
             f"data_version={self.data_version!r})"
         )
+
+
+def _date_range(span: tuple[date, date] | None) -> DateRange | None:
+    """A `_spans` entry of dates as a record."""
+    return None if span is None else DateRange(*span)
 
 
 def _macro_series(series_id: str) -> Series:

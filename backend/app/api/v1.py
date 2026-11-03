@@ -2,7 +2,15 @@
 
 from fastapi import APIRouter
 
-from app.api import examples, filings, fundamentals, knowledge_time, macro, prices
+from app.api import (
+    catalog,
+    examples,
+    filings,
+    fundamentals,
+    knowledge_time,
+    macro,
+    prices,
+)
 
 router = APIRouter(prefix="/v1", responses=examples.V1_ERRORS)
 router.include_router(knowledge_time.router)
@@ -10,3 +18,4 @@ router.include_router(macro.router)
 router.include_router(prices.router)
 router.include_router(filings.router)
 router.include_router(fundamentals.router)
+router.include_router(catalog.router)

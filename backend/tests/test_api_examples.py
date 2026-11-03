@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
+from app.api.catalog import CatalogSeries, DateRange
 from app.api.examples import EXAMPLE_DATA_VERSION
 from app.api.filings import Filing
 from app.api.fundamentals import Fundamental
@@ -80,6 +81,9 @@ def test_response_models_have_readable_names() -> None:
         "FundamentalListResponse",
         "Fundamental",
         "RevisionHistoryResponse",
+        "SeriesCatalogResponse",
+        "CatalogSeries",
+        "DateRange",
         "ErrorResponse",
     } <= set(SPEC["components"]["schemas"])
 
@@ -91,6 +95,8 @@ def test_response_models_have_readable_names() -> None:
         (PriceBar, records.PriceBar),
         (Filing, records.Filing),
         (Fundamental, records.Fundamental),
+        (DateRange, records.DateRange),
+        (CatalogSeries, records.SeriesCoverage),
     ],
 )
 def test_response_models_carry_every_record_field_but_internal_ids(
