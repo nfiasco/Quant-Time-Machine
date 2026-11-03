@@ -10,6 +10,7 @@ from app.api import (
     knowledge_time,
     macro,
     prices,
+    snapshot,
 )
 
 router = APIRouter(prefix="/v1", responses=examples.V1_ERRORS)
@@ -19,3 +20,4 @@ router.include_router(prices.router)
 router.include_router(filings.router)
 router.include_router(fundamentals.router)
 router.include_router(catalog.router)
+router.include_router(snapshot.router)

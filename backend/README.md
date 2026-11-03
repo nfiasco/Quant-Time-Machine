@@ -4,7 +4,7 @@ The Quant Time Machine API, built with [FastAPI](https://fastapi.tiangolo.com). 
 
 - the point-in-time data layer: the store and its writer, `PointInTimeView`, and the NYSE calendar;
 - the ingestion client and CLI;
-- the `/v1` as-of endpoints for macro series and their revisions, prices, filings, and fundamentals, with their conventions, plus the catalogs;
+- the `/v1` as-of endpoints for macro series and their revisions, prices, filings, and fundamentals, with their conventions, plus the catalogs and the knowledge snapshot;
 - the start of the [backtest engine](#backtest-engine): total returns from raw prices, splits, and dividends, the experiment spec, and the rebalance schedule.
 
 Three sources are in, each ingested and readable as of any moment:
@@ -13,7 +13,7 @@ Three sources are in, each ingested and readable as of any moment:
 - raw daily prices from Tiingo (S6.2, S6.3);
 - filing histories from SEC EDGAR (S5.3, S5.4), with the XBRL facts reported in them, read as standard metrics such as revenue (S5.5–S5.7).
 
-Company identity ties tickers to securities over time (S5.2), universe v1 says which companies were eligible when (S6.5), and the as-of endpoints serve the data (S8.2). The catalogs list the series, companies, and signals forms can offer (S8.5). Every response says which [data version](#data-versions) it read (S3.7).
+Company identity ties tickers to securities over time (S5.2), universe v1 says which companies were eligible when (S6.5), and the as-of endpoints serve the data (S8.2). The catalogs list the series, companies, and signals forms can offer (S8.5), and the snapshot says what was and wasn't known at a moment (S8.3). Every response says which [data version](#data-versions) it read (S3.7).
 
 ## Getting started
 
@@ -92,7 +92,8 @@ backend/
 │   │   ├── prices.py         # GET /v1/prices/{ticker}
 │   │   ├── filings.py        # GET /v1/filings/{ticker} and /latest
 │   │   ├── fundamentals.py   # GET /v1/fundamentals/{ticker}
-│   │   └── catalog.py        # GET /v1/catalog/series, /companies, and /signals
+│   │   ├── catalog.py        # GET /v1/catalog/series, /companies, and /signals
+│   │   └── snapshot.py       # GET /v1/snapshot
 │   ├── data/           # Point-in-time data layer (see below)
 │   └── backtest/       # The backtest engine (see below)
 ├── spikes/             # Experiments behind the data, storage, and hosting decisions (not app code)
@@ -152,8 +153,7 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | `GET /v1/catalog/series?as_of` | Every series in the catalog, with the observations and vintages published by then | `series_coverage` |
 | `GET /v1/catalog/companies?as_of` | Each universe's members then, under their tickers then, with the dates their prices, filings, and XBRL facts reach by then | `universe_coverage` |
 | `GET /v1/catalog/signals` | The signal types a spec can use, with their JSON Schemas; no `as_of`, since they don't depend on time or data | `signal_types` in [`spec.py`](app/backtest/spec.py) |
-
-`/snapshot` follows in Sprint 3 ([`doc/api-v1.md`](../doc/api-v1.md#coming-after-m2)).
+| `GET /v1/snapshot?as_of&tickers&series` | What was known then, and what wasn't yet: the [June 5, 2020 table](../doc/time-model.md#june-5-2020-at-0930-et-1330z). Prices follow `SERVE_RAW_PRICES`, but never with a 403: off, a bar keeps its date and loses its prices | Known: the view's reads. Not yet known: [`look_ahead.py`](app/data/look_ahead.py) |
 
 ## Point-in-time data layer
 
@@ -166,6 +166,7 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | [`tables.py`](app/data/tables.py) | Every table in the store |
 | [`view.py`](app/data/view.py) | `PointInTimeView`, the only way to read the store (S3.3) |
 | [`records.py`](app/data/records.py) | What the view's reads return, with the field names of the API contract |
+| [`look_ahead.py`](app/data/look_ahead.py) | What became public after a knowledge time, only for the snapshot's "not yet known" half (S8.3). See [Look-ahead](#look-ahead) |
 | [`fundamentals.py`](app/data/fundamentals.py) | Standard metrics from XBRL facts: each concept's latest value per period, the concept order, and coverage (S5.6) |
 | [`coverage.py`](app/data/coverage.py) | The coverage report for the standard metrics (S5.6) |
 | [`raw_cache.py`](app/data/raw_cache.py) and [`http.py`](app/data/http.py) | Downloads, with rate limits, retries, and a cache of every response |
@@ -207,6 +208,13 @@ with PointInTimeView(parse_knowledge_time("2020-06-05")) as view:  # 09:30 ET
 ```
 
 A series outside the catalog in `alfred_series.toml`, or a ticker no security in our data used at the time, raises `NotFoundError`, which the API answers with 404.
+
+### Look-ahead
+
+[`app/data/look_ahead.py`](app/data/look_ahead.py) deliberately reads what became public *after* a knowledge time: the next close and filings, later amendments and revisions, and universe changes. It exists only for the snapshot's "not yet known" half, to show what a decision at that time must never see (S8.3).
+
+- **It still reads through `PointInTimeView`.** Its view is pinned to the request's data version and bound to the moment that version was cut, so it never shows anything dated later, such as the fixtures' 2099 canaries.
+- **Nothing that makes decisions may use it.** [`tests/test_look_ahead.py`](tests/test_look_ahead.py) fails if any module in `app/backtest/` imports it, directly or through another module, and if anything but `app/api/snapshot.py` does. Keep it that way for the MCP tools too (E10).
 
 ## Data versions
 

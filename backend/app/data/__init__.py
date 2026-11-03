@@ -6,6 +6,8 @@ is "as of" a knowledge time, so nothing can see the future (doc/time-model.md).
 - `store` and `tables`: the append-only Parquet store, and the tables in it
 - `view`: `PointInTimeView`, the only way to read the store
 - `records`: what the view's reads return
+- `look_ahead`: what became public after a knowledge time, only for the snapshot's
+  "not yet known" half (S8.3). Nothing that makes decisions may import it.
 - `errors`: errors that reads raise and the API answers
 - `raw_cache`, `http`, and `ingest`: downloading sources into the store
 - `sources`: one ingester per source, such as `alfred` for macro vintages

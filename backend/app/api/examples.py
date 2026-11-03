@@ -653,6 +653,283 @@ CATALOG_SIGNALS: Responses = {
 }
 
 
+def _apple_filing(
+    accession: str,
+    form: str,
+    period_of_report: str,
+    filing_date: str,
+    available_at: str,
+    document: str,
+    **changes: Any,
+) -> dict[str, Any]:
+    """One of Apple's filings, with its EDGAR links."""
+    folder = f"{_EDGAR}/{accession.replace('-', '')}"
+    return {
+        **_APPLE_10Q,
+        "accession_number": accession,
+        "form": form,
+        "period_of_report": period_of_report,
+        "filing_date": filing_date,
+        "available_at": available_at,
+        "document_url": f"{folder}/{document}",
+        "index_url": f"{folder}/{accession}-index.htm",
+        "source_ref": accession,
+        **changes,
+    }
+
+
+def _apple_march_2020_revenue(accession: str, available_at: str) -> dict[str, Any]:
+    """Apple's revenue for the quarter ended March 28, 2020, as one filing reported it."""
+    return _apple_quarter(
+        accession, ("2019-12-29", "2020-03-28"), "2020 Q2", 58313000000.0, available_at
+    )
+
+
+SNAPSHOT_JUNE_5 = (
+    "/v1/snapshot?as_of=2020-06-05&tickers=AAPL,TSLA&series=UNRATE,FEDFUNDS"
+)
+"""The June 5, 2020 table in doc/time-model.md, as one request."""
+
+_NO_FILINGS = {"10-K": None, "10-Q": None, "8-K": None}
+
+SNAPSHOT: Responses = {
+    200: _ok(
+        june_5_2020=example(
+            SNAPSHOT_JUNE_5,
+            "The June 5, 2020 table, on a server with raw prices off (test data)",
+            _known_at(
+                JUNE_5_2020,
+                {
+                    "known": {
+                        "companies": [
+                            {
+                                "ticker": "AAPL",
+                                "cik": 320193,
+                                "company_name": "Apple Inc.",
+                                "prices_withheld": True,
+                                "latest_bar": {
+                                    "ticker": "AAPL",
+                                    "cik": 320193,
+                                    "session_date": "2020-06-04",
+                                    "open": None,
+                                    "high": None,
+                                    "low": None,
+                                    "close": None,
+                                    "volume": None,
+                                    "available_at": "2020-06-04T16:00:00-04:00",
+                                    "time_assumed": False,
+                                    "source": "tiingo",
+                                    "source_ref": "made up: AAPL 2020-06-04",
+                                },
+                                "latest_filings": {
+                                    # The fixtures' latest 10-K is 2001's.
+                                    "10-K": _apple_filing(
+                                        "0000912057-01-544436",
+                                        "10-K405",
+                                        "2001-09-29",
+                                        "2001-12-21",
+                                        "2001-12-21T23:59:59.999999-05:00",
+                                        "a2066171z10-k405.htm",
+                                        time_assumed=True,
+                                    ),
+                                    "10-Q": _APPLE_Q2_2020,
+                                    "8-K": _apple_filing(
+                                        "0000320193-20-000050",
+                                        "8-K",
+                                        "2020-04-30",
+                                        "2020-04-30",
+                                        "2020-04-30T16:30:41-04:00",
+                                        "a8-kq220203282020.htm",
+                                    ),
+                                },
+                                "latest_revenue": _apple_march_2020_revenue(
+                                    "0000320193-20-000052",
+                                    "2020-04-30T18:03:10-04:00",
+                                ),
+                                "universes": [
+                                    {
+                                        "universe": "starter_large_caps",
+                                        "added": "2010-01-01",
+                                        "available_at": "2010-01-01T00:00:00-05:00",
+                                        "time_assumed": False,
+                                        "source": "curated",
+                                        "source_ref": (
+                                            "https://www.sec.gov/Archives/edgar/data/"
+                                            "884394/000095012309066888/b77788a1nv30d.txt"
+                                        ),
+                                    }
+                                ],
+                            },
+                            {
+                                "ticker": "TSLA",
+                                "cik": 1318605,
+                                "company_name": "Tesla, Inc.",
+                                "prices_withheld": True,
+                                "latest_bar": None,
+                                "latest_filings": _NO_FILINGS,
+                                "latest_revenue": None,
+                                "universes": [],
+                            },
+                        ],
+                        "series": [
+                            {
+                                "series_id": "UNRATE",
+                                "latest": _unrate_version(
+                                    "2020-05-01",
+                                    13.3,
+                                    "2020-06-05",
+                                    "2020-06-05T08:30:00-04:00",
+                                ),
+                            },
+                            {
+                                "series_id": "FEDFUNDS",
+                                "latest": {
+                                    "series_id": "FEDFUNDS",
+                                    "title": "Federal Funds Effective Rate",
+                                    "units": "Percent",
+                                    "frequency": "Monthly",
+                                    "seasonal_adjustment": "Not Seasonally Adjusted",
+                                    "release": "H.15 Selected Interest Rates",
+                                    "period": "2020-05-01",
+                                    "value": 0.05,
+                                    "vintage_date": "2020-06-01",
+                                    "available_at": "2020-06-01T16:15:00-04:00",
+                                    "time_assumed": False,
+                                    "source": "alfred",
+                                    "source_ref": "FEDFUNDS vintage 2020-06-01",
+                                },
+                            },
+                        ],
+                    },
+                    "not_yet_known": {
+                        "companies": [
+                            {
+                                "ticker": "AAPL",
+                                "next_bar": {
+                                    "session_date": "2020-06-05",
+                                    "available_at": "2020-06-05T16:00:00-04:00",
+                                },
+                                "next_filings": {
+                                    "10-K": _apple_filing(
+                                        "0000320193-20-000096",
+                                        "10-K",
+                                        "2020-09-26",
+                                        "2020-10-30",
+                                        "2020-10-29T18:06:25-04:00",
+                                        "aapl-20200926.htm",
+                                    ),
+                                    "10-Q": _apple_filing(
+                                        "0000320193-20-000062",
+                                        "10-Q",
+                                        "2020-06-27",
+                                        "2020-07-31",
+                                        "2020-07-30T19:29:09-04:00",
+                                        "aapl-20200627.htm",
+                                    ),
+                                    "8-K": None,
+                                },
+                                "later_amendments": [
+                                    _apple_filing(
+                                        "0000320193-20-900001",
+                                        "10-Q/A",
+                                        "2020-03-28",
+                                        "2020-06-10",
+                                        "2020-06-10T16:00:00-04:00",
+                                        "amendment.htm",
+                                        is_amendment=True,
+                                        amends="0000320193-20-000052",
+                                        source_ref=(
+                                            "made up: an amendment for the amendment "
+                                            "tests"
+                                        ),
+                                    )
+                                ],
+                                "later_revenue": [
+                                    _apple_march_2020_revenue(
+                                        "0000320193-20-000096",
+                                        "2020-10-29T18:06:25-04:00",
+                                    ),
+                                    _apple_march_2020_revenue(
+                                        "0000320193-21-000056",
+                                        "2021-04-28T18:02:54-04:00",
+                                    ),
+                                ],
+                                "universe_changes": [],
+                            },
+                            {
+                                "ticker": "TSLA",
+                                "next_bar": None,
+                                "next_filings": _NO_FILINGS,
+                                "later_amendments": [],
+                                "later_revenue": [],
+                                "universe_changes": [
+                                    {
+                                        "universe": "starter_large_caps",
+                                        "change": "joins",
+                                        "effective": "2020-12-21",
+                                        "available_at": "2020-12-21T00:00:00-05:00",
+                                        "time_assumed": False,
+                                        "source": "curated",
+                                        "source_ref": (
+                                            "https://press.spglobal.com/2020-11-16-"
+                                            "Tesla-Set-to-Join-S-P-500"
+                                        ),
+                                    }
+                                ],
+                            },
+                        ],
+                        "series": [
+                            {
+                                "series_id": "UNRATE",
+                                "period": "2020-05-01",
+                                "revisions": [
+                                    _unrate_version(
+                                        "2020-05-01",
+                                        13.2,
+                                        "2022-01-07",
+                                        "2022-01-07T08:30:00-05:00",
+                                    )
+                                ],
+                            },
+                            {
+                                "series_id": "FEDFUNDS",
+                                "period": "2020-05-01",
+                                "revisions": [],
+                            },
+                        ],
+                    },
+                },
+            ),
+        ),
+    ),
+    404: _error(
+        "No security in our data used a ticker at the knowledge time, or a series "
+        "isn't in our catalog",
+        meta_before_2022=example(
+            "/v1/snapshot?as_of=2020-06-05&tickers=META",
+            "Facebook traded as FB until June 9, 2022",
+            _error_body(
+                "unknown_ticker",
+                "No security in our data used the ticker META as of June 5, 2020, "
+                "9:30 AM ET.",
+            ),
+        ),
+    ),
+    422: _error(
+        "A parameter is missing or invalid",
+        nothing_asked=example(
+            "/v1/snapshot?as_of=2020-06-05",
+            "Ask about at least one ticker or series",
+            _error_body("invalid_request", "tickers or series is required.", "tickers"),
+        ),
+    ),
+}
+
+WITHOUT_RAW_PRICES = frozenset({SNAPSHOT_JUNE_5})
+"""Requests whose examples show a server with raw prices off, as deployed (D2), so
+tests/test_api_examples.py replays them that way."""
+
+
 def keep_nulls(app: FastAPI) -> None:
     """Make `app.openapi()` keep the nulls in these examples.
 
@@ -673,6 +950,7 @@ def keep_nulls(app: FastAPI) -> None:
             CATALOG_SERIES,
             CATALOG_COMPANIES,
             CATALOG_SIGNALS,
+            SNAPSHOT,
         )
         for status, response in responses.items()
         for example in _examples_in(response).values()

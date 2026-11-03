@@ -178,8 +178,11 @@ class Provenance(BaseModel):
             "time (rule 11). Show it as a caveat."
         )
     )
-    source: Literal["alfred", "edgar", "tiingo"] = Field(
-        description="Where the record came from."
+    source: Literal["alfred", "edgar", "tiingo", "curated"] = Field(
+        description=(
+            'Where the record came from. "curated" is one of our own files, such as '
+            "universe membership, and `source_ref` cites what dates it."
+        )
     )
     source_ref: str = Field(
         description=(

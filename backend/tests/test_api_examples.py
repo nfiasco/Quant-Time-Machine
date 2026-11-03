@@ -8,11 +8,12 @@ from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
 from app.api.catalog import CatalogCompany, CatalogSeries, DateRange
-from app.api.examples import EXAMPLE_DATA_VERSION
+from app.api.examples import EXAMPLE_DATA_VERSION, WITHOUT_RAW_PRICES
 from app.api.filings import Filing
 from app.api.fundamentals import Fundamental
 from app.api.macro import MacroObservation
 from app.api.prices import PriceBar
+from app.api.snapshot import NextBar, UniverseChange
 from app.config import Settings
 from app.data import records
 from app.data.versions import latest_data_version
@@ -42,9 +43,10 @@ def test_every_example_is_what_the_api_answers(
     status: int,
     example: dict[str, Any],
 ) -> None:
-    # Each example's description is the request that produces it.
+    # Each example's description is the request that produces it. A 403, and a few
+    # others, show a server with raw prices off.
     method, url = example["description"].split(" ", 1)
-    replay = restricted_client if status == 403 else client
+    replay = restricted_client if status == 403 or url in WITHOUT_RAW_PRICES else client
 
     response = replay.request(method, url)
 
@@ -88,6 +90,18 @@ def test_response_models_have_readable_names() -> None:
         "DateRange",
         "SignalCatalogResponse",
         "SignalType",
+        "SnapshotResponse",
+        "Snapshot",
+        "SnapshotKnown",
+        "SnapshotNotYetKnown",
+        "SnapshotCompanyKnown",
+        "SnapshotCompanyNotYetKnown",
+        "SnapshotSeriesKnown",
+        "SnapshotSeriesNotYetKnown",
+        "FilingsByForm",
+        "Membership",
+        "NextBar",
+        "UniverseChange",
         "ErrorResponse",
     } <= set(SPEC["components"]["schemas"])
 
@@ -102,6 +116,8 @@ def test_response_models_have_readable_names() -> None:
         (DateRange, records.DateRange),
         (CatalogSeries, records.SeriesCoverage),
         (CatalogCompany, records.CompanyCoverage),
+        (NextBar, records.NextBar),
+        (UniverseChange, records.UniverseChange),
     ],
 )
 def test_response_models_carry_every_record_field_but_internal_ids(

@@ -1,6 +1,6 @@
 # Research API v1: response contract
 
-> **Stories S8.1, S8.2, S4.5, and S8.5.** Drafted 2026-10-19 as the contract for S9.1's M2 demo page, and implemented in Sprint 2. Sprint 3 added [`GET /v1/fundamentals/{ticker}`](#get-v1fundamentalsticker) (S5.7, 2026-11-01), then [revision history](#get-v1macroseries_idrevisions) (S4.5) and [the catalogs](#get-v1catalogseries) (S8.5) on 2026-11-02. The API's own docs at `/docs` show the examples below, each labeled with the request that produces it. A test replays every one against the test fixtures, so they can't drift. S8.6 will generate TypeScript types from the OpenAPI schema. To change the contract, update this file and the backend in the same pull request, and tell the frontend. The [snapshot section](#draft-for-sprint-3-get-v1snapshot) is a draft for S8.3 (2026-10-29), ahead of its code.
+> **Stories S8.1, S8.2, S4.5, S8.5, and S8.3.** Drafted 2026-10-19 as the contract for S9.1's M2 demo page, and implemented in Sprint 2. Sprint 3 added [`GET /v1/fundamentals/{ticker}`](#get-v1fundamentalsticker) (S5.7, 2026-11-01), then [revision history](#get-v1macroseries_idrevisions) (S4.5), [the catalogs](#get-v1catalogseries) (S8.5), and [the snapshot](#get-v1snapshot) (S8.3) on 2026-11-02. The API's own docs at `/docs` show the examples below, each labeled with the request that produces it. A test replays every one against the test fixtures, so they can't drift. S8.6 will generate TypeScript types from the OpenAPI schema. To change the contract, update this file and the backend in the same pull request, and tell the frontend.
 
 ## Conventions
 
@@ -58,7 +58,7 @@ Two endpoints are exceptions:
 | --- | --- | --- |
 | `available_at` | string | When the record became public ([time model](time-model.md)) |
 | `time_assumed` | boolean | `true` when `available_at` comes from a conservative default rather than a known time (rule 11). Show it as a caveat. |
-| `source` | `"alfred"`, `"edgar"`, or `"tiingo"` | Where the record came from |
+| `source` | `"alfred"`, `"edgar"`, `"tiingo"`, or `"curated"` | Where the record came from. `"curated"` is one of our own files, such as universe membership, and `source_ref` cites what dates it. |
 | `source_ref` | string | A pointer back to the exact source item, such as an accession number or a vintage |
 
 ## Endpoints for M2
@@ -574,6 +574,171 @@ The kinds of signal an experiment spec can use, each with the JSON Schema of its
 - **`parameters`** is the schema that [`experiment-spec-v1.schema.json`](experiment-spec-v1.schema.json) lists under `$defs`, `type` included, so a form can build its fields from it. A test keeps the two equal.
 - **The library grows in Sprint 4.** Each signal S7.4 adds to the spec shows up here with no other change.
 
+### `GET /v1/snapshot`
+
+What was known at a moment, and what wasn't yet, for chosen companies and series (S8.3), for S9.2's Time Machine explorer. It reproduces the [June 5, 2020 table](time-model.md#june-5-2020-at-0930-et-1330z), and a test checks every row of it.
+
+| Parameter | Required | Meaning |
+| --- | --- | --- |
+| `as_of` | Yes | Knowledge time |
+| `tickers` | At least one of `tickers` and `series` | Comma-separated, such as `AAPL,TSLA`; up to 10. Each is resolved as of the knowledge time. |
+| `series` | At least one of `tickers` and `series` | Comma-separated series IDs, such as `UNRATE,FEDFUNDS`; up to 10 |
+
+- **Entries are trimmed and matched in any case.** A blank entry is dropped, a repeated one counts once, and results keep the order given.
+- **Neither list given, or more than 10 entries in one,** is a 422 `invalid_request` naming the parameter: "tickers or series is required." or "tickers can list at most 10."
+- **An unknown ticker or series** fails the whole request with 404 `unknown_ticker` or `unknown_series`, naming it, as the single-item endpoints do.
+
+`data` always has two sections, so it's never `null`, and `reason` is always `null`:
+
+| Section | Holds | Rule |
+| --- | --- | --- |
+| `known` | For each company: the latest daily bar, the latest 10-K, 10-Q, and 8-K, the latest quarter of revenue, and its universes. For each series: the latest observation. | Every record's `available_at` is at or before `knowledge_time`. It's read through `PointInTimeView`, like every other endpoint. |
+| `not_yet_known` | For each company: the next bar to close, the next 10-K, 10-Q, and 8-K, later amendments to filings already accepted, later versions of the revenue quarter in `known`, and later universe changes. For each series: the later versions of the observation in `known`. | Every record's `available_at` is after `knowledge_time`, and no later than when the response's data version was cut. It comes from a separate look-ahead module, [`app/data/look_ahead.py`](../backend/app/data/look_ahead.py), that exists only to teach. A test keeps the backtest engine from importing it, directly or through another module. |
+
+`not_yet_known` shows what a backtest must not see, so never feed it into anything else.
+
+`GET /v1/snapshot?as_of=2020-06-05&tickers=AAPL,TSLA&series=UNRATE,FEDFUNDS`, on the test data and a server with raw prices off. Each record is shortened here: it has every field of its type, and `/docs` shows the whole response.
+
+```jsonc
+{
+  "knowledge_time": "2020-06-05T09:30:00-04:00",
+  "data_version": "20261019T120000Z",
+  "data": {
+    "known": {
+      "companies": [
+        {
+          "ticker": "AAPL",
+          "cik": 320193,
+          "company_name": "Apple Inc.",
+          "prices_withheld": true,
+          // A PriceBar, as in GET /v1/prices/{ticker}, with its prices withheld.
+          "latest_bar": {
+            "session_date": "2020-06-04",
+            "open": null,
+            "high": null,
+            "low": null,
+            "close": null,
+            "volume": null,
+            "available_at": "2020-06-04T16:00:00-04:00"
+          },
+          // Each is a Filing, as in GET /v1/filings/{ticker}/latest, or null. The test
+          // data's latest 10-K is from 2001; it skips the years between.
+          "latest_filings": {
+            "10-K": { "accession_number": "0000912057-01-544436", "form": "10-K405" },
+            "10-Q": {
+              "accession_number": "0000320193-20-000052",
+              "period_of_report": "2020-03-28",
+              "available_at": "2020-04-30T18:03:10-04:00"
+            },
+            "8-K": { "accession_number": "0000320193-20-000050", "available_at": "2020-04-30T16:30:41-04:00" }
+          },
+          // A Fundamental, as in GET /v1/fundamentals/{ticker}, or null.
+          "latest_revenue": {
+            "period_end": "2020-03-28",
+            "fiscal_period": "Q2",
+            "value": 58313000000.0,
+            "accession_numbers": ["0000320193-20-000052"],
+            "available_at": "2020-04-30T18:03:10-04:00"
+          },
+          "universes": [
+            {
+              "universe": "starter_large_caps",
+              "added": "2010-01-01",
+              "available_at": "2010-01-01T00:00:00-05:00",
+              "time_assumed": false,
+              "source": "curated",
+              "source_ref": "https://www.sec.gov/Archives/edgar/data/884394/000095012309066888/b77788a1nv30d.txt"
+            }
+          ]
+        },
+        {
+          "ticker": "TSLA",
+          "cik": 1318605,
+          "company_name": "Tesla, Inc.",
+          "prices_withheld": true,
+          "latest_bar": null,
+          "latest_filings": { "10-K": null, "10-Q": null, "8-K": null },
+          "latest_revenue": null,
+          "universes": []
+        }
+      ],
+      "series": [
+        // Each latest is a MacroObservation, as in GET /v1/macro/{series_id}, or null.
+        { "series_id": "UNRATE", "latest": { "period": "2020-05-01", "value": 13.3, "available_at": "2020-06-05T08:30:00-04:00" } },
+        { "series_id": "FEDFUNDS", "latest": { "period": "2020-05-01", "value": 0.05, "available_at": "2020-06-01T16:15:00-04:00" } }
+      ]
+    },
+    "not_yet_known": {
+      "companies": [
+        {
+          "ticker": "AAPL",
+          "next_bar": { "session_date": "2020-06-05", "available_at": "2020-06-05T16:00:00-04:00" },
+          "next_filings": {
+            "10-K": { "accession_number": "0000320193-20-000096", "available_at": "2020-10-29T18:06:25-04:00" },
+            "10-Q": {
+              "accession_number": "0000320193-20-000062",
+              "period_of_report": "2020-06-27",
+              "available_at": "2020-07-30T19:29:09-04:00"
+            },
+            "8-K": null
+          },
+          // A made-up amendment from the test data.
+          "later_amendments": [
+            {
+              "accession_number": "0000320193-20-900001",
+              "form": "10-Q/A",
+              "amends": "0000320193-20-000052",
+              "available_at": "2020-06-10T16:00:00-04:00"
+            }
+          ],
+          "later_revenue": [
+            { "value": 58313000000.0, "accession_numbers": ["0000320193-20-000096"], "available_at": "2020-10-29T18:06:25-04:00" },
+            { "value": 58313000000.0, "accession_numbers": ["0000320193-21-000056"], "available_at": "2021-04-28T18:02:54-04:00" }
+          ],
+          "universe_changes": []
+        },
+        {
+          "ticker": "TSLA",
+          "next_bar": null,
+          "next_filings": { "10-K": null, "10-Q": null, "8-K": null },
+          "later_amendments": [],
+          "later_revenue": [],
+          "universe_changes": [
+            {
+              "universe": "starter_large_caps",
+              "change": "joins",
+              "effective": "2020-12-21",
+              "available_at": "2020-12-21T00:00:00-05:00",
+              "time_assumed": false,
+              "source": "curated",
+              "source_ref": "https://press.spglobal.com/2020-11-16-Tesla-Set-to-Join-S-P-500"
+            }
+          ]
+        }
+      ],
+      "series": [
+        // Every later version, oldest first, each a MacroObservation.
+        { "series_id": "UNRATE", "period": "2020-05-01", "revisions": [{ "value": 13.2, "vintage_date": "2022-01-07", "available_at": "2022-01-07T08:30:00-05:00" }] },
+        { "series_id": "FEDFUNDS", "period": "2020-05-01", "revisions": [] }
+      ]
+    }
+  },
+  "reason": null
+}
+```
+
+- **`prices_withheld`** is `true` when the backend's `SERVE_RAW_PRICES` setting is off, as on the deployment (D2). Then `latest_bar` keeps its `session_date` and `available_at`, so the page can still say June 4's close was known, but its prices and `volume` are `null`. Unlike `GET /v1/prices`, the snapshot never answers 403.
+- **`latest_bar`** is `null` when no bar from a closed session is in our data. **`next_bar`** is the first bar after the knowledge time, and `null` when our data has none, as after a security's last trading day. It never carries prices: they weren't known yet.
+- **`latest_filings` and `next_filings`** always have the keys `10-K`, `10-Q`, and `8-K`, each a `Filing` or `null`. They count original filings only. `next_filings` holds the first of each form accepted after the knowledge time.
+- **`later_amendments`** lists amendments, such as a 10-Q/A, that EDGAR accepted after the knowledge time for filings it had accepted by then. Oldest first, up to 10.
+- **`latest_revenue`** is the latest quarter of revenue, as `GET /v1/fundamentals/{ticker}?metric=revenue&quarters=1` gives it, or `null`.
+- **`later_revenue`** holds each later version of that quarter, oldest first. A new version appears whenever a later filing changed the quarter's value, its concept, or the filings it cites. Each is the quarter as known right after that filing. Apple's March 2020 quarter was re-reported in the fiscal 2020 10-K and in the next year's 10-Q. A restatement shows up the same way, with its new value: a derived fourth quarter is derived again from the restated total.
+- **`universes`** lists the company's memberships at the knowledge time. Each has its `universe` and `added`, with `source: "curated"` and the announcement or filing that dates it in `source_ref`.
+- **`universe_changes`** lists the company's later joins and leaves, oldest first. Each has `change` (`joins` or `leaves`) and `effective`, its first day. Its `available_at` is 00:00 ET that day, because a change applies from its effective date, never earlier.
+- **`series[].latest`** is `null` when nothing had been published yet. Its `not_yet_known` entry then has `period: null` and `revisions: []`.
+- **`revisions`** is `[]` when the observation shown was never revised later.
+- **"Not yet known" means public after the knowledge time, and by the time the response's `data_version` was cut.** So an answer never changes for a data version, and nothing dated after the cut shows.
+
 ## Errors
 
 Every error has the same shape, which replaces FastAPI's default `{"detail": ...}`:
@@ -628,7 +793,7 @@ export type KnowledgeTime = {
 type Provenance = {
   available_at: string;
   time_assumed: boolean;
-  source: "alfred" | "edgar" | "tiingo";
+  source: "alfred" | "edgar" | "tiingo" | "curated";
   source_ref: string;
 };
 
@@ -714,9 +879,50 @@ export type SignalCatalog = {
   data: { type: string; description: string; parameters: Record<string, unknown> }[];
 };
 
+type FilingsByForm = { "10-K": Filing | null; "10-Q": Filing | null; "8-K": Filing | null };
+
+export type Membership = Provenance & { universe: string; added: string };
+
+export type UniverseChange = Provenance & {
+  universe: string;
+  change: "joins" | "leaves";
+  effective: string;
+};
+
+export type SnapshotCompanyKnown = {
+  ticker: string;
+  cik: number | null;
+  company_name: string;
+  prices_withheld: boolean;
+  latest_bar: PriceBar | null;
+  latest_filings: FilingsByForm;
+  latest_revenue: Fundamental | null;
+  universes: Membership[];
+};
+
+export type SnapshotCompanyNotYetKnown = {
+  ticker: string;
+  next_bar: { session_date: string; available_at: string } | null;
+  next_filings: FilingsByForm;
+  later_amendments: Filing[];
+  later_revenue: Fundamental[];
+  universe_changes: UniverseChange[];
+};
+
+export type Snapshot = {
+  known: {
+    companies: SnapshotCompanyKnown[];
+    series: { series_id: string; latest: MacroObservation | null }[];
+  };
+  not_yet_known: {
+    companies: SnapshotCompanyNotYetKnown[];
+    series: { series_id: string; period: string | null; revisions: MacroObservation[] }[];
+  };
+};
+
 // GET /v1/macro/{series_id}/revisions returns V1Response<MacroObservation[]>,
-// GET /v1/catalog/series V1Response<CatalogSeries[]>, and GET /v1/catalog/companies
-// V1Response<CatalogCompany[]>.
+// GET /v1/catalog/series V1Response<CatalogSeries[]>, GET /v1/catalog/companies
+// V1Response<CatalogCompany[]>, and GET /v1/snapshot V1Response<Snapshot>.
 
 export type V1Error = {
   error: {
@@ -740,175 +946,10 @@ With `apiFetch` from `frontend/lib/api/client.ts`, a failed call throws `ApiErro
 
 The backend allows requests from the origins in its `CORS_ORIGINS` setting: by default the local dev server (`http://localhost:3000`), plus the Vercel site where it's deployed. Pages can call the API from the browser or from the server, as `getApiHealth` does.
 
-## Draft for Sprint 3: `GET /v1/snapshot`
-
-> **Story S8.3, drafted 2026-10-29 for S9.2's Time Machine explorer. Nothing serves it yet.** It follows the conventions above and S8.3's acceptance criteria. In the example, `…` stands for values that S8.3 fills in when it adds the real, tested example to `app/api/examples.py`. Raise changes before S8.3 is built.
-
-What was known at a moment, and what wasn't yet, for chosen companies and series. It reproduces the June 5, 2020 table in [roadmap §2.3](roadmap.md#23-example-june-5-2020-at-930-am-et).
-
-| Parameter | Required | Meaning |
-| --- | --- | --- |
-| `as_of` | Yes | Knowledge time |
-| `tickers` | At least one of `tickers` and `series` | Comma-separated, such as `AAPL,MSFT`; up to 10. Each is resolved as of the knowledge time. |
-| `series` | At least one of `tickers` and `series` | Comma-separated series IDs, such as `UNRATE,CPIAUCSL`; up to 10 |
-
-- **Neither one given, or more than 10,** is a 422 `invalid_request` naming the parameter.
-- **A repeated entry counts once,** and results keep the order given.
-- **An unknown ticker or series** fails the whole request with 404 `unknown_ticker` or `unknown_series`, naming it, as the single-item endpoints do.
-
-`data` always has two sections, so it's never `null`, and `reason` is always `null`:
-
-| Section | Holds | Rule |
-| --- | --- | --- |
-| `known` | For each company: the latest daily bar, and the latest 10-K, 10-Q, and 8-K. For each series: the latest observation. | Every record's `available_at` is at or before `knowledge_time`. It's read through `PointInTimeView`, like every other endpoint. |
-| `not_yet_known` | For each company: the next bar to close, the next 10-K, 10-Q, and 8-K, and later amendments to filings already accepted. For each series: the later versions of the observation in `known`. | Every record's `available_at` is after `knowledge_time`. It comes from a separate look-ahead function that exists only for teaching, and a test keeps the engine from importing it (S8.3). |
-
-`not_yet_known` shows what a backtest must not see, so never feed it into anything else.
-
-`GET /v1/snapshot?as_of=2020-06-05&tickers=AAPL&series=UNRATE`, on a deployment where raw prices are off:
-
-```jsonc
-{
-  "knowledge_time": "2020-06-05T09:30:00-04:00",
-  "data_version": "…",
-  "data": {
-    "known": {
-      "companies": [
-        {
-          "ticker": "AAPL",
-          "cik": 320193,
-          "company_name": "Apple Inc.",
-          "prices_withheld": true,
-          // A PriceBar, as in GET /v1/prices/{ticker}. Its prices are null because
-          // prices_withheld is true; its date and available_at still show.
-          "latest_bar": {
-            "ticker": "AAPL",
-            "cik": 320193,
-            "session_date": "2020-06-04",
-            "open": null,
-            "high": null,
-            "low": null,
-            "close": null,
-            "volume": null,
-            "available_at": "2020-06-04T16:00:00-04:00",
-            "time_assumed": false,
-            "source": "tiingo",
-            "source_ref": "tiingo AAPL 2020-06-04"
-          },
-          // Each is a Filing, as in GET /v1/filings/{ticker}/latest, or null.
-          "latest_filings": {
-            "10-K": { "accession_number": "…", "available_at": "…" },
-            "10-Q": {
-              "accession_number": "0000320193-20-000052",
-              "form": "10-Q",
-              "period_of_report": "2020-03-28",
-              "available_at": "2020-04-30T18:03:10-04:00"
-            },
-            "8-K": { "accession_number": "…", "available_at": "…" }
-          }
-        }
-      ],
-      "series": [
-        {
-          "series_id": "UNRATE",
-          // A MacroObservation, as in GET /v1/macro/{series_id}, or null.
-          "latest": {
-            "series_id": "UNRATE",
-            "period": "2020-05-01",
-            "value": 13.3,
-            "vintage_date": "2020-06-05",
-            "available_at": "2020-06-05T08:30:00-04:00"
-          }
-        }
-      ]
-    },
-    "not_yet_known": {
-      "companies": [
-        {
-          "ticker": "AAPL",
-          "next_bar": {
-            "session_date": "2020-06-05",
-            "available_at": "2020-06-05T16:00:00-04:00"
-          },
-          "next_filings": {
-            "10-K": { "accession_number": "…", "available_at": "…" },
-            "10-Q": {
-              "accession_number": "0000320193-20-000062",
-              "form": "10-Q",
-              "period_of_report": "2020-06-27",
-              "available_at": "2020-07-30T19:29:09-04:00"
-            },
-            "8-K": { "accession_number": "…", "available_at": "…" }
-          },
-          "later_amendments": []
-        }
-      ],
-      "series": [
-        {
-          "series_id": "UNRATE",
-          "period": "2020-05-01",
-          // Every later version of May 2020, oldest first, each a MacroObservation.
-          // The last is today's value, 13.2%.
-          "revisions": [
-            { "period": "2020-05-01", "value": 13.2, "vintage_date": "…", "available_at": "…" }
-          ]
-        }
-      ]
-    }
-  },
-  "reason": null
-}
-```
-
-- **`prices_withheld`** is `true` when the backend's `SERVE_RAW_PRICES` setting is off, as on the deployment (D2). Then `latest_bar` keeps its `session_date` and `available_at`, so the page can still say June 4's close was known, but its prices and `volume` are `null`. Unlike `GET /v1/prices`, the snapshot never answers 403.
-- **`latest_bar`** is `null` when no bar from a closed session is in our data. **`next_bar`** is the next session to close after the knowledge time, from the NYSE calendar. It's `null` when the security has no later bar in our data, for example after its last trading day. It never carries prices: those weren't known yet.
-- **`latest_filings` and `next_filings`** always have the keys `10-K`, `10-Q`, and `8-K`, each a `Filing` or `null`. They count original filings only. `next_filings` holds the first of each form accepted after the knowledge time.
-- **`later_amendments`** lists amendments, such as a 10-Q/A, that EDGAR accepted after the knowledge time for filings it had accepted by then. Oldest first, up to 10.
-- **`series[].latest`** is `null` when nothing had been published yet. Its `not_yet_known` entry then has `period: null` and `revisions: []`.
-- **`revisions`** is `[]` when the observation shown was never revised later.
-- **"Not yet known" means not public at the knowledge time, but in our data now.** It's limited to the response's `data_version`.
-- **Fundamentals and universe membership** are in the time model's version of the table but not in S8.3's acceptance criteria. Revenue as known then has its own endpoint, `GET /v1/fundamentals/{ticker}` (S5.7). Either section can be added to the snapshot later without breaking this shape.
-
-TypeScript, using the types above:
-
-```ts
-type FilingsByForm = { "10-K": Filing | null; "10-Q": Filing | null; "8-K": Filing | null };
-
-export type SnapshotCompanyKnown = {
-  ticker: string;
-  cik: number | null;
-  company_name: string;
-  prices_withheld: boolean;
-  latest_bar: PriceBar | null;
-  latest_filings: FilingsByForm;
-};
-
-export type SnapshotCompanyNotYetKnown = {
-  ticker: string;
-  next_bar: { session_date: string; available_at: string } | null;
-  next_filings: FilingsByForm;
-  later_amendments: Filing[];
-};
-
-export type Snapshot = {
-  known: {
-    companies: SnapshotCompanyKnown[];
-    series: { series_id: string; latest: MacroObservation | null }[];
-  };
-  not_yet_known: {
-    companies: SnapshotCompanyNotYetKnown[];
-    series: { series_id: string; period: string | null; revisions: MacroObservation[] }[];
-  };
-};
-
-// GET /v1/snapshot returns V1Response<Snapshot>.
-```
-
-## Coming after M2
+## Coming next
 
 | Endpoint | Story | Sprint |
 | --- | --- | --- |
-| `GET /v1/snapshot` | S8.3 ([draft above](#draft-for-sprint-3-get-v1snapshot)) | 3 |
 | `POST /v1/backtests`, `GET /v1/backtests/{id}`, `GET /v1/backtests/{id}/audit` | S8.4 | 4 |
 
 `POST /v1/backtests` will take an experiment spec as its body: the model in [`app/backtest/spec.py`](../backend/app/backtest/spec.py), whose JSON Schema is [`experiment-spec-v1.schema.json`](experiment-spec-v1.schema.json) (S7.1).
