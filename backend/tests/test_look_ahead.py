@@ -194,6 +194,13 @@ def test_the_import_guard_catches_an_offender(tmp_path: Path, line: str) -> None
     assert imports_of_look_ahead(engine, root=tmp_path) == ["signals.py:2"]
 
 
+def test_only_the_snapshot_route_imports_it() -> None:
+    # Keep it that way: the MCP tools (E10) mustn't either.
+    assert [hit.split(":")[0] for hit in imports_of_look_ahead(APP_DIR)] == [
+        "api/snapshot.py"
+    ]
+
+
 def test_the_fresh_interpreter_would_see_an_import() -> None:
     # Without this, the transitive check above could never fail.
     code = f"import sys, {LOOK_AHEAD}\nprint({LOOK_AHEAD!r} in sys.modules)"
