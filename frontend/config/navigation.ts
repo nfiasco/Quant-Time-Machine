@@ -54,9 +54,17 @@ export type AppRoute = {
 };
 
 export const routes = {
+  home: {
+    title: "Quant Time Machine — Look back. Think forward.",
+    href: "/",
+    icon: CalendarClockIcon,
+    description:
+      "Meet Quant Time Machine: point-in-time data, reproducible backtesting, and a clearer perspective on quantitative research.",
+    status: "live",
+  },
   dashboard: {
     title: "Dashboard",
-    href: "/",
+    href: "/dashboard",
     icon: LayoutDashboardIcon,
     description:
       "Start from a moment in time, the featured experiment, or your recent runs.",
@@ -138,7 +146,11 @@ export const routes = {
     icon: FolderOpenIcon,
     description: "Your saved experiments and runs, private to your account.",
     status: "planned",
-    story: { id: "S16.5", title: "Save and reopen experiments", milestone: "M5" },
+    story: {
+      id: "S16.5",
+      title: "Save and reopen experiments",
+      milestone: "M5",
+    },
     highlights: [
       "Save a spec from the backtest builder and run it again later.",
       "Each saved run keeps its spec, data version, and metric summary, so it can be reproduced.",
@@ -198,7 +210,11 @@ export const routes = {
     description:
       "Put two to four runs side by side to see which idea actually holds up.",
     status: "planned",
-    story: { id: "S14.1", title: "Compare strategies side by side", milestone: "M9" },
+    story: {
+      id: "S14.1",
+      title: "Compare strategies side by side",
+      milestone: "M9",
+    },
     highlights: [
       "A metrics table, overlaid equity curves, and a diff of the specs.",
       "The difference in monthly returns, with its mean, t-statistic, and correlation.",
@@ -210,7 +226,11 @@ export const routes = {
     icon: LogInIcon,
     description: "Sign in to keep your experiments and runs.",
     status: "planned",
-    story: { id: "S16.3", title: "Sign-up, sign-in, and sign-out", milestone: "M4" },
+    story: {
+      id: "S16.3",
+      title: "Sign-up, sign-in, and sign-out",
+      milestone: "M4",
+    },
   },
   signUp: {
     title: "Create account",
@@ -218,7 +238,11 @@ export const routes = {
     icon: UserPlusIcon,
     description: "Create an account to save experiments and runs.",
     status: "planned",
-    story: { id: "S16.3", title: "Sign-up, sign-in, and sign-out", milestone: "M4" },
+    story: {
+      id: "S16.3",
+      title: "Sign-up, sign-in, and sign-out",
+      milestone: "M4",
+    },
   },
 } satisfies Record<string, AppRoute>;
 

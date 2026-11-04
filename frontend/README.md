@@ -15,6 +15,16 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). Pages auto-update as you edit files.
 
+## Landing page
+
+The homepage introduces **Quant Time Machine** with a dark emerald design, a CSS horizon and perspective grid, product features, a three-step research workflow, and data-source documentation links. The navigation collapses into a menu on smaller screens, and the layout respects reduced-motion preferences.
+
+The interactive research preview lets visitors select a sample strategy, a historical cutoff, and a 1-, 3-, or 5-year duration. It uses deterministic **synthetic data**, with sample return and drawdown figures calculated from that series. It makes no backend requests and does not execute real backtests. This is a preview of the research interface, not an investment-performance claim.
+
+The landing page lives at /; Open workspace leads to the existing dashboard at /dashboard. Its emerald theme is scoped to .qtm-landing, preserving the application’s light/dark theme. It reuses the shared brand, buttons, inputs, labels, and ET time helpers.
+
+The page is self-contained and needs no API keys. Backend integration and account flows are outside the landing page's scope.
+
 ## Configuration
 
 Copy [`.env.example`](.env.example) to `.env.local` (git-ignored):
@@ -44,12 +54,13 @@ Read it only through [`lib/api/client.ts`](lib/api/client.ts) (`API_URL`, `apiUr
 app/                      # Routing only: layouts, pages, loading/error/not-found
 ├── layout.tsx            # Root layout: <html>, fonts (Geist), theme script, title template
 ├── globals.css           # Tailwind, design tokens (light and dark), global utilities
+├── page.tsx              # Public landing page (/)
 ├── not-found.tsx         # 404 page
 ├── (app)/                # Pages inside the app shell (URLs don't include "(app)")
 │   ├── layout.tsx        # Sidebar, header, footer
 │   ├── loading.tsx       # Shared loading skeleton
 │   ├── error.tsx         # Shared error boundary
-│   ├── page.tsx          # Dashboard (/)
+│   ├── dashboard/       # Dashboard (/dashboard)
 │   └── time-machine/, backtests/, backtests/new/, revisions/, filings/,
 │       experiments/, methodology/, privacy/, assistant/, compare/
 └── (auth)/               # Sign-in and sign-up, without the app shell
