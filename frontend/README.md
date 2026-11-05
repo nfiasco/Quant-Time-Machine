@@ -17,13 +17,13 @@ Open [http://localhost:3000](http://localhost:3000). Pages auto-update as you ed
 
 ## Landing page
 
-The homepage introduces **Quant Time Machine** with a dark emerald design, a CSS horizon and perspective grid, product features, a three-step research workflow, and data-source documentation links. The navigation collapses into a menu on smaller screens, and the layout respects reduced-motion preferences.
+The homepage (`/`, code in [`features/landing/`](features/landing)) is a scroll story. The logo, a counter-clockwise arrow, unwinds into a timeline of what was public before June 5, 2020, 9:30 AM ET. Each stop becomes known as the arrow reaches it, and at the knowledge time the page shows the snapshot that moment returns. The line then winds back into the logo, ending on **Enter workspace** (`/dashboard`) and **Create account**. Below the story are the features and the API.
 
-The interactive research preview lets visitors select a sample strategy, a historical cutoff, and a 1-, 3-, or 5-year duration. It uses deterministic **synthetic data**, with sample return and drawdown figures calculated from that series. It makes no backend requests and does not execute real backtests. This is a preview of the research interface, not an investment-performance claim.
+- **Real facts.** Every date and value comes from the snapshot golden test (`backend/tests/test_api_snapshot.py`) and is listed in [`story/events.ts`](features/landing/story/events.ts). The ticker wall behind the logo is decoration: its tickers are real, its numbers are random, and the footer says so.
+- **Motion.** [GSAP](https://gsap.com) ScrollTrigger scrubs one timeline over a sticky stage; [Lenis](https://lenis.darkroom.engineering) smooths wheel scrolling. Both load only in the browser and only when motion is allowed. With reduced motion (or no JavaScript), the same content renders as a static page. Pacing lives in [`story/beats.ts`](features/landing/story/beats.ts).
+- **Look.** Neutral black and white with one accent, terminal amber, in both themes. The palette is scoped to this page in `app/globals.css`, so the workspace keeps its theme (see GUIDELINES.md, "Landing page").
 
-The landing page lives at /; Open workspace leads to the existing dashboard at /dashboard. Its emerald theme is scoped to .qtm-landing, preserving the application’s light/dark theme. It reuses the shared brand, buttons, inputs, labels, and ET time helpers.
-
-The page is self-contained and needs no API keys. Backend integration and account flows are outside the landing page's scope.
+The page makes no API calls and needs no keys.
 
 ## Configuration
 
@@ -69,6 +69,7 @@ components/
 ├── layout/               # App shell: sidebar, header, footer, page header, theme toggle
 └── feedback/             # Shared states: planned page, error state
 features/                 # One folder per feature: its components, data, actions
+├── landing/              # The public landing page and its scroll story
 ├── dashboard/
 ├── time-machine/
 ├── backtests/

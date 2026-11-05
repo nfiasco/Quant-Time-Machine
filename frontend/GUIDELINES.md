@@ -47,6 +47,7 @@ Tokens are CSS variables in `app/globals.css`, defined for light (`:root`) and d
 | `popover` | Menus, popovers, sheets |
 | `muted` / `muted-foreground` | Subtle fills; secondary text (descriptions, captions, labels) |
 | `primary` / `primary-foreground` | The main action on a page, links, the active nav item, the brand mark |
+| `brand-ink` | The brand color as text or a thin mark, where `primary` (a fill) would fail contrast. Same as `primary` except on the landing page |
 | `secondary`, `accent` | Low-emphasis buttons; hover and selected states in menus |
 | `border`, `input`, `ring` | Dividers and outlines; form control borders; focus rings |
 | `destructive` | Errors and destructive actions |
@@ -66,7 +67,7 @@ Tokens are CSS variables in `app/globals.css`, defined for light (`:root`) and d
 - **Scale.** One `h1` per page, via `PageHeader` (`text-2xl font-semibold`). Section headings are `text-base font-semibold`; card titles use `CardTitle`. Body text is `text-sm`; captions and metadata are `text-xs text-muted-foreground`.
 - **Page anatomy.** `PageHeader` (title, subtitle, badge, actions), then sections, usually `Card`s, stacked with `gap-6`. The app shell already provides the `max-w-6xl` container and padding; don't add another.
 - **Responsive.** Build mobile first. The sidebar becomes a sheet below 768 px (`md`). Use `md:` and `lg:` grid columns for side-by-side content. Check 375, 768, and 1280 px wide.
-- **Motion.** Keep it functional (opening sheets, tooltips). `prefers-reduced-motion` is respected globally.
+- **Motion.** Keep it functional (opening sheets, tooltips). `prefers-reduced-motion` is respected globally. The landing page's scroll story is the one exception (see [§12](#12-landing-page)).
 
 ## 5. Components
 
@@ -76,7 +77,7 @@ Primitives live in `components/ui/` and come from [shadcn/ui](https://ui.shadcn.
 
 - **Add a component:** from `frontend/`, run `npx shadcn@latest add <name>`, for example `select`, `tabs`, `table`, `dialog`, `popover`, `calendar`. Review the generated file, run lint, and say in the pull request that it's generated.
 - **Customize** through tokens and `cva` variants (see `badge.tsx` and `alert.tsx`), not by restyling a component on one page.
-- **Edits to generated files** are deliberate and minimal, with a comment explaining why. So far: project variants in `badge.tsx` and `alert.tsx`, and `hooks/use-mobile.ts` rewritten with `useSyncExternalStore` to pass the React hooks lint rules. Re-running `add --overwrite` would undo them.
+- **Edits to generated files** are deliberate and minimal, with a comment explaining why. So far: project variants in `badge.tsx` and `alert.tsx`, the `xl` size in `button.tsx` (the landing page's calls to action), and `hooks/use-mobile.ts` rewritten with `useSyncExternalStore` to pass the React hooks lint rules. Re-running `add --overwrite` would undo them.
 - `cn()` merges class names (the `cn` package, shadcn's replacement for `clsx` + `tailwind-merge`). Import it from `@/lib/utils` in our code.
 
 | Component | Use it for |
@@ -201,3 +202,15 @@ This version differs from older tutorials and training data. Before using an API
 3. Build the UI in `features/<name>/`, composed from `components/ui` and the shared components.
 4. Design the loading, empty, and error states; check 375 px, 768 px, and desktop, in light and dark.
 5. Run `npm run lint && npm run build`, and attach a screenshot to the pull request (Definition of Done).
+
+## 12. Landing page
+
+The public page at `/` ([`features/landing/`](features/landing)) is marketing, not the research tool, so it bends three rules on purpose. Everything else in this document still applies.
+
+- **Its own palette.** Neutral black and white with one accent, terminal amber, in both themes. The tokens are overridden in `app/globals.css` only while the page is mounted (`html:has([data-surface="landing"])`), so the workspace keeps its theme. On this page, `known` and `future` are neutral: known vs. not yet known is carried by words and shapes (filled or hollow dots, solid or dashed lines, the hatch), and the accent marks the knowledge time. Amber text or thin marks use `text-brand-ink`, never `text-primary`.
+- **A display type scale.** Sentence-case section headings at `text-3xl`/`text-4xl`, body text at `text-base`/`text-lg`, and the name inside the logo sized from the logo's radius. Numbers, times, and tickers stay `font-mono tabular-nums`.
+- **A scroll story.** The one place motion is the content. Its rules:
+  - It's built with [GSAP](https://gsap.com) (ScrollTrigger) and smoothed with [Lenis](https://lenis.darkroom.engineering). Both are loaded only by `story/story-engine.tsx`, only in the browser, and only when motion is allowed. Don't import them anywhere else.
+  - The server renders the whole story as a static page; reduced motion and no JavaScript get exactly that. The engine changes only styles and `data-` attributes and reverts them on unmount.
+  - Every fact on the timeline must come from tested data: today, the snapshot golden test (`backend/tests/test_api_snapshot.py`). Never invent a value, and never show prices.
+  - Decoration that moves on its own (the ticker wall) has a pause control, stops when hidden, and says it isn't market data.
