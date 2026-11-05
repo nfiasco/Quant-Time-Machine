@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { routes } from "@/config/navigation";
 import { siteConfig } from "@/config/site";
@@ -6,7 +7,8 @@ import { siteConfig } from "@/config/site";
 const linkClass =
   "rounded-sm underline-offset-4 hover:text-foreground hover:underline";
 
-export function SiteFooter() {
+/** `note`: an extra line of fine print for one page, such as the landing page's. */
+export function SiteFooter({ note }: { note?: ReactNode }) {
   return (
     <footer className="border-t">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-6 text-xs text-muted-foreground sm:px-6 lg:px-8">
@@ -42,6 +44,7 @@ export function SiteFooter() {
         <p className="text-pretty">
           {siteConfig.disclaimer} {siteConfig.fredNotice}
         </p>
+        {note ? <p className="text-pretty">{note}</p> : null}
       </div>
     </footer>
   );

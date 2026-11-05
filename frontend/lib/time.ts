@@ -80,7 +80,36 @@ export function formatEtDateTime(t: EtDateTime): string {
   return `${formatEtDate(t)}, ${formatEtTime(t)}`;
 }
 
-/** Compact ET calendar label for chart ticks, for example "Jun 20". */
-export function formatEtMonthYear(t: Pick<EtDateTime, "year" | "month">): string {
-  return MONTHS[t.month - 1].slice(0, 3) + " " + String(t.year).slice(-2);
+/** Compact date for tight spaces, for example "Jun 5, 2020". */
+export function formatEtShortDate(t: Pick<EtDateTime, "year" | "month" | "day">): string {
+  return `${MONTHS[t.month - 1].slice(0, 3)} ${t.day}, ${t.year}`;
+}
+
+const ET_PARTS = new Intl.DateTimeFormat("en-US", {
+  timeZone: MARKET_TIME_ZONE,
+  year: "numeric",
+  month: "numeric",
+  day: "numeric",
+  hour: "numeric",
+  minute: "numeric",
+  hourCycle: "h23",
+});
+
+/**
+ * The New York wall-clock time of an instant, such as "now". Call it only in the
+ * browser after hydration (an effect or event handler): during rendering, the server
+ * and the browser would read different clocks.
+ */
+export function toEtDateTime(instant: Date): EtDateTime {
+  const parts: Record<string, number> = {};
+  for (const part of ET_PARTS.formatToParts(instant)) {
+    if (part.type !== "literal") parts[part.type] = Number(part.value);
+  }
+  return {
+    year: parts.year,
+    month: parts.month,
+    day: parts.day,
+    hour: parts.hour,
+    minute: parts.minute,
+  };
 }
