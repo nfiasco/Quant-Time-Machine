@@ -1,11 +1,12 @@
 import { ArrowDownIcon } from "lucide-react";
 import Link from "next/link";
 
+import { LogoMark } from "@/components/layout/logo-mark";
 import { Button } from "@/components/ui/button";
 import { routes } from "@/config/navigation";
 import { siteConfig } from "@/config/site";
 
-import { LogoMark, StoryLogo } from "../logo";
+import { StoryLogo } from "../logo";
 import { STORY_QUERY } from "./events";
 import { StoryStage } from "./story-stage";
 import { StoryTimeline } from "./story-timeline";

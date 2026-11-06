@@ -45,7 +45,7 @@ export function HowItWorks() {
               <Card size="sm" className="flex-1">
                 <CardHeader>
                   <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="flex size-6 items-center justify-center rounded-md bg-primary/10 text-primary">
+                    <span className="flex size-6 items-center justify-center rounded-md bg-primary/15 text-brand-ink">
                       <Icon className="size-3.5" aria-hidden />
                     </span>
                     Step {index + 1}

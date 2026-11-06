@@ -24,9 +24,7 @@ import { siteConfig } from "@/config/site";
 
 /** A nav item is active on its own page and on pages below it (/backtests/new → Backtests). */
 function isActivePath(pathname: string, href: string) {
-  return href === "/"
-    ? pathname === "/"
-    : pathname === href || pathname.startsWith(`${href}/`);
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function AppSidebar() {
@@ -66,7 +64,7 @@ export function AppSidebar() {
                         asChild
                         isActive={isActivePath(pathname, item.href)}
                         tooltip={item.title}
-                        className="data-active:bg-primary/10 data-active:text-primary"
+                        className="data-active:[&>svg]:text-brand-ink"
                       >
                         <Link
                           href={item.href}

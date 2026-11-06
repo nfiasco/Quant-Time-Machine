@@ -1,11 +1,10 @@
 import Link from "next/link";
 
+import { LogoMark } from "@/components/layout/logo-mark";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { routes } from "@/config/navigation";
 import { siteConfig } from "@/config/site";
-
-import { LogoMark } from "./logo";
 
 const sectionLink =
   "hidden rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none md:inline-flex";

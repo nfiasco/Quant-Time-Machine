@@ -1,5 +1,3 @@
-import { cn } from "@/lib/utils";
-
 import {
   LOGO_SWEEP,
   LOGO_VIEWBOX_SIZE,
@@ -15,28 +13,6 @@ const half = LOGO_VIEWBOX_SIZE / 2;
 const viewBox = `${-half} ${-half} ${LOGO_VIEWBOX_SIZE} ${LOGO_VIEWBOX_SIZE}`;
 const arcPath = snakePath(0, LOGO_SWEEP, UNIT_LOGO);
 const arrowTransform = chevronTransform(pointAt(LOGO_SWEEP, UNIT_LOGO));
-
-/**
- * The brand mark: a circle that runs counter-clockwise into an arrowhead, like
- * lucide's RotateCcw, drawn from the same geometry as the scroll story.
- */
-export function LogoMark({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox={viewBox}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={22}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-      className={cn("size-6 shrink-0", className)}
-    >
-      <path d={arcPath} />
-      <path d={chevronPath(38)} transform={arrowTransform} />
-    </svg>
-  );
-}
 
 /**
  * The large logo the story opens on, sized and placed by the story's CSS variables

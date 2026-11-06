@@ -67,7 +67,8 @@ export function QuickStartCard() {
       </CardContent>
       <CardFooter className="flex-col items-start gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
         <span>
-          From the project&apos;s time model. Live answers arrive with the snapshot API.
+          Times from the snapshot API&apos;s tests. The live explorer arrives with the
+          Time Machine page.
         </span>
         <Link
           href={`/time-machine?as_of=${demoAsOf}`}

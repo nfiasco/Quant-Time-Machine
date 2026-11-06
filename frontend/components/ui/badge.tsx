@@ -17,7 +17,8 @@ const badgeVariants = cva(
           "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
         ghost:
           "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
-        link: "text-primary underline-offset-4 hover:underline",
+        // Project change: brand-ink, since amber (primary) fails contrast as text in light mode.
+        link: "text-brand-ink underline-offset-4 hover:underline",
         // Project variants: knowledge state (known at T / not yet known) and returns.
         known: "border-known/25 bg-known/10 text-known",
         future: "border-dashed border-future/50 bg-future/10 text-future",
