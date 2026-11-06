@@ -80,7 +80,12 @@ export function SpecSummary({
       detail: `${spec.portfolio.weighting === "equal" ? "Equal weight" : "Value weight"}${spec.portfolio.long_only ? ", long only" : ""}`,
     },
     { term: "Benchmark", detail: <span className="font-mono">{spec.benchmark}</span> },
-    { term: "Costs", detail: `${spec.costs.bps_per_trade} bps per trade` },
+    {
+      term: "Costs",
+      detail: Number.isFinite(spec.costs.bps_per_trade)
+        ? `${spec.costs.bps_per_trade} bps per trade`
+        : "—",
+    },
   ];
 
   return (
