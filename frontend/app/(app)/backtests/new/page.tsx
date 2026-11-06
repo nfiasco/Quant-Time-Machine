@@ -1,37 +1,43 @@
-import { PlannedPage } from "@/components/feedback/planned-page";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+
+import { CircleDashedIcon } from "lucide-react";
+
+import { PageHeader } from "@/components/layout/page-header";
+import { Badge } from "@/components/ui/badge";
 import { routeMetadata, routes } from "@/config/navigation";
+import { BacktestBuilder } from "@/features/backtests/backtest-builder";
 import { findPreset } from "@/features/backtests/presets";
-import { SpecSummary } from "@/features/backtests/spec-summary";
 
 export const metadata = routeMetadata(routes.backtestBuilder);
 
-export default async function NewBacktestPage(props: PageProps<"/backtests/new">) {
+export default async function NewBacktestPage(
+  props: PageProps<"/backtests/new">
+) {
   const { preset: presetId } = await props.searchParams;
   const preset = findPreset(presetId);
 
   return (
-    <PlannedPage route={routes.backtestBuilder}>
+    <div className="flex flex-col gap-6">
+      <PageHeader
+        title={routes.backtestBuilder.title}
+        description={routes.backtestBuilder.description}
+        badge={
+          <Badge variant="future">
+            <CircleDashedIcon data-icon="inline-start" />
+            In progress · M5
+          </Badge>
+        }
+      />
+
       {preset ? (
-        <Card>
-          <CardHeader>
-            <CardDescription>Preset that will load into the builder</CardDescription>
-            <CardTitle>{preset.spec.name}</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <blockquote className="border-l-2 border-primary/40 pl-3 text-pretty text-muted-foreground italic">
-              {preset.question}
-            </blockquote>
-            <SpecSummary spec={preset.spec} />
-          </CardContent>
-        </Card>
+        <blockquote className="border-l-2 border-primary/40 pl-3 text-sm text-pretty text-muted-foreground italic">
+          {preset.question}
+        </blockquote>
       ) : null}
-    </PlannedPage>
+
+      <BacktestBuilder
+        key={preset?.id ?? "default"}
+        initialSpec={preset?.spec}
+      />
+    </div>
   );
 }
