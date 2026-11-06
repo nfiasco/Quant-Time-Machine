@@ -30,7 +30,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <div aria-hidden className="flex flex-col gap-2">
             <div className="flex h-2.5 overflow-hidden rounded-full">
               <span className="w-3/5 bg-known/70" />
-              <span className="w-0.5 bg-foreground" />
+              <span className="w-1 bg-primary" />
               <span className="flex-1 rounded-r-full border border-l-0 border-dashed border-future/60 bg-hatch-future" />
             </div>
             <div className="flex font-mono text-xs text-muted-foreground">
@@ -41,7 +41,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <ul className="flex flex-col gap-3 text-sm text-muted-foreground">
             {benefits.map(({ icon: Icon, text }) => (
               <li key={text} className="flex items-center gap-3">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary/15 text-brand-ink">
                   <Icon className="size-4" aria-hidden />
                 </span>
                 {text}

@@ -10,10 +10,11 @@ const alertVariants = cva(
         default: "bg-card text-card-foreground",
         destructive:
           "bg-card text-destructive *:data-[slot=alert-description]:text-destructive/90 *:[svg]:text-current",
-        // Project variants: tinted notices that keep body text at full contrast.
-        info: "border-primary/25 bg-primary/5 text-card-foreground *:[svg]:text-primary",
+        // Project variants: notices that keep body text at full contrast. Info is
+        // neutral with a brand-colored icon; a warning wears the amber accent.
+        info: "bg-muted/50 text-card-foreground *:[svg]:text-brand-ink",
         warning:
-          "border-future/40 bg-future/10 text-card-foreground *:[svg]:text-future",
+          "border-primary/45 bg-primary/10 text-card-foreground *:[svg]:text-brand-ink",
       },
     },
     defaultVariants: {

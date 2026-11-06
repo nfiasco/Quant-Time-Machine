@@ -24,17 +24,17 @@ How we build the Quant Time Machine web app: the design system, where code goes,
 
 ## 2. The knowledge horizon
 
-Our core visual idea. A vertical line marks the knowledge time *T*:
+Our core visual idea. A line in the brand amber (`primary`) marks the knowledge time *T*:
 
 | | Known at *T* | Not yet known at *T* |
 | --- | --- | --- |
 | Meaning | Public at or before *T* (`available_at ≤ T`) | Public only after *T* |
-| Color | `known` (brand indigo-blue) | `future` (amber) |
+| Color | `known` (neutral: the text color) | `future` (neutral: muted gray) |
 | Shape | Solid borders, filled dots | Dashed borders, hollow dots, `bg-hatch-future` "fog" |
 | Badge | `<Badge variant="known">` | `<Badge variant="future">` |
 | Words | "Known", "public at or before T" | "Not yet known", "public after T" |
 
-Always pair the color with a shape, icon, or label, so the meaning survives color blindness and grayscale printing. `features/time-machine/knowledge-horizon.tsx` is the reference implementation; the Time Machine, the audit drill-down, and the bias reports should all reuse this language.
+Both sides are neutral on purpose: the shape, icon, or label carries the meaning, so it survives color blindness and grayscale printing, and amber stays free to mark *T* itself. `features/time-machine/knowledge-horizon.tsx` is the reference implementation; the Time Machine, the audit drill-down, and the bias reports should all reuse this language.
 
 ## 3. Design tokens
 
@@ -46,13 +46,13 @@ Tokens are CSS variables in `app/globals.css`, defined for light (`:root`) and d
 | `card` / `card-foreground` | Cards, panels, list items on a card |
 | `popover` | Menus, popovers, sheets |
 | `muted` / `muted-foreground` | Subtle fills; secondary text (descriptions, captions, labels) |
-| `primary` / `primary-foreground` | The main action on a page, links, the active nav item, the brand mark |
-| `brand-ink` | The brand color as text or a thin mark, where `primary` (a fill) would fail contrast. Same as `primary` except on the landing page |
+| `primary` / `primary-foreground` | The brand accent, terminal amber, as a fill: the main action on a page, highlights, the knowledge-time marker *T*, warnings |
+| `brand-ink` | The brand color as text, an icon, or a thin mark (links, the active nav icon). Deep amber in light, amber in dark: never use `text-primary` for text |
 | `secondary`, `accent` | Low-emphasis buttons; hover and selected states in menus |
 | `border`, `input`, `ring` | Dividers and outlines; form control borders; focus rings |
 | `destructive` | Errors and destructive actions |
 | `known` | Facts public at the knowledge time |
-| `future` | Facts not yet public at the knowledge time; also cautions and warnings |
+| `future` | Facts not yet public at the knowledge time (muted, with dashed borders and hollow dots) |
 | `positive` / `negative` | Gains and losses, healthy and unhealthy status |
 | `chart-1` … `chart-5` | Chart series: `chart-1` for the strategy, `chart-2` (gray) for the benchmark |
 | `sidebar-*` | The app sidebar only |
@@ -77,7 +77,7 @@ Primitives live in `components/ui/` and come from [shadcn/ui](https://ui.shadcn.
 
 - **Add a component:** from `frontend/`, run `npx shadcn@latest add <name>`, for example `select`, `tabs`, `table`, `dialog`, `popover`, `calendar`. Review the generated file, run lint, and say in the pull request that it's generated.
 - **Customize** through tokens and `cva` variants (see `badge.tsx` and `alert.tsx`), not by restyling a component on one page.
-- **Edits to generated files** are deliberate and minimal, with a comment explaining why. So far: project variants in `badge.tsx` and `alert.tsx`, the `xl` size in `button.tsx` (the landing page's calls to action), and `hooks/use-mobile.ts` rewritten with `useSyncExternalStore` to pass the React hooks lint rules. Re-running `add --overwrite` would undo them.
+- **Edits to generated files** are deliberate and minimal, with a comment explaining why. So far: project variants in `badge.tsx` and `alert.tsx` (`info` is neutral with a brand icon; `warning` wears the amber accent), the `xl` size in `button.tsx` (the landing page's calls to action), `brand-ink` for the `link` variants of `button.tsx` and `badge.tsx` and for link hovers in `field.tsx` and `empty.tsx`, and `hooks/use-mobile.ts` rewritten with `useSyncExternalStore` to pass the React hooks lint rules. Re-running `add --overwrite` would undo them.
 - `cn()` merges class names (the `cn` package, shadcn's replacement for `clsx` + `tailwind-merge`). Import it from `@/lib/utils` in our code.
 
 | Component | Use it for |
@@ -205,9 +205,8 @@ This version differs from older tutorials and training data. Before using an API
 
 ## 12. Landing page
 
-The public page at `/` ([`features/landing/`](features/landing)) is marketing, not the research tool, so it bends three rules on purpose. Everything else in this document still applies.
+The public page at `/` ([`features/landing/`](features/landing)) is marketing, not the research tool, so it bends two rules on purpose. Everything else in this document still applies, including the palette.
 
-- **Its own palette.** Neutral black and white with one accent, terminal amber, in both themes. The tokens are overridden in `app/globals.css` only while the page is mounted (`html:has([data-surface="landing"])`), so the workspace keeps its theme. On this page, `known` and `future` are neutral: known vs. not yet known is carried by words and shapes (filled or hollow dots, solid or dashed lines, the hatch), and the accent marks the knowledge time. Amber text or thin marks use `text-brand-ink`, never `text-primary`.
 - **A display type scale.** Sentence-case section headings at `text-3xl`/`text-4xl`, body text at `text-base`/`text-lg`, and the name inside the logo sized from the logo's radius. Numbers, times, and tickers stay `font-mono tabular-nums`.
 - **A scroll story.** The one place motion is the content. Its rules:
   - It's built with [GSAP](https://gsap.com) (ScrollTrigger) and smoothed with [Lenis](https://lenis.darkroom.engineering). Both are loaded only by `story/story-engine.tsx`, only in the browser, and only when motion is allowed. Don't import them anywhere else.

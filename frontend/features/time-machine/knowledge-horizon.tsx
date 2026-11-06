@@ -2,7 +2,13 @@ import { CheckIcon, CircleDashedIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import type { MomentEvent } from "@/features/time-machine/example-moment";
-import { formatEtDate, formatEtTime, type EtDateTime } from "@/lib/time";
+import {
+  formatEtDate,
+  formatEtShortDate,
+  formatEtTime,
+  toAsOfParam,
+  type EtDateTime,
+} from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 type KnowledgeHorizonProps = {
@@ -50,13 +56,14 @@ export function KnowledgeHorizon({
         <EventList events={known} />
       </section>
 
+      {/* T, the knowledge time, wears the brand accent, as on the landing page's timeline. */}
       <div className="relative flex items-center justify-center py-1 md:px-4 md:py-0">
         <span
           aria-hidden
-          className="absolute inset-x-0 top-1/2 border-t-2 border-foreground/60 md:inset-x-auto md:inset-y-0 md:top-0 md:left-1/2 md:-ml-px md:border-t-0 md:border-l-2"
+          className="absolute inset-x-0 top-1/2 border-t-2 border-primary md:inset-x-auto md:inset-y-0 md:top-0 md:left-1/2 md:-ml-px md:border-t-0 md:border-l-2"
         />
-        <p className="relative flex flex-col items-center rounded-lg border bg-background px-3 py-1.5 text-center shadow-xs">
-          <span className="font-mono text-sm font-semibold">
+        <p className="relative flex flex-col items-center rounded-lg border border-primary/50 bg-background px-3 py-1.5 text-center shadow-xs">
+          <span className="font-mono text-sm font-semibold text-brand-ink">
             T<span className="sr-only">, the knowledge time:</span>
           </span>
           <span className="text-xs whitespace-nowrap text-muted-foreground">
@@ -96,14 +103,18 @@ function EventList({ events }: { events: readonly MomentEvent[] }) {
             !event.known && "border-dashed border-future/50",
           )}
         >
-          <span
+          <time
+            dateTime={
+              event.timeNote ? toAsOfParam(event.at).slice(0, 10) : toAsOfParam(event.at)
+            }
             className={cn(
               "font-mono text-xs tabular-nums",
               event.known ? "text-known" : "text-future",
             )}
           >
-            {event.when}
-          </span>
+            {formatEtShortDate(event.at)}
+            {event.timeNote ? ` · ${event.timeNote}` : `, ${formatEtTime(event.at)}`}
+          </time>
           <span className="font-medium text-pretty">{event.label}</span>
           <span className="text-xs text-pretty text-muted-foreground">{event.detail}</span>
         </li>

@@ -21,7 +21,7 @@ The homepage (`/`, code in [`features/landing/`](features/landing)) is a scroll 
 
 - **Real facts.** Every date and value comes from the snapshot golden test (`backend/tests/test_api_snapshot.py`) and is listed in [`story/events.ts`](features/landing/story/events.ts). The ticker wall behind the logo is decoration: its tickers are real, its numbers are random, and the footer says so.
 - **Motion.** [GSAP](https://gsap.com) ScrollTrigger scrubs one timeline over a sticky stage; [Lenis](https://lenis.darkroom.engineering) smooths wheel scrolling. Both load only in the browser and only when motion is allowed. With reduced motion (or no JavaScript), the same content renders as a static page. Pacing lives in [`story/beats.ts`](features/landing/story/beats.ts).
-- **Look.** Neutral black and white with one accent, terminal amber, in both themes. The palette is scoped to this page in `app/globals.css`, so the workspace keeps its theme (see GUIDELINES.md, "Landing page").
+- **Look.** Neutral black and white with one accent, terminal amber, in both themes: the same palette as the workspace (`app/globals.css`, GUIDELINES.md §3).
 
 The page makes no API calls and needs no keys.
 

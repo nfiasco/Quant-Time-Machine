@@ -58,7 +58,7 @@
   --color-negative: var(--negative);
 
   /* The brand accent as text or a thin mark, where --primary (a fill) would fail
-   * contrast. Same as --primary except on the landing page (see below). */
+   * contrast on a light background. Use text-brand-ink, never text-primary. */
   --color-brand-ink: var(--brand-ink);
 
   /* Landing ticker wall: each row sets its own --ticker-duration (inline keeps it live). */
@@ -73,94 +73,100 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Light theme: cool ink neutrals, indigo-blue brand. Every text pair meets WCAG AA. */
+/*
+ * Light theme: neutral off-white and off-black, with one accent, terminal amber.
+ * Amber is a fill (buttons, highlights, the knowledge-time marker); as text or a thin
+ * mark on a light background it fails contrast, so text in the accent uses --brand-ink.
+ * Known vs. not yet known is carried by words and shapes (GUIDELINES.md §2), so --known
+ * and --future are neutral. Every text pair meets WCAG AA.
+ */
 :root {
   color-scheme: light;
   --radius: 0.625rem;
 
-  --background: oklch(0.985 0.003 264);
-  --foreground: oklch(0.21 0.03 266);
+  --background: oklch(0.985 0 0);
+  --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.21 0.03 266);
+  --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.03 266);
-  --primary: oklch(0.51 0.2 268);
-  --primary-foreground: oklch(0.985 0.005 264);
-  --secondary: oklch(0.955 0.009 264);
-  --secondary-foreground: oklch(0.25 0.03 266);
-  --muted: oklch(0.955 0.008 264);
-  --muted-foreground: oklch(0.5 0.025 264);
-  --accent: oklch(0.95 0.02 266);
-  --accent-foreground: oklch(0.3 0.08 268);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.8 0.16 75);
+  --primary-foreground: oklch(0.145 0 0);
+  --brand-ink: oklch(0.52 0.11 62);
+  --secondary: oklch(0.955 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.51 0 0);
+  --accent: oklch(0.95 0 0);
+  --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.55 0.2 22);
-  --border: oklch(0.915 0.008 264);
-  --input: oklch(0.88 0.01 264);
-  --ring: oklch(0.6 0.17 268);
+  --border: oklch(0.92 0 0);
+  --input: oklch(0.87 0 0);
+  --ring: oklch(0.145 0 0);
 
   /* Series colors for charts (library still to be chosen, decision D8). */
-  --chart-1: oklch(0.51 0.2 268);
-  --chart-2: oklch(0.6 0.02 264);
+  --chart-1: oklch(0.62 0.15 65);
+  --chart-2: oklch(0.6 0 0);
   --chart-3: oklch(0.6 0.11 190);
-  --chart-4: oklch(0.72 0.15 70);
+  --chart-4: oklch(0.55 0.15 290);
   --chart-5: oklch(0.6 0.19 15);
 
-  --sidebar: oklch(0.975 0.005 264);
-  --sidebar-foreground: oklch(0.3 0.03 266);
-  --sidebar-primary: oklch(0.51 0.2 268);
-  --sidebar-primary-foreground: oklch(0.985 0.005 264);
-  --sidebar-accent: oklch(0.935 0.012 264);
-  --sidebar-accent-foreground: oklch(0.21 0.03 266);
-  --sidebar-border: oklch(0.915 0.008 264);
-  --sidebar-ring: oklch(0.6 0.17 268);
+  --sidebar: oklch(0.975 0 0);
+  --sidebar-foreground: oklch(0.205 0 0);
+  --sidebar-primary: oklch(0.8 0.16 75);
+  --sidebar-primary-foreground: oklch(0.145 0 0);
+  --sidebar-accent: oklch(0.93 0 0);
+  --sidebar-accent-foreground: oklch(0.145 0 0);
+  --sidebar-border: oklch(0.92 0 0);
+  --sidebar-ring: oklch(0.145 0 0);
 
-  --known: oklch(0.51 0.2 268);
-  --future: oklch(0.52 0.125 58);
+  --known: oklch(0.145 0 0);
+  --future: oklch(0.51 0 0);
   --positive: oklch(0.5 0.125 155);
   --negative: oklch(0.55 0.2 18);
-
-  --brand-ink: var(--primary);
 }
 
-/* Dark theme: deep ink navy, lighter brand and domain colors for contrast. */
+/* Dark theme: off-black and off-white, the same amber, lighter domain colors for contrast. */
 .dark {
   color-scheme: dark;
 
-  --background: oklch(0.16 0.02 268);
-  --foreground: oklch(0.96 0.006 264);
-  --card: oklch(0.2 0.022 268);
-  --card-foreground: oklch(0.96 0.006 264);
-  --popover: oklch(0.21 0.022 268);
-  --popover-foreground: oklch(0.96 0.006 264);
-  --primary: oklch(0.7 0.15 268);
-  --primary-foreground: oklch(0.17 0.03 268);
-  --secondary: oklch(0.26 0.022 268);
-  --secondary-foreground: oklch(0.96 0.006 264);
-  --muted: oklch(0.25 0.02 268);
-  --muted-foreground: oklch(0.72 0.02 264);
-  --accent: oklch(0.28 0.04 268);
-  --accent-foreground: oklch(0.96 0.006 264);
+  --background: oklch(0.16 0 0);
+  --foreground: oklch(0.97 0 0);
+  --card: oklch(0.2 0 0);
+  --card-foreground: oklch(0.97 0 0);
+  --popover: oklch(0.2 0 0);
+  --popover-foreground: oklch(0.97 0 0);
+  --primary: oklch(0.8 0.16 75);
+  --primary-foreground: oklch(0.16 0 0);
+  --brand-ink: oklch(0.8 0.16 75);
+  --secondary: oklch(0.25 0 0);
+  --secondary-foreground: oklch(0.97 0 0);
+  --muted: oklch(0.235 0 0);
+  --muted-foreground: oklch(0.71 0 0);
+  --accent: oklch(0.26 0 0);
+  --accent-foreground: oklch(0.97 0 0);
   --destructive: oklch(0.7 0.17 22);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.62 0.14 268);
+  --ring: oklch(0.97 0 0);
 
-  --chart-1: oklch(0.7 0.15 268);
-  --chart-2: oklch(0.65 0.02 264);
+  --chart-1: oklch(0.8 0.16 75);
+  --chart-2: oklch(0.65 0 0);
   --chart-3: oklch(0.72 0.11 190);
-  --chart-4: oklch(0.8 0.14 78);
+  --chart-4: oklch(0.7 0.15 290);
   --chart-5: oklch(0.7 0.16 15);
 
-  --sidebar: oklch(0.18 0.021 268);
-  --sidebar-foreground: oklch(0.88 0.01 264);
-  --sidebar-primary: oklch(0.7 0.15 268);
-  --sidebar-primary-foreground: oklch(0.17 0.03 268);
-  --sidebar-accent: oklch(0.25 0.024 268);
-  --sidebar-accent-foreground: oklch(0.96 0.006 264);
+  --sidebar: oklch(0.18 0 0);
+  --sidebar-foreground: oklch(0.88 0 0);
+  --sidebar-primary: oklch(0.8 0.16 75);
+  --sidebar-primary-foreground: oklch(0.16 0 0);
+  --sidebar-accent: oklch(0.25 0 0);
+  --sidebar-accent-foreground: oklch(0.97 0 0);
   --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: oklch(0.62 0.14 268);
+  --sidebar-ring: oklch(0.97 0 0);
 
-  --known: oklch(0.72 0.15 268);
-  --future: oklch(0.8 0.14 78);
+  --known: oklch(0.97 0 0);
+  --future: oklch(0.71 0 0);
   --positive: oklch(0.76 0.15 158);
   --negative: oklch(0.72 0.16 15);
 }
@@ -200,65 +206,6 @@
     color-mix(in oklch, var(--future) 14%, transparent) 0 6px,
     transparent 6px 12px
   );
-}
-
-/*
- * Landing page (/): neutral black and white with one accent, terminal amber, in both
- * themes. Scoped on <html> with :has() so the body, overscroll, and any portal match;
- * every other route keeps the app theme above. On this page, known vs. not yet known
- * is carried by words and shapes (GUIDELINES.md §2), so --known and --future are
- * neutral and the accent marks the knowledge time. Amber fails contrast as text on a
- * light background: text and thin marks in the accent use --brand-ink.
- */
-html:has([data-surface="landing"]) {
-  --background: oklch(0.985 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.8 0.16 75);
-  --primary-foreground: oklch(0.145 0 0);
-  --brand-ink: oklch(0.52 0.11 62);
-  --secondary: oklch(0.955 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.51 0 0);
-  --accent: oklch(0.95 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --border: oklch(0.92 0 0);
-  --input: oklch(0.87 0 0);
-  --ring: oklch(0.145 0 0);
-  --known: oklch(0.145 0 0);
-  --future: oklch(0.51 0 0);
-  /* Gains and losses in the decorative ticker wall only. */
-  --positive: oklch(0.55 0.13 150);
-  --negative: oklch(0.56 0.19 25);
-}
-
-html.dark:has([data-surface="landing"]) {
-  --background: oklch(0.16 0 0);
-  --foreground: oklch(0.97 0 0);
-  --card: oklch(0.2 0 0);
-  --card-foreground: oklch(0.97 0 0);
-  --popover: oklch(0.2 0 0);
-  --popover-foreground: oklch(0.97 0 0);
-  --primary: oklch(0.8 0.16 75);
-  --primary-foreground: oklch(0.16 0 0);
-  --brand-ink: oklch(0.8 0.16 75);
-  --secondary: oklch(0.25 0 0);
-  --secondary-foreground: oklch(0.97 0 0);
-  --muted: oklch(0.235 0 0);
-  --muted-foreground: oklch(0.71 0 0);
-  --accent: oklch(0.26 0 0);
-  --accent-foreground: oklch(0.97 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.97 0 0);
-  --known: oklch(0.97 0 0);
-  --future: oklch(0.71 0 0);
-  --positive: oklch(0.74 0.14 150);
-  --negative: oklch(0.7 0.17 25);
 }
 
 /*
