@@ -37,7 +37,7 @@ Read it only through [`lib/api/client.ts`](lib/api/client.ts) (`API_URL`, `apiUr
 
 - never put a secret in one;
 - restart `npm run dev` after changing one;
-- in Vercel, set it per environment (Production, Preview), because the value is frozen into each deployment when it's built.
+- in Vercel, set it per environment (Production, Preview), because the value is frozen into each deployment when it's built. Production is set to the deployed API, `https://quant-time-machine-api.up.railway.app` (S15.1). Preview isn't set, so previews use the default; the API's CORS allows only production and `localhost:3000`.
 
 ## Scripts
 
