@@ -13,9 +13,11 @@ Run them from `backend/`:
 | [`prices.py`](prices.py) | S6.1 | Which daily price source gives raw prices, corporate actions, and delisted companies? | Optional: `TIINGO_API_KEY`, `ALPHAVANTAGE_API_KEY` | `uv run spikes/prices.py` |
 | [`storage_benchmark.py`](storage_benchmark.py) | S3.2 | Which storage engine makes as-of queries simple and fast? | Nothing | `uv run --python 3.12 spikes/storage_benchmark.py` |
 | [`hosting.py`](hosting.py) | S1.6 | How big is the real store, and how long does a backtest-shaped workload take on a host? | An ingested store | `uv run python -m spikes.hosting` |
+| [`host_compare/`](host_compare/) | D4 | How do Railway and Cloud Run compare running the same image: cold starts, latency, load, time limits, recovery? | An ingested store, both hosts deployed, `BENCH_TOKEN` | `uv run spikes/host_compare/run.py probe --target NAME=URL ...` |
 
 Notes:
 
+- `host_compare/` has two halves. [`bench_app.py`](host_compare/bench_app.py) is the real API plus `/bench` timing routes, and [`Dockerfile`](host_compare/Dockerfile) builds it with the store baked in, from the context [`build_context.sh`](host_compare/build_context.sh) assembles, so both hosts run the same bytes. [`run.py`](host_compare/run.py) is the client: it declares its own dependencies and writes results outside the repository. The image holds Tiingo's internal-use prices, so push it only to a private registry.
 - `hosting.py` is the exception to the self-contained rule. It measures the app's own read path, `PointInTimeView`, so it imports `app` and runs in the project's environment, as a module from `backend/`. The deployed image includes it, so it can run on the host too (see [`doc/hosting.md`](../../doc/hosting.md)).
 - `storage_benchmark.py` runs on Python 3.12 because [pgserver](https://github.com/orm011/pgserver), which gives it a throwaway PostgreSQL server with nothing to install, has no 3.14 wheels yet. The `--python 3.12` flag is needed because `backend/.python-version` says 3.14. Pass `--postgres-dsn` to benchmark another PostgreSQL server instead.
 - `prices.py` takes about two minutes because it waits between Alpha Vantage requests (the free tier allows 25 a day). Every script identifies itself honestly, and a source that blocks scripts is reported, not worked around.
