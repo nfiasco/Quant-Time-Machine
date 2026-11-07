@@ -112,7 +112,7 @@ The frontend is deployed on [Vercel](https://vercel.com):
 2. Set **Root Directory** to `frontend`. Vercel detects Next.js automatically, so no `vercel.json` is needed.
 3. Deploy. Every push to `main` updates production, and every pull request gets its own preview URL.
 
-Backend hosting isn't set up yet. Vercel can run the FastAPI app with no configuration, as a second Vercel project with Root Directory `backend`. Render, Railway, or Fly.io are also options if long-running backtests need them.
+Backend hosting isn't set up yet. The API will run on [Railway](https://railway.com)'s Hobby plan (decision D4, [`doc/hosting.md`](doc/hosting.md)), built from `backend/Dockerfile` on each merge to `main`, once S15.1 sets it up.
 
 ## Roadmap (draft)
 

@@ -1,8 +1,119 @@
 # Backend and data hosting (decision D4)
 
-> **Spike S1.6.** Decided 2026-10-23, pending team review. The measurements come from [`backend/spikes/hosting.py`](../backend/spikes/hosting.py), run on the real M2 store (ingested 2026-10-23) on a laptop and on the deployed machine. Prices and limits were checked on 2026-10-23. They change, so check them again before S15.1. Updated 2026-10-29: the team deferred the card until a host is needed, before S8.4 (Sprint 4). The free trial lapsed on 2026-10-31, and Sprint 3 runs locally. Also re-evaluated on 2026-10-29, with one owner allowed and AWS Lambda and Cloudflare added ([re-evaluation](#re-evaluation-2026-10-29-one-owner-aws-lambda-and-cloudflare)). Updated 2026-10-31: with a $5-a-month limit and the owner willing to do the setup, AWS Lambda is the lead candidate. A spike before S8.4 decides, with Fly as the fallback ([plan](#plan-2026-10-31-try-aws-lambda-first-with-fly-as-the-fallback)).
+> **Spike S1.6.** Decided 2026-10-23, pending team review. The measurements come from [`backend/spikes/hosting.py`](../backend/spikes/hosting.py), run on the real M2 store (ingested 2026-10-23) on a laptop and on the deployed machine. Prices and limits were checked on 2026-10-23. They change, so check them again before S15.1. Updated 2026-10-29: the team deferred the card until a host is needed, before S8.4 (Sprint 4). The free trial lapsed on 2026-10-31, and Sprint 3 runs locally. Also re-evaluated on 2026-10-29, with one owner allowed and AWS Lambda and Cloudflare added ([re-evaluation](#re-evaluation-2026-10-29-one-owner-aws-lambda-and-cloudflare)). Updated 2026-10-31: with a $5-a-month limit and the owner willing to do the setup, AWS Lambda is the lead candidate. A spike before S8.4 decides, with Fly as the fallback ([plan](#plan-2026-10-31-try-aws-lambda-first-with-fly-as-the-fallback)). **Decided 2026-11-06: Railway's Hobby plan** ([decision](#decision-2026-11-06-railway)), after Railway reopened sign-ups on 2026-11-02. It replaces both the Fly decision and the Lambda plan, and Google Cloud Run's free tier is the way out if paying stops being worth it. **Measured against Cloud Run the same day** with the same image ([benchmark](#railway-vs-cloud-run-measured-2026-11-06)): the decision stands.
 
-## Decision
+## Decision, 2026-11-06: Railway
+
+**The API will run on Railway's Hobby plan:** $5 a month, which includes $5 of usage, on the owner's personal account. Railway builds the same [`backend/Dockerfile`](../backend/Dockerfile) from GitHub and redeploys it on each merge to `main`. This replaces the [Fly.io decision](#original-decision-2026-10-23-flyio) and the [Lambda plan](#plan-2026-10-31-try-aws-lambda-first-with-fly-as-the-fallback). Nothing is deployed yet: S15.1 (Sprint 5) sets it up ([next steps](#next-steps-for-s151)).
+
+- **Why Railway:**
+  - **No cold starts.** The service stays on, so the first request after a quiet spell is as fast as any other. Cloud Run and Lambda scale to zero: Cloud Run took 5.6–14 s to answer the first request after scaling to zero ([measured](#railway-vs-cloud-run-measured-2026-11-06)), and Fly took 7.2 s after auto-stop.
+  - **Faster.** The same image answered 1.6–3.7× faster than on Cloud Run, and ran the backtest-shaped workload 2–4× faster.
+  - **CPU after the response.** S8.4 can run a backtest in a background thread after `POST /v1/backtests` answers, "without extra infrastructure," as the story asks. Cloud Run's free billing mode gave such a thread 0.3% of a CPU, and Lambda freezes an environment once it answers, so both would need a queue or a second invocation.
+  - **No time limit on background work.** A web request stops at 15 minutes while it sends data and at 5 minutes if it sends nothing (both measured), but a background run doesn't. Lambda stops every invocation at 15 minutes.
+  - **Unthrottled CPU:** up to 48 vCPU and 48 GB per service on Hobby, billed by use, with no documented baseline share or burst credits. Fly's shared CPU drops to 6.25% once its burst balance is spent.
+  - **Deploys from GitHub on merge,** which S15.1 would otherwise build as a GitHub Action.
+  - **Inside the $5 limit.** Idle, the API used 150–180 MB and 0.002 vCPU on Railway, about $1.85 a month, so expected use comes to about $2–3 of the included $5.
+- **What we accept:**
+  - **$5 a month for as long as it runs,** where Cloud Run or Lambda would cost about $0. The hard usage limit can't go below $10, so set it to $10, with an email alert at $5.
+  - **Railway's security incident.** On 2026-10-21 an intruder decrypted some customers' environment variables ([re-evaluation](#re-evaluation-2026-10-29-one-owner-aws-lambda-and-cloudflare)). Railway reopened sign-ups on 2026-11-02, for paid plans only, and marked the incident resolved, but it hadn't published a final report by 2026-11-06. The repository is public, so only the host's secrets are at stake. Keep them few and narrowly scoped, and rotate them if Railway reports anything new.
+  - **One developer.** Hobby is a one-person plan, so only the owner sees the dashboard and logs. Deploys happen on merge, so nobody else needs access to deploy.
+  - **Network blocks.** On 2026-11-05 Railway's status page reported outside networks blocking its IP addresses. Check that the API answers on campus Wi-Fi before a demo.
+- **The way out: Google Cloud Run's free tier,** if paying stops being worth it, for example after graduation. It runs the same Dockerfile unchanged and costs about $0 at our traffic. To keep that move to about a day's work:
+  - keep a backtest a plain function, such as `run_backtest(run_id)`, that reads its spec and writes its status and results to the run registry, so a thread on Railway and a Cloud Tasks request on Cloud Run can both call it;
+  - keep the API stateless and the store read-only;
+  - batch the engine's reads (S7.3, S15.2).
+
+### Railway vs Cloud Run, measured 2026-11-06
+
+Before committing, we deployed the same image to both and measured them side by side with [`backend/spikes/host_compare/`](../backend/spikes/host_compare/). The image was `backend/Dockerfile` with the universe store baked in and a thin wrapper that adds timing routes: every `/v1` route was the real one, and prices still answered 403. Each service got 1 vCPU and 1 GB in northern Virginia (us-east4): Railway on its trial plan, and Cloud Run with request-based billing (the mode with the free tier), startup CPU boost, and sign-in required. The client was a laptop in Delaware.
+
+| Measure | Railway | Cloud Run |
+| --- | --- | --- |
+| First request after idling (first byte) | 1.9–2.9 s waking from sleep; none if kept on | 5.6–14 s |
+| App start inside the container | 1.2–1.8 s | 4.8–12.6 s |
+| Health check, warm (median) | 19 ms | 30 ms, 33 ms |
+| Macro lookup, warm (median) | 51 ms | 94 ms, 81 ms |
+| Snapshot, the heaviest route (median) | 723 ms | 2,656 ms, 1,668 ms |
+| Backtest-shaped workload, 10 tickers | 70 s | 266 s, 140 s; 117 s as a Cloud Run job |
+| Macro lookups per second with 100 in flight | 18, on one replica | 56 and 84, on 5 instances |
+| CPU-bound requests per second with 50 in flight | 16 on one replica, 36 on two | 42 and 33, on 5 instances |
+| A request that sends nothing | Cut at 300 s (502) | Cut at 3,600 s (504) |
+| A request that streams | Cut at 900 s | Cut at 3,600 s |
+| CPU for a thread after the response | Full speed | 0.3%; 98% with instance-based billing |
+| Back after the process exits | 3.5 s, with three 502s | 1.4 s, with one 503 |
+| Back after running out of memory | 3.0 s; that request got a 502 | The request finished, then the instance was replaced with no errors |
+| Requests dropped during a redeploy | None of 1,253 | None of 1,187 |
+| Deploy from source | 46 s first, 43 s after a change | 108 s first, 132 s after a change; 15 s for an image already built |
+
+Where Cloud Run has two values, they're gen1 then gen2, its two sandboxes; its other rows are gen1, the default.
+
+- **Railway was faster on every route,** by 1.6–3.7× per request and 2–4× on the workload. It runs on newer CPUs (AMD EPYC 9655, Zen 5) with no sandbox in the way. Cloud Run's gen1 sandbox (gVisor) slows Python's imports and DuckDB's file reads, and gen2 is a microVM on Zen 3 CPUs. Cloud Run also showed DuckDB 2 or 6 CPUs for 1 vCPU, so it ran two threads. Railway's trial vCPU is shared and Hobby's is dedicated, so Hobby should do at least as well.
+- **Cold starts are Cloud Run's real cost for us.** It keeps an idle instance for at most 15 minutes, and at a class project's traffic most visits come later than that, so most visitors would wait 6–14 s. Railway kept on makes nobody wait, and even asleep it woke in under 3 s.
+- **Background backtests need Railway, or Cloud Run's paid billing mode.** Under request-based billing, a thread got 0.3% of a CPU once its request returned. Instance-based billing gives it the CPU, but an always-on instance then costs about $45 a month. On Cloud Run, a backtest belongs in a Cloud Run job (up to 168 hours a task) or inside a request (up to 60 minutes).
+- **Railway's request limits match its docs:** 15 minutes while data flows, and 5 minutes with none. S8.4's background runs aren't requests, so they don't hit them, but no request can hold a run open longer than that.
+- **Scaling:** Cloud Run added instances on its own and served 2–5× Railway's throughput at high concurrency, with 99th percentiles of 4–6 s while new instances started. Railway stays on its replicas until we add more by hand, two on the trial and six on Hobby, and a second replica answered 39 s after we asked. Our traffic is far below either limit.
+- **Both recovered from crashes in seconds and dropped nothing during redeploys.** Cloud Run promises 99.95% monthly uptime. Railway offers no SLA below Enterprise, and in 2026 it had an eight-hour outage (May 19), a US East outage (July 2), five minutes of 404s for every domain (September 30), and the security incident (October 21).
+
+Estimated monthly bill, from published prices and our measured memory and CPU:
+
+| Workload | Railway Hobby | Cloud Run, scaling to zero | Cloud Run, one warm instance |
+| --- | ---: | ---: | ---: |
+| Quiet month: 5,000 requests, 20 backtests | $5.00, using $1.85 of the included $5 | $0.00 | $4.75 |
+| Active development: 50,000 requests, 200 backtests | $5.00 ($1.99) | $0.00 | $5.48 |
+| Demo week: 500,000 requests, 1,000 backtests | $5.00 ($2.74) | $0.36 | $9.37 |
+| Busy: 2 million requests, 3,000 backtests | $5.00 ($4.90) | $11.90 | $20.57 |
+
+- **Assumptions:** Railway always on, at 180 MB and 0.002 vCPU idle, 0.06 vCPU-seconds a request, and 68 CPU-seconds a backtest (the 10-ticker workload). Cloud Run at 1 vCPU and 512 MiB, each request billed alone for 0.15 s (billing rounds up to 100 ms), 7 s per cold start, and backtests as Cloud Run jobs at 1 GiB. Google applies the free tier as a discount of about $5.22 a month: $4.32 of CPU and $0.90 of memory.
+- **A warm instance avoids most cold starts but still gets no CPU between requests,** and Google may restart it at any time.
+- **Cloud Run instances,** in preview since August 2026, run one always-on container for $5.70 a month at 1 vCPU and 1 GiB, but on a shared CPU with a burst budget, the model that throttled backtests on Fly.
+
+**What it means for D4: the decision stands.** Railway is the better host for this API while we pay for it: faster, no cold starts, and CPU for background runs. Cloud Run stays the way out, and the benchmark shows the move works: the same Dockerfile ran there unchanged, at the cost of 6–14 s cold starts and slower requests. Two things follow ([next steps](#next-steps-for-s151)): add a personal login to the Railway account before graduation, and consider keeping a Cloud Run copy as a free standby for demo days, since it costs nothing while idle.
+
+### What we measured, 2026-11-06
+
+On an Apple-silicon Mac, with the universe v1 store (S6.5, with S5.5's XBRL facts): 376,274 rows in 234 Parquet files, 8.3 MB. As one `tar.gz` it's 7.5 MB, which unpacks in 0.04 s.
+
+| `spikes/hosting.py` workload: 192 decisions, 100 tickers | Per read | Total |
+| --- | ---: | ---: |
+| DuckDB's default threads (about 4.4 cores busy), measured | 6.59 ms | 256 s |
+| One DuckDB thread, as on one vCPU (measured with 10 tickers) | 8.76 ms | About 5.7 minutes |
+| One thread, with the store rewritten as one Parquet file per table | 5.83 ms | About 3.8 minutes |
+| One thread, with DuckDB's `parquet_metadata_cache` on | 6.99 ms | About 4.5 minutes |
+
+- **Reads got slower as the store grew.** The same workload took 150 s on the M2 store, which had 24 files ([below](#a-backtest-shaped-workload)). Most of the cost is per query, not per byte: one file per table saves a third, and the metadata cache a fifth. Batching the engine's reads (S7.3, S15.2) is the real fix, on any host.
+- **On one server vCPU, expect about twice the one-thread time.** In the Fly measurements, a full-speed server vCPU ran this about 2× slower than a Mac core, so the unbatched run would take about 11–12 minutes. That's fine as a background task on Railway, tight under Lambda's 15 minutes, and far from NFR-5's 60 seconds.
+- **Peak memory** was 330 MB with the default threads and 155 MB with one.
+- **The one-thread runs** wrapped `spikes.hosting` so that every connection `app.data.store.connect()` opens sets `threads = 1`, plus `parquet_metadata_cache = true` for the last row.
+- **Serverless hosts stay possible.** The API answered `/health` and six `/v1` lookups from a read-only working directory with no home directory, as on Lambda: 14–57 ms each in process, and 286 ms for the first snapshot. The DuckDB extensions the app uses (`parquet`, `icu`, `json`, and `core_functions`) are built into the 1.5.6 Python package, so nothing downloads at runtime.
+
+### Options compared, 2026-11-06
+
+Prices and limits were checked on 2026-11-06, for our API's low traffic.
+
+| Option | Monthly cost for our API | Why not |
+| --- | --- | --- |
+| Google Cloud Run | About $0: 2M requests, 180,000 vCPU-seconds, and 360,000 GiB-seconds are free each month | It scales to zero: the first request after that took 5.6–14 s, and the same code ran 1.6–3.7× slower than on Railway ([measured](#railway-vs-cloud-run-measured-2026-11-06)). A warm minimum instance costs about $5–10 a month. Its free billing mode gives no CPU between requests, so background runs need a Cloud Run job or Cloud Tasks. It's the way out above. |
+| Cloud Run instances | $5.70 for one always-on instance with 1 vCPU and 1 GiB | In preview since August 2026, on a shared CPU with a burst budget, the model that throttled backtests on Fly |
+| AWS Lambda | About $0: 1M requests and 400,000 GB-seconds are free each month | The [plan](#plan-2026-10-31-try-aws-lambda-first-with-fly-as-the-fallback)'s new infrastructure, a 15-minute cap, and one request per environment, so more cold starts. A container function unused for a few weeks goes inactive and rejects the first request. |
+| ECS on Fargate | About $9 for the smallest always-on task (0.25 vCPU, 0.5 GB), plus $3.65 for a public IPv4 address or about $16 for a load balancer | No free tier |
+| AWS Batch | Nothing itself; its jobs pay Fargate or EC2 rates | It's a queue for large batches of jobs, and S14.2's sweeps are about nine runs |
+| AWS Step Functions | $0: 4,000 state transitions are free each month | It chains Lambda steps past 15 minutes, which batched reads don't need |
+| Compute Engine e2-micro | $0: one always-free VM | We'd maintain the server, HTTPS, and updates ourselves, on about a quarter of a CPU |
+| Cloudflare | $5 for Workers Paid | Workers can't run the stack ([re-evaluation](#re-evaluation-2026-10-29-one-owner-aws-lambda-and-cloudflare)). Containers sleep to stay inside the $5, or cost about $12 a month always on for a quarter of a CPU. |
+| Fly.io | About $4 | Throttled shared CPU. No longer the fallback since 2026-11-01. |
+
+### If it stays up after graduation
+
+- **Move to Cloud Run's free tier** if $5 a month stops being worth it ([the way out](#decision-2026-11-06-railway)). The image ran there unchanged; expect 6–14 s for the first request after a quiet spell ([measured](#railway-vs-cloud-run-measured-2026-11-06)).
+- **The Railway account is under the owner's university address,** which ends at graduation. Add a personal login before then, or the account can't be reached.
+- **Supabase's free plan pauses a project after a week without activity,** which would break sign-in and saved runs until someone restores it. A scheduled request every day or two keeps it active.
+- **GitHub turns off scheduled workflows in a public repository after 60 days without activity,** so S15.5's weekly data refresh would stop. Re-enable it, or move it to the host.
+- **The AI assistant (CISC 499)** costs money per use. Keep its caps (S11.6), or turn it off.
+
+## Original decision, 2026-10-23: Fly.io
+
+*Replaced on 2026-11-06 by [Railway](#decision-2026-11-06-railway).*
 
 **The API runs on Fly.io.** It's a container built from [`backend/Dockerfile`](../backend/Dockerfile), on one shared-CPU machine in Ashburn, Virginia (`iad`), with the point-in-time store on a 1 GB volume at `/data`. The configuration is [`backend/fly.toml`](../backend/fly.toml).
 
@@ -161,6 +272,8 @@ Revisit this only if S8.4's measured timings still don't fit. Then try Render's 
 
 ## Plan, 2026-10-31: try AWS Lambda first, with Fly as the fallback
 
+*Replaced on 2026-11-06 by [Railway](#decision-2026-11-06-railway). The Lambda spike won't run.*
+
 Three things changed after the re-evaluation:
 
 - **A budget limit.** The owner will pay at most $5 a month. That rules out Render's Starter ($7.25 with a disk) and a Fly machine with a dedicated CPU kept running ($33).
@@ -213,6 +326,8 @@ Three things changed after the re-evaluation:
 
 ## Cost and the trial
 
+*Fly.io's trial and costs. Railway's costs are in the [decision](#decision-2026-11-06-railway).*
+
 - **The trial** started 2026-10-24 (UTC) and lapsed on 2026-10-31. While it ran, it stopped each machine after 5 minutes of running.
 - **The card is deferred.** On 2026-10-29 the team chose to add a card only when a host is needed again, before S8.4 (Sprint 4). Sprint 3 needs no hosting, since tests run on fixtures and everyone develops against a local backend.
   - Since the trial lapsed, the URL doesn't answer, and Fly may remove the machine and the volume.
@@ -225,6 +340,8 @@ Three things changed after the re-evaluation:
   Anything beyond that, such as a dedicated machine for backtests (S8.4) or a bigger volume, is billed to the same card. The owner's limit is $5 a month in all, so agree on it as a team first.
 
 ## The deployment
+
+*The Fly.io deployment, which lapsed on 2026-10-31, kept for reference. S15.1 writes Railway's steps.*
 
 - **App:** `quant-time-machine-api` in `iad`, on one `shared-cpu-1x` machine with 512 MB, which auto-stops when idle. The measured peak, 303 MB on a Mac for the full workload, fits. Raise it to 1 GB if a real backtest needs more.
 - **Volume:** `qtm_data`, 1 GB, mounted at `/data`. Only `DATA_DIR/store` is uploaded, never the raw cache.
@@ -266,17 +383,20 @@ fly ssh console -C "sh -c 'cd /data && rm -rf store.new && mkdir store.new && ta
 
 ## Next steps for S15.1
 
-- [ ] Before S8.4 (Sprint 4, from 2026-11-09) needs a host, run the AWS Lambda spike in the [plan](#plan-2026-10-31-try-aws-lambda-first-with-fly-as-the-fallback), and record a new D4 entry with its measurements. If Lambda doesn't fit, add the card to Fly and redeploy. The trial lapsed on 2026-10-31.
-- [ ] Deploy from GitHub Actions on merges to `main`:
-  - on Lambda, sign in to AWS with OIDC;
-  - on Fly, use a deploy token (`fly tokens create deploy`) as a repository secret and `flyctl deploy --remote-only`.
+- [ ] The owner subscribes to Railway's Hobby plan, then sets the hard usage limit to $10 and an email alert at $5.
+- [ ] Create the service from this repository with `backend` as its root directory, so Railway builds `backend/Dockerfile`, and turn on deploys from `main`. The image listens on port 8080, so make sure Railway routes to it.
+- [ ] Give the store a home: a Railway volume mounted at `/data` (up to 5 GB on Hobby), or a download from a private bucket at startup, which Cloud Run could reuse later. Either way, copy all of `DATA_DIR/store`, including `_versions/`, the data-version manifests (S3.7), so the API serves and echoes the same versions as the machine that ingested. The universe v1 store (S6.5, ingested 2026-10-31, with its XBRL facts added on 2026-11-01 by S5.5) is 8.6 MB.
+- [ ] Set `DATA_DIR` and `CORS_ORIGINS`. Keep `SERVE_RAW_PRICES` unset until D2's display rights are settled.
+- [ ] For S8.4, run background backtests in a thread in the API process. A redeploy stops the process and any run in it, so at startup, mark runs still `running` as failed.
 - [ ] Set `NEXT_PUBLIC_API_URL` on Vercel to the API's URL, and add any preview origins the frontend needs to `CORS_ORIGINS`.
 - [ ] Write a smoke test for after each deploy: `/health`, a macro value, a filing, and prices answering 403.
-- [ ] Script the store upload above, until ingestion runs on a schedule (S15.5).
-- [ ] Upload the universe v1 store (S6.5, ingested 2026-10-31, with its XBRL facts added on 2026-11-01 by S5.5: 8.6 MB in all) to whichever host the D4 decision picks: Railway once it reopens, or AWS Lambda. Copy all of `DATA_DIR/store`, including `_versions/`, the data-version manifests (S3.7), so the API serves and echoes the same versions as the machine that ingested. On Lambda, that's the private S3 bucket; the Fly commands above already copy the whole folder.
+- [ ] Script the store upload, until ingestion runs on a schedule (S15.5).
 - [ ] Run the container as a non-root user.
-- [ ] With S8.4's real timings, pick the backtest memory size on Lambda, or the backtest CPU and `min_machines_running` on Fly.
-- [ ] Keep `SERVE_RAW_PRICES` unset until D2's display rights are settled.
+- [ ] With S8.4's real timings, set the service's CPU and memory limits.
+- [ ] Once Railway serves the API, remove `backend/fly.toml` and the Fly steps above.
+- [ ] Add a personal login to the Railway account, which is under the owner's university address.
+- [ ] Optionally, deploy the production image to Cloud Run too, as a free standby for demo days: it costs nothing while idle, and the frontend can point at it if Railway is down. Expect a cold start on its first request.
+- [ ] Delete the 2026-11-06 benchmark deployments (Railway project `qtm-bench`, Google Cloud project `qtm-bench-1106-hm6q`) if they're still up.
 
 ## Sources
 
@@ -301,3 +421,16 @@ Retrieved 2026-10-31, for the plan:
 - **AWS:** [Lambda timeouts](https://docs.aws.amazon.com/lambda/latest/dg/configuration-timeout.html), [API Gateway HTTP API quotas](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-quotas.html), and the [Lambda Web Adapter](https://github.com/awslabs/aws-lambda-web-adapter).
 - **Render:** [compute plans](https://render.com/docs/compute-plans).
 - **Railway:** [cost control](https://docs.railway.com/pricing/cost-control) and the [usage CLI](https://docs.railway.com/cli/usage).
+
+Retrieved 2026-11-06, for the Railway decision:
+
+- **Railway:** the [recovery status page](https://status.railway.com/incident/O1VGXWU5) (sign-ups reopened at 19:19 UTC on 2026-11-02, for paid plans only), the [blog](https://blog.railway.com/) (still only the preliminary report), [cost control](https://docs.railway.com/pricing/cost-control) (a $10 minimum hard limit), and [plans](https://docs.railway.com/pricing/plans).
+- **Google Cloud:** [Cloud Run pricing](https://cloud.google.com/run/pricing), [billing settings](https://docs.cloud.google.com/run/docs/configuring/cpu-allocation), [job timeouts](https://docs.cloud.google.com/run/docs/configuring/task-timeout), [Cloud Tasks pricing](https://cloud.google.com/tasks/pricing), and the [free tier](https://cloud.google.com/free).
+- **AWS:** [Fargate pricing](https://aws.amazon.com/fargate/pricing/), [Step Functions pricing](https://aws.amazon.com/step-functions/pricing/), [Lambda durable functions](https://aws.amazon.com/about-aws/whats-new/2025/12/lambda-durable-multi-step-applications-ai-workflows/), and a [write-up on inactive container functions](https://dev.classmethod.jp/articles/tsnote-aws-lambda-how-can-i-avoid-the-inactive-state-of-the-lambda-function-en/).
+- **Cloudflare:** [Containers pricing](https://developers.cloudflare.com/containers/pricing/), [Containers limits](https://developers.cloudflare.com/containers/platform/limits/), and the [Workers size limit](https://developers.cloudflare.com/changelog/post/2026-09-04-increased-worker-size-limit/).
+- **Staying up long term:** [Supabase's free-plan limits](https://www.jetadmin.io/blog/supabase-pricing-2026-guide-to-plans-limits-and-real-world-costs/) and [GitHub on disabled scheduled workflows](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/disable-and-enable-workflows).
+
+Retrieved 2026-11-06, for the benchmark:
+
+- **Railway:** [plans](https://docs.railway.com/pricing/plans) (Hobby: 48 vCPU, 48 GB and 6 replicas per service), [resource prices](https://docs.railway.com/reference/pricing), [the free trial](https://docs.railway.com/pricing/free-trial) (shared vCPU), [edge limits](https://docs.railway.com/networking/public-networking/specs-and-limits) (15 minutes with data flowing, 5 without), [serverless sleeping](https://docs.railway.com/deployments/serverless), and the incident reports for [February 11](https://blog.railway.com/p/incident-report-february-11-2026), [May 19](https://blog.railway.com/p/incident-report-may-19-2026-gcp-account-outage), [July 2](https://blog.railway.com/p/incident-report-july-2-2026-us-east-services-outage), and [September 30](https://blog.railway.com/p/incident-report-sept-30-2026-routing-disruption).
+- **Google Cloud:** [Cloud Run pricing](https://cloud.google.com/run/pricing) (free tier, instance-based and minimum-instance rates, and 100 ms rounding), the [Cloud Billing catalog](https://cloud.google.com/billing/docs/how-to/get-pricing-information-api) for us-east4's egress rate, the [Cloud Run SLA](https://cloud.google.com/run/sla), [billing settings](https://docs.cloud.google.com/run/docs/configuring/billing-settings), [job task timeouts](https://docs.cloud.google.com/run/docs/configuring/task-timeout) (up to 168 hours), and [Cloud Run instances](https://cloud.google.com/blog/products/serverless/introducing-cloud-run-instances).
