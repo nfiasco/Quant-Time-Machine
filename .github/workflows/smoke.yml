@@ -1,0 +1,29 @@
+name: Smoke test
+
+# Railway reports each deploy of the API to GitHub. Once one is live, this checks it from
+# outside with backend/scripts/smoke_test.py (S15.1). Vercel reports its deployments too,
+# so their runs show up here as skipped. Railway posts "success" twice per deploy, so a
+# deploy gets two identical runs.
+on: deployment_status
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Smoke test the deployed API
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment == 'quant-time-machine / production'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+      # setup-uv publishes no major tags (no @v10), only immutable releases: pin the commit.
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - name: Check the API, once more after 15 s if routing hasn't switched yet
+        run: |
+          url=https://quant-time-machine-api.up.railway.app
+          uv run scripts/smoke_test.py "$url" || { sleep 15; uv run scripts/smoke_test.py "$url"; }
