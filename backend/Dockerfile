@@ -1,6 +1,6 @@
-# The API's container image (S1.6, D4; deploy steps in doc/hosting.md). `fly deploy` builds
-# it on Fly's remote builder, so nobody needs Docker installed. The data isn't in the
-# image: DATA_DIR is a volume mounted at /data.
+# The API's container image (S1.6, D4; deploy steps in doc/hosting.md). Railway builds it
+# from GitHub on each merge to main, so nobody needs Docker installed. The data isn't in
+# the image: DATA_DIR is /data, where the host provides the store.
 
 # The same Python and uv versions as local development.
 FROM python:3.14.7-slim
@@ -16,7 +16,7 @@ COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --locked --no-dev --no-install-project
 
 COPY app ./app
-# The hosting spike, to time workloads on the host (fly ssh console).
+# The hosting spike, to time workloads from a shell on the host.
 COPY spikes/hosting.py ./spikes/hosting.py
 
 ENV PATH="/app/.venv/bin:$PATH" \
