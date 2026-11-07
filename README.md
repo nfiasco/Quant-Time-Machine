@@ -112,7 +112,7 @@ The frontend is deployed on [Vercel](https://vercel.com):
 2. Set **Root Directory** to `frontend`. Vercel detects Next.js automatically, so no `vercel.json` is needed.
 3. Deploy. Every push to `main` updates production, and every pull request gets its own preview URL.
 
-Backend hosting isn't set up yet. The API will run on [Railway](https://railway.com)'s Hobby plan (decision D4, [`doc/hosting.md`](doc/hosting.md)), built from `backend/Dockerfile` on each merge to `main`, once S15.1 sets it up.
+The API runs on [Railway](https://railway.com)'s Hobby plan (decision D4) at <https://quant-time-machine-api.up.railway.app>. Railway builds `backend/Dockerfile` when a merge to `main` changes the backend's image, once CI passes, and the point-in-time store lives on a Railway volume. In Vercel, `NEXT_PUBLIC_API_URL` points Production at it; previews keep the default. Settings, the store upload, and the smoke test are in [`doc/hosting.md`](doc/hosting.md#the-deployment-on-railway) and the [backend README](backend/README.md#deployment).
 
 ## Roadmap (draft)
 

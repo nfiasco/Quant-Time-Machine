@@ -720,7 +720,7 @@ Every story in one table, like the Project's table view. Select an ID to jump to
 | [S14.3](#s143-stress-tests-subperiods-timing-and-costs) | Stress tests: subperiods, timing, and costs | E14 | P1 | M | 12 | M9 | Backlog |
 | [S14.4](#s144-statistical-robustness) | Statistical robustness | E14 | P2 | L | 12 | M9 | Backlog |
 | [S14.5](#s145-robustness-report-and-assistant-support) | Robustness report and assistant support | E14 | P1 | M | 12 | M9 | Backlog |
-| [S15.1](#s151-deploy-the-backend-with-data) | Deploy the backend with data | E15 | P0 | M | 5 | M5 | Backlog |
+| [S15.1](#s151-deploy-the-backend-with-data) | Deploy the backend with data | E15 | P0 | M | 5 | M5 | In review |
 | [S15.2](#s152-performance-baseline) | Performance baseline | E15 | P1 | S | 5 | M5 | Backlog |
 | [S15.3](#s153-usability-test-round-1) | Usability test, round 1 | E15 | P1 | M | 6 | M5 | Backlog |
 | [S15.4](#s154-cisc-498-demo-and-final-report) | CISC 498 demo and final report | E15 | P0 | M | 6 | M5 | Backlog |
@@ -2457,7 +2457,7 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 
 #### S15.1 Deploy the backend with data
 
-**Priority:** P0 · **Size:** M · **Sprint:** 5 · **Milestone:** M5 · **Area:** infra · **Depends on:** S1.6, S8.4 · **Reqs:** NFR-6, NFR-8
+**Priority:** P0 · **Size:** M · **Sprint:** 5 · **Milestone:** M5 · **Area:** infra · **Depends on:** S1.6, S8.4 · **Reqs:** NFR-6, NFR-8 · **Status:** In review (deployed 2026-11-07, ahead of its sprint; the background-run steps wait for S8.4)
 
 **Story:** As a user, I want the web app working online, so that the demo doesn't depend on someone's laptop.
 
@@ -2469,10 +2469,10 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 
 **Tasks**
 
-- [ ] Provision and configure the host
-- [ ] Upload the data and set environment variables
-- [ ] Write the smoke-test script
-- [ ] Document the deploy steps
+- [x] Provision and configure the host: Railway project `quant-time-machine`, service `api` in US East, built from `backend/` on merges to `main` after CI, at <https://quant-time-machine-api.up.railway.app>
+- [x] Upload the data and set environment variables: the universe v1 store (data version `20261101T202624Z`) on a volume at `/data`, uploaded by [`backend/scripts/upload_store.sh`](../backend/scripts/upload_store.sh); `CORS_ORIGINS` for the Vercel site, and no secrets on the host
+- [x] Write the smoke-test script: [`backend/scripts/smoke_test.py`](../backend/scripts/smoke_test.py), run after each deploy by [`smoke.yml`](../.github/workflows/smoke.yml) and tested against the fixtures by [`tests/test_smoke_test.py`](../backend/tests/test_smoke_test.py)
+- [x] Document the deploy steps: [`doc/hosting.md`](hosting.md#the-deployment-on-railway)
 
 #### S15.2 Performance baseline
 
@@ -2786,7 +2786,7 @@ Open decisions, each owned by a story. When one is made, record the outcome and 
 | D1 | Point-in-time storage | DuckDB + Parquet, PostgreSQL, SQLite | **Parquet files queried with DuckDB, in-process.** On 1M rows it was about 10× faster than PostgreSQL for snapshots and about 18× for backtest-style as-of joins, with no server to run. Accounts and user data are a separate store in Supabase (PostgreSQL and Auth; D9, D10). See [`doc/storage.md`](storage.md). | Sprint 1 | S3.2 | Decided 2026-10-11 (pending team review) |
 | D2 | Daily price source | Tiingo, Stooq, yfinance, Alpha Vantage, WRDS/CRSP | **Tiingo end-of-day API**: raw closes plus split and dividend fields on every bar (confirmed: AAPL's raw $702.10 close on 2012-09-19). Delisted coverage is partial. Yahoo returns split-adjusted closes and no delisted tickers; Stooq blocks scripts; Alpha Vantage's free tier has no history. CRSP through UD is for internal validation only. Display rights need settling before M5. See [`doc/data-sources.md`](data-sources.md#daily-prices-decision-d2). | Sprint 1 | S6.1 | Decided 2026-10-11; the test pull on 2026-10-12 confirmed it (pending team review) |
 | D3 | Universe v1 | Curated list with history, Dow 30 history, reconstructed S&P 500, top N by market cap | **A curated list, `starter_large_caps`:** 50 to 100 large US companies (v1 aims for 50). Each is a member from the effective date it joined the S&P 500 until the date it left, cited from S&P's public announcements, from 2010-01-01 on. It deliberately includes at least 10 companies that left and 10 that joined, Tesla among them for rule 8's test. Every member files 10-Ks and 10-Qs and has Tiingo prices for its whole membership; gaps are listed, not dropped. *Built 2026-10-31 (S6.5):* 50 members, 13 that joined after 2010 and 13 that left; ingestion loads them with SPY. See [`doc/data-sources.md`](data-sources.md#universe-v1-starter_large_caps-decision-d3). | Sprint 3 (moved from early Sprint 2; the M2 set unblocks ingestion) | S6.5 | Decided 2026-10-29 (pending team review) |
-| D4 | Backend and data hosting | Vercel, Render, Railway, Fly.io, AWS Lambda, ECS on Fargate, AWS Batch, Step Functions, Google Cloud Run, Cloudflare, object storage for data | **Railway's Hobby plan:** the same container, built from GitHub on each merge to `main` and always on, for $5 a month with $5 of usage included (the API should use about $2–3). It has no cold starts, unthrottled CPU, and no time limit on background work, so S8.4 runs backtests in a thread. Railway reopened sign-ups on 2026-11-02, but its 2026-10-21 security incident still has no final report, so the host keeps few secrets. Google Cloud Run's free tier is the way out if paying stops being worth it. DuckDB stays. *History:* Fly.io was decided on 2026-10-23 and ran on its free trial until 2026-10-31, and AWS Lambda led from 2026-10-31. See [`doc/hosting.md`](hosting.md). | Sprint 2 | S1.6 | Decided 2026-11-06 (pending team review), replacing Fly.io (2026-10-23) |
+| D4 | Backend and data hosting | Vercel, Render, Railway, Fly.io, AWS Lambda, ECS on Fargate, AWS Batch, Step Functions, Google Cloud Run, Cloudflare, object storage for data | **Railway's Hobby plan:** the same container, built from GitHub on each merge to `main` and always on, for $5 a month with $5 of usage included (the API should use about $2–3). It has no cold starts, unthrottled CPU, and no time limit on background work, so S8.4 runs backtests in a thread. Railway reopened sign-ups on 2026-11-02, but its 2026-10-21 security incident still has no final report, so the host keeps few secrets. Google Cloud Run's free tier is the way out if paying stops being worth it. DuckDB stays. *History:* Fly.io was decided on 2026-10-23 and ran on its free trial until 2026-10-31, and AWS Lambda led from 2026-10-31. See [`doc/hosting.md`](hosting.md). | Sprint 2 | S1.6 | Decided 2026-11-06 (pending team review), replacing Fly.io (2026-10-23). Deployed 2026-11-07 (S15.1) |
 | D5 | Default decision and fill timing | 09:30 ET decision with same-day close fill, or next-day open fill | **09:30 ET decision, same-day close fill**, configurable per spec; next-day open is a robustness check (S14.3). See [`doc/time-model.md`](time-model.md#10-fills-strictly-after-the-decision-by-default-the-decision-days-close-d5). | Sprint 1 | S3.1 | Decided 2026-10-11 (pending team review) |
 | D6 | Model, API, and where the agent loop runs | Claude through the Anthropic API (default candidate) or alternatives; backend or frontend | Claude through the Anthropic API, with the loop in the Python backend | Sprint 7 | S11.1 | Open |
 | D7 | How the assistant reaches the tools | Same-process calls, MCP over Streamable HTTP, or both | The same functions behind both; decide in the spike | Sprint 7 | S10.1 | Open |

@@ -40,3 +40,23 @@ jobs:
       - run: uv run ruff check
       - run: uv run ruff format --check
       - run: uv run pytest
+
+  # Railway builds backend/Dockerfile on each merge to main, once these jobs pass. Nobody
+  # needs Docker locally, so this is where a broken image shows up before it ships.
+  backend-image:
+    name: Backend image (build + start)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: docker build --tag qtm-api backend
+      - name: Start it with a PORT, as Railway does, and wait for /health
+        run: |
+          docker run --detach --name api --env PORT=9090 --publish 9090:9090 qtm-api
+          for attempt in $(seq 30); do
+            curl --fail --silent http://localhost:9090/health && break
+            sleep 1
+          done
+          docker logs api
+          curl --fail --silent --show-error http://localhost:9090/health
+          # The server must not run as root (see the Dockerfile).
+          test "$(docker exec api id -u)" != 0
