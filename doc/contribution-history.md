@@ -120,3 +120,11 @@ The milestone is the primary delivery workstream, not an inference from merge da
 | [#96](https://github.com/nfiasco/Quant-Time-Machine/pull/96) | Deploy the API and data store on Railway (S15.1) | [nfiasco](https://github.com/nfiasco) | M5 | Merged |
 | [#191](https://github.com/nfiasco/Quant-Time-Machine/pull/191) | Reconcile roadmap and GitHub project planning | [nfiasco](https://github.com/nfiasco) | M1 | Merged |
 | [#192](https://github.com/nfiasco/Quant-Time-Machine/pull/192) | Refresh roadmap links after milestone reconciliation | [nfiasco](https://github.com/nfiasco) | M1 | Merged |
+
+## Maintenance deployment
+
+[PR #193](https://github.com/nfiasco/Quant-Time-Machine/pull/193) commits the workflow, forms, policy tests, and this audit. A follow-up documentation PR records the live verification and the required status gate. These maintenance PRs use M1, the infrastructure area, and their authored contributor; they do not close the outstanding S1.2 planning or S1.4 review-policy criteria.
+
+During verification, GitHub's unconditional PR-linked workflow moved completed stories to In progress when retrospective closing links were added. It was disabled, all 32 story cards were restored to Done, and the final audit checked the issue and project states together. Seven native workflows remain enabled.
+
+A later local, unmerged commit `351da187d3969398510f0cfddbd29aa8ddd42a64` adds the S9.2 typed snapshot/catalog client. It is recorded as partial groundwork in the roadmap and issue #35; it does not change the completed-story count or incorporate local uncommitted UI work.
