@@ -604,7 +604,7 @@ Issues and Projects are complementary: the issue is the work record; the project
 - Update the task checklist with each merged PR. Move to Done only after the remaining acceptance criteria are verified.
 - Keep Priority and Size current, select the planned finishing iteration, and keep one milestone per story. Epics span milestones and do not duplicate milestone progress.
 - Keep at most two active stories per person. Completed-story assignees follow [verified contributions](contribution-history.md); future assignments need the team's planning decision. A merger is not automatically the implementer.
-- Built-in project workflows add repository issues, PRs, and sub-issues, excluding historical trackers. New and reopened items enter Backlog; closed issues move to Done, and linked pull requests support review tracking. These enabled workflows were verified during reconciliation. Move an issue to Done only after its acceptance criteria are met, because the existing auto-close workflow closes issues in Done.
+- Built-in project workflows add repository issues, PRs, and sub-issues, excluding historical trackers. New and reopened items enter Backlog; closed issues move to Done. Set In review when the remaining scope is ready for review. The unconditional PR-linked status workflow is disabled because adding historical links moved completed issues backwards. Move an issue to Done only after its acceptance criteria are met, because the existing auto-close workflow closes issues in Done.
 
 ### 6.6 Definition of Ready and Done
 
@@ -862,10 +862,11 @@ Each story starts with a metadata line: priority, size, sprint, milestone, area,
 - [x] Add `.github/pull_request_template.md`
 - [x] Add story, spike, and bug issue templates
 - [x] Add the Protect main ruleset requiring pull requests and preventing deletion/force pushes
-- [ ] Require passing CI and one approving review on `main`
+- [x] Require passing frontend, backend, image, organization-policy, and PR metadata checks on `main`
+- [ ] Require one approving review on `main`
 - [x] Link the contributing workflow from the README
 
-**Progress evidence (2026-11-08):** Templates are committed. The active Protect main ruleset requires a pull request and prevents deletion/force pushes, but requires zero approving reviews and no CI status checks. The remaining protection acceptance criteria are not satisfied. Evidence: [PR #44](https://github.com/nfiasco/Quant-Time-Machine/pull/44), `.github/pull_request_template.md`, `.github/ISSUE_TEMPLATE/story.md`.
+**Progress evidence (2026-11-09):** PR #193 adds structured issue forms, a PR template, tested metadata automation, and the team workflow guide. Protect main requires pull requests, prevents deletion/force pushes, and now requires the frontend, backend, image, organization-policy, and PR metadata checks. It still requires zero approving reviews, so the one-review criterion remains open. The live metadata gate was verified during the follow-up documentation PR. Evidence: [PR #193](https://github.com/nfiasco/Quant-Time-Machine/pull/193), `.github/workflows/organization.yml`, `.github/ISSUE_TEMPLATE/story.yml`, [Protect main rules](https://github.com/nfiasco/Quant-Time-Machine/rules/25326876).
 
 **GitHub:** [#111](https://github.com/nfiasco/Quant-Time-Machine/issues/111) · **Parent epic:** [#97](https://github.com/nfiasco/Quant-Time-Machine/issues/97)
 
@@ -2148,6 +2149,8 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 - [ ] Add snapshot-specific empty and error states
 
 **Progress evidence (2026-11-08):** The committed explorer route parses/displays as_of but renders PlannedPage. The landing-page illustration is static and makes no API calls. Live snapshot rendering, picker controls, and complete shareable state are outstanding. Evidence: [PR #51](https://github.com/nfiasco/Quant-Time-Machine/pull/51), [PR #92](https://github.com/nfiasco/Quant-Time-Machine/pull/92), `frontend/app/(app)/time-machine/page.tsx`, `frontend/features/landing/story/events.ts`.
+
+**Additional committed groundwork (2026-11-09):** Local branch `feature/s9.2-time-machine-explorer` contains commit `351da187d3969398510f0cfddbd29aa8ddd42a64`, adding typed v1 responses, snapshot/catalog client functions, and API failure handling. This commit is not merged into the audited main branch; live rendering, controls, and the remaining UI acceptance criteria are still open. No uncommitted work is included.
 
 **GitHub:** [#35](https://github.com/nfiasco/Quant-Time-Machine/issues/35) · **Parent epic:** [#15](https://github.com/nfiasco/Quant-Time-Machine/issues/15)
 
