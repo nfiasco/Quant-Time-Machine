@@ -19,6 +19,11 @@ type ErrorStateProps = {
   digest?: string;
   /** Renders a "Try again" button; pass `retry` from an error.tsx boundary. */
   onRetry?: () => void;
+  /**
+   * Buttons before "Back to dashboard". A Server Component can't pass `onRetry` (a
+   * function), so it passes an element instead, such as `<RetryButton />`.
+   */
+  actions?: React.ReactNode;
 };
 
 /** Something failed: say what happened and offer a way forward. */
@@ -27,6 +32,7 @@ export function ErrorState({
   description = "This part of the page couldn't load. Try again, or go back to the dashboard.",
   digest,
   onRetry,
+  actions,
 }: ErrorStateProps) {
   return (
     <Empty className="border border-destructive/30 bg-destructive/5">
@@ -45,6 +51,7 @@ export function ErrorState({
               Try again
             </Button>
           ) : null}
+          {actions}
           <Button asChild variant="outline">
             <Link href={routes.dashboard.href}>Back to dashboard</Link>
           </Button>
