@@ -25,6 +25,15 @@ The homepage (`/`, code in [`features/landing/`](features/landing)) is a scroll 
 
 The page makes no API calls and needs no keys.
 
+## Time Machine
+
+The explorer (`/time-machine`, code in [`features/time-machine/`](features/time-machine)) shows what was known at a moment and what wasn't yet, for up to 10 companies and 10 economic series (S9.2). It renders `GET /v1/snapshot` as one knowledge horizon per company and per series.
+
+- **The URL is the view.** `/time-machine?as_of=2020-06-05T09:30&tickers=AAPL,TSLA&series=UNRATE,FEDFUNDS` reproduces roadmap §2.3, and any view can be shared by its link. `as_of` is New York time without an offset; a date alone means 09:30 ET. [`params.ts`](features/time-machine/params.ts) parses and builds these links.
+- **Fetched on the server.** The page asks the API from the Next.js server, so the API's CORS list doesn't matter, but `NEXT_PUBLIC_API_URL` must be set for every Vercel environment that should work (Preview included).
+- **No future record on the known side.** [`snapshot-events.ts`](features/time-machine/snapshot-events.ts) decides each record's side from its own `available_at`, and leaves out (and counts) any record the API put on the wrong side. Its tests run on the API's own §2.3 example.
+- **States.** A link with no moment shows how to start; a moment alone offers a starter selection; a problem in the link or an API error shows next to the field it concerns; an unreachable API shows a retry. While a new view loads, the old one dims.
+
 ## Configuration
 
 Copy [`.env.example`](.env.example) to `.env.local` (git-ignored):
@@ -47,6 +56,7 @@ Read it only through [`lib/api/client.ts`](lib/api/client.ts) (`API_URL`, `apiUr
 | `npm run build` | Production build (also type-checks the project)       |
 | `npm run start` | Serve the production build (run `build` first)        |
 | `npm run lint`  | Lint with ESLint                                      |
+| `npm test`      | Run the unit tests once with Vitest                   |
 
 ## Project structure
 
@@ -79,15 +89,16 @@ config/
 └── navigation.ts         # Every route: title, icon, status, roadmap story
 hooks/                    # Shared React hooks
 lib/
-├── api/                  # Backend client: client.ts (API_URL, apiFetch), one file per endpoint group
+├── api/                  # Backend client: client.ts (API_URL, apiFetch), types.ts, errors.ts, one file per endpoint group
 ├── time.ts               # Market-time (ET) parsing and formatting
+├── format.ts             # Number formatting (prices, revenue, macro values)
 ├── theme.ts              # Light and dark theme helpers
 └── utils.ts              # cn() for merging class names
 components.json           # shadcn/ui CLI settings
 GUIDELINES.md             # Design system, conventions, and project rules
 ```
 
-Most pages are placeholders for now: each shows what it will do and which roadmap story and milestone deliver it. All of that comes from [`config/navigation.ts`](config/navigation.ts).
+Pages that aren't built yet are placeholders: each shows what it will do and which roadmap story and milestone deliver it. All of that comes from [`config/navigation.ts`](config/navigation.ts).
 
 ### Adding a page
 
