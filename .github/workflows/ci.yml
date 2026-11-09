@@ -9,6 +9,13 @@ permissions:
   contents: read
 
 jobs:
+  organization-tests:
+    name: Organization policy tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 -m unittest discover -s .github/scripts -p "test_*.py"
+
   frontend:
     name: Frontend (lint + build)
     runs-on: ubuntu-latest

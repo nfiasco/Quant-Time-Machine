@@ -36,6 +36,8 @@ Each app has its own README with more details. The main docs:
 | Doc                                          | What it covers                                                                                          |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | [Roadmap and backlog](doc/roadmap.md)        | Requirements, milestones, sprints, every epic and story, risks, and the decision log                    |
+| [Team workflow](doc/github-workflow.md) | Issue/PR requirements, project views, automation, and maintenance |
+| [Contribution history](doc/contribution-history.md) | Verified completed-story contributors and historical PR evidence |
 | [Time model](doc/time-model.md)              | How "known at time *T*" works for every kind of data, with worked examples                              |
 | [Data sources](doc/data-sources.md)          | Each data source's coverage, timestamps, limits, cost, and terms of use; known gaps; price-source choice |
 | [Storage](doc/storage.md)                    | Why point-in-time data lives in Parquet files queried by DuckDB, with the benchmark                     |

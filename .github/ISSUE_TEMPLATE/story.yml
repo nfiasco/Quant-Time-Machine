@@ -1,0 +1,48 @@
+name: Story
+description: Plan an independently verifiable deliverable.
+labels: [story]
+body:
+  - type: textarea
+    id: story
+    attributes:
+      label: Story and outcome
+      description: Include the stable roadmap ID when applicable, user need, and outcome.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List observable conditions that must all be met before closing.
+    validations:
+      required: true
+  - type: textarea
+    id: tasks
+    attributes:
+      label: Tasks
+      description: Add a short task checklist.
+    validations:
+      required: true
+  - type: textarea
+    id: parent
+    attributes:
+      label: Parent and dependencies
+      description: Link the epic and prerequisites, or explain why none apply.
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: P0 is required for the semester demo; P1 is planned; P2 is optional.
+      options: [P0, P1, P2]
+      default: 1
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [data, engine, api, web, ai, infra, research]
+    validations:
+      required: true

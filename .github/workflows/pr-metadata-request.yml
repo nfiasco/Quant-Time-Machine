@@ -1,0 +1,16 @@
+name: PR metadata request
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, ready_for_review, converted_to_draft, labeled, unlabeled, assigned, unassigned, milestoned, demilestoned, closed]
+
+permissions: {}
+
+jobs:
+  request:
+    name: Request metadata audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      # No checkout, secrets, write token, or interpolation of PR content.
+      - run: echo "The trusted repository workflow will check current PR metadata."

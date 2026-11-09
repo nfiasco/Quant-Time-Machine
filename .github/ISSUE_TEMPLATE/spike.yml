@@ -1,0 +1,41 @@
+name: Research spike
+description: Investigate a focused question and record a decision.
+labels: [spike]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Research question
+      description: Include the roadmap ID when applicable and the decision this research enables.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Exit criteria
+      description: Specify the comparison, measurements, artifact, and time limit.
+    validations:
+      required: true
+  - type: textarea
+    id: parent
+    attributes:
+      label: Parent and dependencies
+      description: Link the epic and prerequisites, or explain why none apply.
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: P0 is required for the semester demo; P1 is planned; P2 is optional.
+      options: [P0, P1, P2]
+      default: 1
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [data, engine, api, web, ai, infra, research]
+    validations:
+      required: true

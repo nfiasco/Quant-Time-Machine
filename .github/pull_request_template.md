@@ -1,21 +1,22 @@
-## What and why
+## Summary
 
-<!-- One or two sentences on what changed and why. Keep pull requests small (under ~400 changed lines). -->
+<!-- Describe the concrete problem, resulting behavior, and important limits. -->
 
-Closes #
+## Linked work
 
-**Story:** <!-- for example, S4.4 -->
+<!-- Use Refs #123 for partial/related work; Closes #123 only when all issue criteria are met.
+For small maintenance without an issue, write "No issue: <specific reason>" instead.
+Do not create an issue solely to satisfy this template. -->
 
-## How to test or demo
+## Validation
 
-<!-- Commands to run, what to look at, or a screenshot for UI changes. -->
+<!-- Record commands and results; include UI evidence where useful. Explain checks not applicable or not run. -->
 
-## Definition of Done
+## Before merge
 
-From [roadmap §6.6](https://github.com/nfiasco/Quant-Time-Machine/blob/main/doc/roadmap.md#66-definition-of-ready-and-done). Check each item before merging.
+- [ ] Choose the primary milestone and one area and priority label; assign the responsible contributor(s).
+- [ ] Select an appropriate peer reviewer when the change requires review.
+- [ ] Verify linked issue criteria and task checklists; partial work must not close a whole story.
+- [ ] Check CI, documentation, and relevant tests, including future-data exclusion for point-in-time reads.
 
-- [ ] Acceptance criteria are demonstrated in the pull request, with a screenshot, or at sprint review.
-- [ ] Merged through a reviewed pull request with CI green (lint, format, tests, build).
-- [ ] Tests added. Anything that reads data includes at least one test proving a future-dated record can't leak in.
-- [ ] Docs updated where behavior changed (README, docstrings, `doc/`).
-- [ ] No secrets and no raw data files committed.
+The PR metadata check enforces the description, issue reference or reason, assignee, labels, and milestone before merge. Unambiguous metadata is inherited from linked issues. The project adds the PR automatically. See [the team workflow](https://github.com/nfiasco/Quant-Time-Machine/blob/main/doc/github-workflow.md).
