@@ -1,3 +1,4 @@
+import type { MomentEvent } from "@/features/time-machine/moment-event";
 import type { EtDateTime } from "@/lib/time";
 
 /** The demo moment: June 5, 2020, at 09:30 ET (doc/roadmap.md §2.3). */
@@ -9,22 +10,11 @@ export const demoMoment: EtDateTime = {
   minute: 30,
 };
 
-export type MomentEvent = {
-  id: string;
-  /** When it became public, New York time; for a period end, the day it describes. */
-  at: EtDateTime;
-  /** Shown instead of a time of day, for moments that don't have one. */
-  timeNote?: string;
-  label: string;
-  detail: string;
-  /** Public at or before the knowledge time. */
-  known: boolean;
-};
-
 /**
  * What was and wasn't public at the demo moment, in time order. Every time matches the
- * snapshot API's golden test (backend/tests/test_api_snapshot.py and doc/api-v1.md);
- * an illustration until the Time Machine page (S9.2) shows the live snapshot.
+ * snapshot API's golden test (backend/tests/test_api_snapshot.py and doc/api-v1.md).
+ * A static illustration for the dashboard; the Time Machine page (S9.2) shows the live
+ * snapshot for any moment.
  */
 export const demoMomentEvents: readonly MomentEvent[] = [
   {
