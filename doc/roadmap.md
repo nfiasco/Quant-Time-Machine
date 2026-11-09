@@ -430,8 +430,8 @@ Targets are retained from the committed plan. A passed target does not close inc
 | ID | Milestone | Planning target | Stories done | Status and remaining gate |
 | --- | --- | --- | --- | --- |
 | [M0](https://github.com/nfiasco/Quant-Time-Machine/milestone/13) | Foundation | Sep 27, 2026 | 0/1 | **In progress.** Scaffold is present; frontend test/format gates remain in S1.1. |
-| [M1](https://github.com/nfiasco/Quant-Time-Machine/milestone/14) | Decisions and discovery | Oct 11, 2026 | 5/10 | **In progress.** Planning ownership, public-repo follow-up, protection requirements, WRDS/team review, and time-model ratification remain. |
-| [M2](https://github.com/nfiasco/Quant-Time-Machine/milestone/4) | Walking skeleton | Oct 25, 2026 | 13/17 | **In progress.** Core data/API work is merged; live June 5 page, comparison/evaluation work, and Supabase setup remain. |
+| [M1](https://github.com/nfiasco/Quant-Time-Machine/milestone/14) | Decisions and discovery | Oct 11, 2026 | 5/10 | **In progress.** Board setup and metadata automation are complete. Planning ownership, license/key follow-up, one-review protection, WRDS/team review, and time-model ratification remain; interviews must also be underway for the exit criterion. |
+| [M2](https://github.com/nfiasco/Quant-Time-Machine/milestone/4) | Walking skeleton | Oct 25, 2026 | 13/17 | **In progress.** Core data/API work is merged; live June 5 page, comparison/evaluation work, and Supabase setup remain. S2.4 needs the S2.1 interview baseline from M3. |
 | [M3](https://github.com/nfiasco/Quant-Time-Machine/milestone/5) | Point-in-time data v1 | Nov 8, 2026 | 13/16 | **In progress.** Data v1, golden tests, spec/schedule, snapshot, and catalogs are merged; interviews, live explorer, and account schema remain. |
 | [M4](https://github.com/nfiasco/Quant-Time-Machine/milestone/15) | Backtester v1 | Nov 22, 2026 | 0/11 | **In progress.** Spec/schedule prerequisites are ready; the simulation, signal, portfolio, metric, run/audit, and API delivery chain remains. |
 | [M5](https://github.com/nfiasco/Quant-Time-Machine/milestone/6) | Web UI and CISC 498 demo | Dec 2026, per the course calendar | 1/11 | **In progress.** Railway deployment is complete; builder integration, results, methodology, usability, accounts, and course delivery remain. |
@@ -804,17 +804,23 @@ Each story starts with a metadata line: priority, size, sprint, milestone, area,
 
 - The Project has the fields, labels, milestones, and views in [§6](#6-running-the-project-board).
 - Every epic and story has one issue, with each story attached to its epic as a sub-issue.
-- The current and next sprint are visible, existing owners are preserved, and unassigned work is explicit.
+- The iteration calendar, planned assignments, and unassigned backlog are visible. Completed-story contributors are supported by merged authored work.
+- Planning for selected sprint work is recorded with confirmed owners and agreed carry-over/iteration assignments; unselected backlog can remain explicitly unassigned.
 
 **Tasks**
 
-- [x] Align labels and milestones M0–M10 with this roadmap
-- [x] Reorganize the existing Project, its fields, and its views
-- [x] Connect every epic and all 104 stories through issues and parent/sub-issue links
-- [x] Retain and verify the existing auto-add, closed → Done, and merged → Done workflows
-- [ ] Confirm owners for unassigned work and record the next planning decisions
+- [x] Align labels and milestones M0–M10 with the roadmap and verify milestone totals
+- [x] Configure the shared Project, planning fields, iteration calendar, and 10 focused views, including Story backlog, Bug tracker, and Pull requests
+- [x] Connect all 16 epics and 104 stories through canonical issues and parent/sub-issue links
+- [x] Reconcile historical PR titles, descriptions, assignees, labels, milestones, and issue/project links without changing merge or closure history
+- [x] Verify all 32 completed-story contributors against authored commits and merged PRs; record the unresolved PR #94 account mapping separately
+- [x] Verify seven native workflows for intake and lifecycle status; disable the unconditional PR-linked transition and restore completed stories to Done
+- [x] Publish the team workflow and contribution-history guide
+- [ ] Record the team's planning outcome: owners for selected open work, carry-over decisions, and agreed iteration assignments
 
-**Progress evidence (2026-11-08):** The repository planning structure is reconciled in this update. Completed owners were verified against merged PRs in the November 9 [contribution audit](contribution-history.md). Planning attendance and new ownership decisions cannot be inferred from Git and remain open. Evidence: `doc/roadmap.md`.
+**Progress evidence (2026-11-09):** The cleanup and board configuration are complete in [PR #191](https://github.com/nfiasco/Quant-Time-Machine/pull/191), [PR #192](https://github.com/nfiasco/Quant-Time-Machine/pull/192), [PR #193](https://github.com/nfiasco/Quant-Time-Machine/pull/193), and [PR #194](https://github.com/nfiasco/Quant-Time-Machine/pull/194). The original 57 closed PRs were reconciled, 27 completed-story assignments were corrected, and project statuses and milestone totals were verified. The [team workflow](github-workflow.md) and [contribution audit](contribution-history.md) record the result. Open-work planning has no committed confirmation, so S1.2 remains In progress; setup work does not need to be repeated.
+
+**Remaining completion criterion:** Commit the planning decisions and reflect the confirmed owners/iterations on the selected issues. PR #94's account mapping remains a separate historical ownership question; its existing assignment is retained.
 
 **GitHub:** [#109](https://github.com/nfiasco/Quant-Time-Machine/issues/109) · **Parent epic:** [#97](https://github.com/nfiasco/Quant-Time-Machine/issues/97)
 
@@ -839,9 +845,9 @@ Each story starts with a metadata line: priority, size, sprint, milestone, area,
 - [x] Make the repository public
 - [x] Remove downloaded sample CSVs from the current tracked tree (PRs #65 and #73); keep tiny documented test fixtures
 - [ ] Record confirmation that the leaked FRED key was revoked and decide how to handle its historical exposure
-- [ ] Verify and record a teammate-authored Vercel preview deploy
+- [x] Verify a teammate-authored preview: [PR #88](https://github.com/nfiasco/Quant-Time-Machine/pull/88), authored by `iguy1`, has a successful Vercel Preview deployment for commit [`efd3810`](https://github.com/nfiasco/Quant-Time-Machine/commit/efd38106a962fe7cb34cd8c72b55462b3b364524)
 
-**Progress evidence (2026-11-08):** The repository is public, MIT is committed, and the data policy exists. No committed evidence confirms revocation of the historical FRED key or course ownership approval. Downloaded sample CSVs were committed in October and later removed; historical exposure is not erased by removal. Teammate preview verification remains unrecorded. Evidence: [PR #44](https://github.com/nfiasco/Quant-Time-Machine/pull/44), [PR #47](https://github.com/nfiasco/Quant-Time-Machine/pull/47), [PR #73](https://github.com/nfiasco/Quant-Time-Machine/pull/73), `LICENSE`, `.gitignore`, `README.md`.
+**Progress evidence (2026-11-09):** The repository is public, MIT and the data policy are committed, and downloaded sample CSVs were removed from the tracked tree. GitHub records a successful Vercel status and Preview deployment for teammate-authored PR #88 on November 2, 2026: [deployment record](https://vercel.com/quant-time-machine/quant-time-machine/7mBonfYr2NVkDWHb74eQP6wNBF69). This verifies the historical preview criterion; it does not claim the preview URL remains available indefinitely. Course ownership approval, leaked-key revocation, and the decision about historical exposure remain unconfirmed. Evidence: [PR #44](https://github.com/nfiasco/Quant-Time-Machine/pull/44), [PR #73](https://github.com/nfiasco/Quant-Time-Machine/pull/73), [PR #88](https://github.com/nfiasco/Quant-Time-Machine/pull/88), `LICENSE`, `.gitignore`, and `README.md`.
 
 **GitHub:** [#110](https://github.com/nfiasco/Quant-Time-Machine/issues/110) · **Parent epic:** [#97](https://github.com/nfiasco/Quant-Time-Machine/issues/97)
 
@@ -854,19 +860,22 @@ Each story starts with a metadata line: priority, size, sprint, milestone, area,
 **Acceptance criteria**
 
 - A pull request template contains the Definition of Done checklist.
-- Issue templates exist for stories, spikes, and bugs.
+- Story, spike, and bug forms collect scope/criteria and required area and priority selections.
+- The PR metadata check validates a useful description, related issue or explained exception, assignees, labels, and milestone before merge; safe defaults are inherited only when unambiguous.
 - `main` requires passing CI and one approving review.
 
 **Tasks**
 
 - [x] Add `.github/pull_request_template.md`
-- [x] Add story, spike, and bug issue templates
+- [x] Replace the basic story, spike, and bug templates with structured forms requiring scope, area, and priority
 - [x] Add the Protect main ruleset requiring pull requests and preventing deletion/force pushes
 - [x] Require passing frontend, backend, image, organization-policy, and PR metadata checks on `main`
 - [ ] Require one approving review on `main`
+- [x] Automate issue labels and PR metadata using trusted default-branch code and the built-in repository token
+- [x] Verify both failing and passing metadata checks on PR #194, alongside 13 policy tests and the existing CI checks
 - [x] Link the contributing workflow from the README
 
-**Progress evidence (2026-11-09):** PR #193 adds structured issue forms, a PR template, tested metadata automation, and the team workflow guide. Protect main requires pull requests, prevents deletion/force pushes, and now requires the frontend, backend, image, organization-policy, and PR metadata checks. It still requires zero approving reviews, so the one-review criterion remains open. The live metadata gate was verified during the follow-up documentation PR. Evidence: [PR #193](https://github.com/nfiasco/Quant-Time-Machine/pull/193), `.github/workflows/organization.yml`, `.github/ISSUE_TEMPLATE/story.yml`, [Protect main rules](https://github.com/nfiasco/Quant-Time-Machine/rules/25326876).
+**Progress evidence (2026-11-09):** PR #193 adds structured issue forms, a PR template, tested metadata automation, and the team workflow guide. Protect main requires pull requests, prevents deletion/force pushes, and now requires the frontend, backend, image, organization-policy, and PR metadata checks. It still requires zero approving reviews, so the one-review criterion remains open. The live metadata gate rejected an unresolved priority and then passed after the choice was supplied on [PR #194](https://github.com/nfiasco/Quant-Time-Machine/pull/194); all required CI checks passed before merge. The forms, automation, and documentation work is complete. Only the one-approval requirement prevents story completion. Evidence: [PR #193](https://github.com/nfiasco/Quant-Time-Machine/pull/193), `.github/workflows/organization.yml`, `.github/ISSUE_TEMPLATE/story.yml`, [Protect main rules](https://github.com/nfiasco/Quant-Time-Machine/rules/25326876).
 
 **GitHub:** [#111](https://github.com/nfiasco/Quant-Time-Machine/issues/111) · **Parent epic:** [#97](https://github.com/nfiasco/Quant-Time-Machine/issues/97)
 
@@ -1002,7 +1011,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 #### S2.4 Success measures and evaluation plan
 
-**Priority:** P1 · **Size:** S · **Sprint:** 2 · **Milestone:** M2 · **Area:** research · **Depends on:** — · **Reqs:** NFR-10 · **Status:** Backlog
+**Priority:** P1 · **Size:** S · **Sprint:** 2 · **Milestone:** M2 · **Area:** research · **Depends on:** S2.1 · **Reqs:** NFR-10 · **Status:** Backlog
 
 **Story:** As a team, we want agreed success measures, so that our demos and final reports show evidence, not just features.
 
@@ -1016,9 +1025,9 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 - [ ] Draft measures and targets with the team
 - [ ] Write the usability-test protocol
-- [ ] Pull effort baselines from the interview notes
+- [ ] Pull effort baselines from the consented interview notes produced by S2.1
 
-**Progress evidence (2026-11-08):** No implementation or completion evidence for these acceptance criteria is present in the audited commit. This remains planned work.
+**Progress evidence (2026-11-09):** The measures, protocol, and effort baseline remain planned work in committed main. Completion of the baseline requires the interview evidence from [S2.1 #114](https://github.com/nfiasco/Quant-Time-Machine/issues/114), which is planned under M3. The measures and protocol can be drafted before interviews finish; the baseline acceptance criterion remains blocked until that evidence exists.
 
 **GitHub:** [#117](https://github.com/nfiasco/Quant-Time-Machine/issues/117) · **Parent epic:** [#98](https://github.com/nfiasco/Quant-Time-Machine/issues/98)
 
