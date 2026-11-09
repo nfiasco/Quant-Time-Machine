@@ -75,7 +75,7 @@ export const routes = {
     href: "/time-machine",
     icon: CalendarClockIcon,
     description: "Pick a moment and see what was known, and what wasn't yet.",
-    status: "planned",
+    status: "live",
     story: { id: "S9.2", title: "Time Machine explorer", milestone: "M3" },
     highlights: [
       "Pick a moment (09:30 ET by default), companies, and economic series.",

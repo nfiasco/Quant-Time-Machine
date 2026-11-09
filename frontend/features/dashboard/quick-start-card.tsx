@@ -16,11 +16,13 @@ import { Input } from "@/components/ui/input";
 import { routes } from "@/config/navigation";
 import { demoMoment, demoMomentEvents } from "@/features/time-machine/example-moment";
 import { KnowledgeHorizon } from "@/features/time-machine/knowledge-horizon";
+import { demoQuery, explorerHref, starterSelection } from "@/features/time-machine/params";
 import { formatEtDate, toAsOfParam } from "@/lib/time";
 
 /** Dashboard hero: pick a knowledge time, with the demo moment explained below. */
 export function QuickStartCard() {
   const demoAsOf = toAsOfParam(demoMoment);
+  const starter = [...starterSelection.tickers, ...starterSelection.series].join(", ");
 
   return (
     <Card>
@@ -32,11 +34,14 @@ export function QuickStartCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
-        {/* A GET form: submitting navigates to /time-machine?as_of=…, so the moment lives in the URL. */}
+        {/* A GET form: submitting navigates to /time-machine?as_of=…&tickers=…&series=…,
+            so the view lives in the URL. The starter selection answers at any moment. */}
         <Form
           action={routes.timeMachine.href}
           className="flex flex-col gap-3 sm:flex-row sm:items-start"
         >
+          <input type="hidden" name="tickers" value={starterSelection.tickers.join(",")} />
+          <input type="hidden" name="series" value={starterSelection.series.join(",")} />
           <Field className="sm:max-w-xs">
             <FieldLabel htmlFor="quick-start-as-of">Knowledge time (ET)</FieldLabel>
             <Input
@@ -48,7 +53,7 @@ export function QuickStartCard() {
               className="font-mono tabular-nums"
             />
             <FieldDescription className="text-xs">
-              New York time. A date alone means 09:30 ET.
+              New York time. Opens with {starter}; change them there.
             </FieldDescription>
           </Field>
           <Button type="submit" className="sm:mt-6">
@@ -66,15 +71,12 @@ export function QuickStartCard() {
         </div>
       </CardContent>
       <CardFooter className="flex-col items-start gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-        <span>
-          Times from the snapshot API&apos;s tests. The live explorer arrives with the
-          Time Machine page.
-        </span>
+        <span>Times from the snapshot API&apos;s tests.</span>
         <Link
-          href={`/time-machine?as_of=${demoAsOf}`}
+          href={explorerHref(demoQuery)}
           className="flex items-center gap-1 rounded-sm font-medium text-foreground underline-offset-4 hover:underline"
         >
-          Try this moment
+          See this moment live
           <ArrowRightIcon className="size-3.5" aria-hidden />
         </Link>
       </CardFooter>
