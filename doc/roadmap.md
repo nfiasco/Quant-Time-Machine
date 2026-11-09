@@ -429,17 +429,17 @@ Targets are retained from the committed plan. A passed target does not close inc
 
 | ID | Milestone | Planning target | Stories done | Status and remaining gate |
 | --- | --- | --- | --- | --- |
-| [M0](https://github.com/nfiasco/Quant-Time-Machine/milestone/11) | Foundation | Sep 27, 2026 | 0/1 | **In progress.** Scaffold is present; frontend test/format gates remain in S1.1. |
-| [M1](https://github.com/nfiasco/Quant-Time-Machine/milestone/1) | Decisions and discovery | Oct 11, 2026 | 5/10 | **In progress.** Planning ownership, public-repo follow-up, protection requirements, WRDS/team review, and time-model ratification remain. |
+| [M0](https://github.com/nfiasco/Quant-Time-Machine/milestone/13) | Foundation | Sep 27, 2026 | 0/1 | **In progress.** Scaffold is present; frontend test/format gates remain in S1.1. |
+| [M1](https://github.com/nfiasco/Quant-Time-Machine/milestone/14) | Decisions and discovery | Oct 11, 2026 | 5/10 | **In progress.** Planning ownership, public-repo follow-up, protection requirements, WRDS/team review, and time-model ratification remain. |
 | [M2](https://github.com/nfiasco/Quant-Time-Machine/milestone/4) | Walking skeleton | Oct 25, 2026 | 13/17 | **In progress.** Core data/API work is merged; live June 5 page, comparison/evaluation work, and Supabase setup remain. |
 | [M3](https://github.com/nfiasco/Quant-Time-Machine/milestone/5) | Point-in-time data v1 | Nov 8, 2026 | 13/16 | **In progress.** Data v1, golden tests, spec/schedule, snapshot, and catalogs are merged; interviews, live explorer, and account schema remain. |
-| [M4](https://github.com/nfiasco/Quant-Time-Machine/milestone/2) | Backtester v1 | Nov 22, 2026 | 0/11 | **In progress.** Spec/schedule prerequisites are ready; the simulation, signal, portfolio, metric, run/audit, and API delivery chain remains. |
+| [M4](https://github.com/nfiasco/Quant-Time-Machine/milestone/15) | Backtester v1 | Nov 22, 2026 | 0/11 | **In progress.** Spec/schedule prerequisites are ready; the simulation, signal, portfolio, metric, run/audit, and API delivery chain remains. |
 | [M5](https://github.com/nfiasco/Quant-Time-Machine/milestone/6) | Web UI and CISC 498 demo | Dec 2026, per the course calendar | 1/11 | **In progress.** Railway deployment is complete; builder integration, results, methodology, usability, accounts, and course delivery remain. |
-| [M6](https://github.com/nfiasco/Quant-Time-Machine/milestone/7) | Hardening and AI groundwork | Feb 21, 2027 | 0/7 | **In progress.** Only reusable share-count groundwork exists for universe v2; spring scope remains planned. |
-| [M7](https://github.com/nfiasco/Quant-Time-Machine/milestone/8) | AI research assistant alpha | Mar 21, 2027 | 0/11 | **Planned.** MCP, assistant execution, persistent runs, and public access control are not implemented. |
-| [M8](https://github.com/nfiasco/Quant-Time-Machine/milestone/9) | Bias detection and experiment tracking | Apr 18, 2027 | 0/11 | **Planned.** Full-run bias detection, evaluation, replay/history, and export remain planned. |
-| [M9](https://github.com/nfiasco/Quant-Time-Machine/milestone/10) | Comparison and robustness | May 2, 2027 | 0/7 | **Planned.** Comparison, sweeps, robustness, review, and usability remain planned. |
-| [M10](https://github.com/nfiasco/Quant-Time-Machine/milestone/12) | Final release and CISC 499 showcase | May 16, 2027, per the course calendar | 0/2 | **Planned.** Final documentation validation, release, report, and showcase remain planned. |
+| [M6](https://github.com/nfiasco/Quant-Time-Machine/milestone/16) | Hardening and AI groundwork | Feb 21, 2027 | 0/7 | **In progress.** Only reusable share-count groundwork exists for universe v2; spring scope remains planned. |
+| [M7](https://github.com/nfiasco/Quant-Time-Machine/milestone/17) | AI research assistant alpha | Mar 21, 2027 | 0/11 | **Planned.** MCP, assistant execution, persistent runs, and public access control are not implemented. |
+| [M8](https://github.com/nfiasco/Quant-Time-Machine/milestone/18) | Bias detection and experiment tracking | Apr 18, 2027 | 0/11 | **Planned.** Full-run bias detection, evaluation, replay/history, and export remain planned. |
+| [M9](https://github.com/nfiasco/Quant-Time-Machine/milestone/19) | Comparison and robustness | May 2, 2027 | 0/7 | **Planned.** Comparison, sweeps, robustness, review, and usability remain planned. |
+| [M10](https://github.com/nfiasco/Quant-Time-Machine/milestone/20) | Final release and CISC 499 showcase | May 16, 2027, per the course calendar | 0/2 | **Planned.** Final documentation validation, release, report, and showcase remain planned. |
 
 **Exit criteria**
 
