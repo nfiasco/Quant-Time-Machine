@@ -112,6 +112,49 @@ def test_names_and_ciks_follow_the_history(
     assert (security.name, security.cik) == (name, cik)
 
 
+@pytest.mark.parametrize(
+    ("security_id", "as_of", "ticker"),
+    [
+        ("meta", "2020-06-05", "FB"),
+        ("meta", "2022-06-09", "META"),
+        ("twitter", "2022-10-27", "TWTR"),
+        # Twitter stopped trading on October 28, 2022: no ticker finds it from then on,
+        # but its ID does.
+        ("twitter", "2022-10-28", None),
+        ("twitter", "2026-01-02", None),
+    ],
+)
+def test_a_security_is_found_by_its_id_even_after_it_stopped_trading(
+    curated_store: Path, security_id: str, as_of: str, ticker: str | None
+) -> None:
+    with PointInTimeView(parse_knowledge_time(as_of), store=curated_store) as view:
+        security = view.get_security(security_id)
+
+    assert (security.security_id, security.ticker) == (security_id, ticker)
+
+
+def test_a_security_is_found_from_its_first_version(curated_store: Path) -> None:
+    # Facebook's history starts with its listing, on May 18, 2012.
+    with PointInTimeView(
+        parse_knowledge_time("2012-05-17"), store=curated_store
+    ) as view:
+        with pytest.raises(NotFoundError, match="unknown security: meta"):
+            view.get_security("meta")
+        with pytest.raises(NotFoundError, match="unknown security: nope"):
+            view.get_security("nope")
+
+
+def test_finding_a_security_is_in_the_access_log(curated_store: Path) -> None:
+    with PointInTimeView(
+        parse_knowledge_time("2022-10-31"), store=curated_store
+    ) as view:
+        view.get_security("twitter")
+
+        assert [(r.table, r.key) for r in view.access_log] == [
+            ("securities", ("twitter",))
+        ]
+
+
 def snapshot(store: Path, fetched_at: datetime, *listed: tuple[int, str, str]) -> None:
     """Store one download of SEC's ticker file listing `listed`."""
     write_rows(
