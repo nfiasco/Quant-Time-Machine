@@ -2,6 +2,11 @@ name: Bug report
 description: Report a reproducible defect.
 labels: [bug]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        For suspected vulnerabilities, use [private reporting](https://github.com/nfiasco/Quant-Time-Machine/security/advisories/new).
+        For setup or usage questions, use [Q&A](https://github.com/nfiasco/Quant-Time-Machine/discussions/categories/q-a).
   - type: textarea
     id: problem
     attributes:

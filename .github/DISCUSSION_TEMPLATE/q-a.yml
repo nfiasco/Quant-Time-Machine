@@ -1,0 +1,27 @@
+title: ""
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search existing discussions first. Follow our [Code of Conduct](https://github.com/nfiasco/Quant-Time-Machine/blob/main/CODE_OF_CONDUCT.md).
+        Keep credentials, private research, and restricted provider data out of this public thread.
+        Use [private reporting](https://github.com/nfiasco/Quant-Time-Machine/security/advisories/new) for vulnerabilities.
+  - type: textarea
+    id: question
+    attributes:
+      label: Question
+      description: What are you trying to accomplish, and where are you stuck?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context and what you tried
+      description: Include relevant docs, commands, routes, commit, and environment when applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Minimal example
+      description: Optional synthetic input, redacted output, or a link to related work.

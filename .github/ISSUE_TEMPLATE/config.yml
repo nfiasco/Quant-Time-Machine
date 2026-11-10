@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and setup help
+    url: https://github.com/nfiasco/Quant-Time-Machine/discussions/categories/q-a
+    about: Ask the community for help before opening a work item.
+  - name: Feature ideas and design proposals
+    url: https://github.com/nfiasco/Quant-Time-Machine/discussions/categories/ideas
+    about: Discuss a proposal before turning it into an agreed story or spike.
+  - name: Report a security vulnerability privately
+    url: https://github.com/nfiasco/Quant-Time-Machine/security/advisories/new
+    about: Do not disclose vulnerabilities or credentials in public issues.

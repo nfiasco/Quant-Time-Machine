@@ -9,7 +9,7 @@ The Quant Time Machine web app, built with [Next.js](https://nextjs.org) (App Ro
 Requires Node.js 20.9+ (24 LTS recommended; see [`../.nvmrc`](../.nvmrc)).
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
