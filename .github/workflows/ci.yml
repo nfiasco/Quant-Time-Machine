@@ -17,7 +17,9 @@ jobs:
       - run: python3 -m unittest discover -s .github/scripts -p "test_*.py"
 
   frontend:
-    name: Frontend (lint + test + build)
+    # This name is a required status check on main (doc/github-workflow.md), so keep it
+    # as is: renaming the job blocks every pull request. The job also runs the unit tests.
+    name: Frontend (lint + build)
     runs-on: ubuntu-latest
     defaults:
       run:
