@@ -1,4 +1,4 @@
-"""Total returns from raw prices, splits, and dividends (S6.4; doc/time-model.md, rule 4).
+"""Total returns from raw prices, splits, and dividends (S6.4; doc/reference/time-model.md, rule 4).
 
 Prices stay as traded everywhere else, so a signal that needs a price level, such as
 market cap (S6.6), uses a raw close. Splits and dividends enter only here. A session's

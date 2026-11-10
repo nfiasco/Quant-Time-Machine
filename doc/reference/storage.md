@@ -1,12 +1,12 @@
 # Point-in-time storage (decision D1)
 
-> **Spike S3.2.** Decided 2026-10-11, pending team review. Evidence: [`backend/spikes/storage_benchmark.py`](../backend/spikes/storage_benchmark.py), which anyone can re-run in about 15 seconds.
+> **Spike S3.2.** Decided 2026-10-11, pending team review. Evidence: [`backend/spikes/storage_benchmark.py`](../../backend/spikes/storage_benchmark.py), which anyone can re-run in about 15 seconds.
 
 ## Decision
 
 **Store point-in-time data as Parquet files under `DATA_DIR`, and query them with DuckDB running inside the backend process.** There is no database server to run.
 
-User accounts and each user's own data (sign-in, saved experiments and runs) are a separate job with different needs. They go in Supabase (PostgreSQL plus Supabase Auth), which a teammate set up in [`supabase/`](../supabase/) for that purpose. See [two stores](#two-stores-point-in-time-data-and-accounts) below.
+User accounts and each user's own data (sign-in, saved experiments and runs) are a separate job with different needs. They go in Supabase (PostgreSQL plus Supabase Auth), which a teammate set up in [`supabase/`](../../supabase/) for that purpose. See [two stores](#two-stores-point-in-time-data-and-accounts) below.
 
 Why:
 
@@ -154,7 +154,7 @@ uv run --python 3.12 spikes/storage_benchmark.py --postgres-dsn postgresql://pos
   - `price_bars` and `corporate_actions`
   - `filings`
 
-  XBRL facts get their table in S5.5. `DATA_DIR` is git-ignored, and [`backend/README.md`](../backend/README.md#data-layout) shows the layout file by file.
+  XBRL facts get their table in S5.5. `DATA_DIR` is git-ignored, and [`backend/README.md`](../../backend/README.md#data-layout) shows the layout file by file.
 - **Columns.** Every table carries `available_at` and `ingested_at` (`TIMESTAMPTZ`, UTC), plus `source`, `source_ref`, and `time_assumed`, which flags an `available_at` that was assumed rather than published (time model, rule 11). Write files sorted by key and `available_at`, so DuckDB can skip what a query doesn't need.
 - **Reads.** `PointInTimeView` (S3.3) opens one DuckDB connection with views over the Parquet files. Every read filters `available_at <= knowledge_time`. A view pinned to a data version (S3.7) also reads only the files that version's manifest lists, and only rows with `ingested_at` up to the manifest's latest. The API pins every request to the newest version.
   - **Dependencies.** The backend depends on `duckdb` and `pytz`; DuckDB's Python API needs `pytz` to return `TIMESTAMPTZ` values as `datetime` objects.

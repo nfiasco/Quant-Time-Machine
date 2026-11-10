@@ -108,9 +108,9 @@ backend/
 
 ## API conventions (`/v1`)
 
-Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) and the contract in [`doc/api-v1.md`](../doc/api-v1.md) (S8.1):
+Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) and the contract in [`doc/reference/api-v1.md`](../doc/reference/api-v1.md) (S8.1):
 
-- **`as_of` is required.** It's the knowledge time: the moment to answer as of. The rules are in [`doc/time-model.md`](../doc/time-model.md), rule 3.
+- **`as_of` is required.** It's the knowledge time: the moment to answer as of. The rules are in [`doc/reference/time-model.md`](../doc/reference/time-model.md), rule 3.
 
   | `as_of`                | Means                                    | Echoed as `knowledge_time`  |
   | ---------------------- | ---------------------------------------- | --------------------------- |
@@ -154,7 +154,7 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | `GET /v1/catalog/series?as_of` | Every series in the catalog, with the observations and vintages published by then | `series_coverage` |
 | `GET /v1/catalog/companies?as_of` | Each universe's members then, under their tickers then, with the dates their prices, filings, and XBRL facts reach by then | `universe_coverage` |
 | `GET /v1/catalog/signals` | The signal types a spec can use, with their JSON Schemas; no `as_of`, since they don't depend on time or data | `signal_types` in [`spec.py`](app/backtest/spec.py) |
-| `GET /v1/snapshot?as_of&tickers&series` | What was known then, and what wasn't yet: the [June 5, 2020 table](../doc/time-model.md#june-5-2020-at-0930-et-1330z). Prices follow `SERVE_RAW_PRICES`, but never with a 403: off, a bar keeps its date and loses its prices | Known: the view's reads. Not yet known: [`look_ahead.py`](app/data/look_ahead.py) |
+| `GET /v1/snapshot?as_of&tickers&series` | What was known then, and what wasn't yet: the [June 5, 2020 table](../doc/reference/time-model.md#june-5-2020-at-0930-et-1330z). Prices follow `SERVE_RAW_PRICES`, but never with a 403: off, a bar keeps its date and loses its prices | Known: the view's reads. Not yet known: [`look_ahead.py`](app/data/look_ahead.py) |
 
 ## Point-in-time data layer
 
@@ -259,9 +259,9 @@ with PointInTimeView(parse_knowledge_time("2020-09-01")) as view:
     monthly_total_returns(august)  # August 2020, with the 4-for-1 split of August 31
 ```
 
-Price levels stay raw: only returns account for splits and dividends. The formula, the rounding, and how it was checked are in [`doc/time-model.md`](../doc/time-model.md), rule 4.
+Price levels stay raw: only returns account for splits and dividends. The formula, the rounding, and how it was checked are in [`doc/reference/time-model.md`](../doc/reference/time-model.md), rule 4.
 
-The spec's JSON Schema, for the API and the assistant, is [`doc/experiment-spec-v1.schema.json`](../doc/experiment-spec-v1.schema.json). After changing the models, regenerate it, or a test fails: `uv run python -m app.backtest.spec > ../doc/experiment-spec-v1.schema.json`. A test also checks the models against the frontend's [`types.ts`](../frontend/features/backtests/types.ts), so change both together.
+The spec's JSON Schema, for the API and the assistant, is [`doc/reference/experiment-spec-v1.schema.json`](../doc/reference/experiment-spec-v1.schema.json). After changing the models, regenerate it, or a test fails: `uv run python -m app.backtest.spec > ../doc/reference/experiment-spec-v1.schema.json`. A test also checks the models against the frontend's [`types.ts`](../frontend/features/backtests/types.ts), so change both together.
 
 ## Ingestion
 
@@ -280,7 +280,7 @@ Each command loads its whole catalog: there's no option for a single series or t
 | Source | Requests | Time | What it loads |
 | --- | ---: | ---: | --- |
 | `fred` | 18 | 6 s | Every vintage of the series in [`sources/alfred_series.toml`](app/data/sources/alfred_series.toml), UNRATE first, into `macro_observations` (S4.2). Each request asks for ALFRED's whole real-time range, because FRED's defaults return today's revised values. |
-| `sec` | 364 | 79 s | First, identity and membership: the curated ticker history in [`sources/securities.toml`](app/data/sources/securities.toml) into `securities`, a snapshot of SEC's ticker file into `sec_tickers` (S5.2), and the universes in [`sources/universes.toml`](app/data/sources/universes.toml) into `universe_members` (S6.5). It warns when a curated security's current ticker isn't in SEC's file. Then the filing histories of every universe member and SPY, AAPL first, older pages included, into `filings` (S5.3). The big banks' histories run to dozens of pages each. Only 10-K, 10-Q, and 8-K filings and their amendments are kept. Each filing is known at its EDGAR acceptance time, corrected for the Eastern-offset shift where the company's file has one (see [`doc/data-sources.md`](../doc/data-sources.md#sec-edgar-filing-history-submissions-api)), and each amendment is linked to the filing it amends. Right after each company's filings come its XBRL company facts, if it files any, for the curated concepts in [`sources/xbrl.py`](app/data/sources/xbrl.py), into `xbrl_facts` (S5.5). Each fact is known at the acceptance time of the filing that reported it, or at the end of its filed date, flagged, when that filing isn't in `filings`. The 364 requests were 311 for submissions, 52 for company facts, and SEC's ticker file. |
+| `sec` | 364 | 79 s | First, identity and membership: the curated ticker history in [`sources/securities.toml`](app/data/sources/securities.toml) into `securities`, a snapshot of SEC's ticker file into `sec_tickers` (S5.2), and the universes in [`sources/universes.toml`](app/data/sources/universes.toml) into `universe_members` (S6.5). It warns when a curated security's current ticker isn't in SEC's file. Then the filing histories of every universe member and SPY, AAPL first, older pages included, into `filings` (S5.3). The big banks' histories run to dozens of pages each. Only 10-K, 10-Q, and 8-K filings and their amendments are kept. Each filing is known at its EDGAR acceptance time, corrected for the Eastern-offset shift where the company's file has one (see [`doc/reference/data-sources.md`](../doc/reference/data-sources.md#sec-edgar-filing-history-submissions-api)), and each amendment is linked to the filing it amends. Right after each company's filings come its XBRL company facts, if it files any, for the curated concepts in [`sources/xbrl.py`](app/data/sources/xbrl.py), into `xbrl_facts` (S5.5). Each fact is known at the acceptance time of the filing that reported it, or at the end of its filed date, flagged, when that filing isn't in `filings`. The 364 requests were 311 for submissions, 52 for company facts, and SEC's ticker file. |
 | `tiingo` | 51 | 26 s, then a rerun an hour later | The curated `securities` and membership, then raw daily bars for every universe member and SPY into `price_bars`, and the splits and dividends they report into `corporate_actions` (S6.2). A first run loads each security from 2005. Loading universe v1 from scratch takes one request more than Tiingo's 50 an hour, so the first run stops at the limit and a rerun an hour later finishes; only the run that finishes writes a data version. Later runs ask only for sessions after its last stored bar, through the last one Tiingo has settled (20:00 ET), and log any session that comes back without a bar. Adjusted prices are never stored. |
 
 Each ingester lives in [`app/data/sources/`](app/data/sources/) and is listed in `INGESTERS` in [`app/data/ingest.py`](app/data/ingest.py).
@@ -293,7 +293,7 @@ Each ingester lives in [`app/data/sources/`](app/data/sources/) and is listed in
 
 **Data versions.** When a command finishes, it writes a [data version](#data-versions), and its log ends with `Data version 20261101T143005Z: … rows in … files`, or with "unchanged" when the run added nothing. A run that fails or stops at a rate limit writes none, so the API keeps serving the version before it.
 
-**Release times.** Each vintage counts as known on its date at its release's time, New York time: 08:30 for BLS's and BEA's releases, 16:15 for the Fed's H.15 (S4.3). The times and their sources are in `alfred_series.toml`, and [`doc/time-model.md`](../doc/time-model.md) (rule 7) summarizes them. A release whose time isn't known (`time = "unknown"`) makes its vintages known at the end of their date, flagged `time_assumed`.
+**Release times.** Each vintage counts as known on its date at its release's time, New York time: 08:30 for BLS's and BEA's releases, 16:15 for the Fed's H.15 (S4.3). The times and their sources are in `alfred_series.toml`, and [`doc/reference/time-model.md`](../doc/reference/time-model.md) (rule 7) summarizes them. A release whose time isn't known (`time = "unknown"`) makes its vintages known at the end of their date, flagged `time_assumed`.
 
 To add a macro series, add it to `alfred_series.toml` with FRED's metadata and its release, then run `ingest fred` again. A new release needs its time and a source for it.
 
@@ -355,7 +355,7 @@ After adding company facts on 2026-11-01 (data version `20261101T202624Z`), the 
 
 ## Deployment
 
-The API runs on Railway's Hobby plan (D4) at <https://quant-time-machine-api.up.railway.app>, deployed on 2026-11-07 (S15.1); its interactive docs are at [`/docs`](https://quant-time-machine-api.up.railway.app/docs). Railway builds [`Dockerfile`](Dockerfile) from GitHub when a merge to `main` changes what goes into the image, once CI passes. [`doc/hosting.md`](../doc/hosting.md#the-deployment-on-railway) has the settings, how to recreate them, and the limits. Develop against a local backend as before; the deployment is for the web app and demos. It never sets `SERVE_RAW_PRICES`, so its `/v1/prices` answers 403.
+The API runs on Railway's Hobby plan (D4) at <https://quant-time-machine-api.up.railway.app>, deployed on 2026-11-07 (S15.1); its interactive docs are at [`/docs`](https://quant-time-machine-api.up.railway.app/docs). Railway builds [`Dockerfile`](Dockerfile) from GitHub when a merge to `main` changes what goes into the image, once CI passes. [`doc/reference/hosting.md`](../doc/reference/hosting.md#the-deployment-on-railway) has the settings, how to recreate them, and the limits. Develop against a local backend as before; the deployment is for the web app and demos. It never sets `SERVE_RAW_PRICES`, so its `/v1/prices` answers 403.
 
 - **The store** lives on a Railway volume at `/data`, not in the image. After ingesting locally, the owner uploads it with `scripts/upload_store.sh`, which copies all of `DATA_DIR/store`, `_versions/` included, so the host reports the same data version as the machine that ingested. It swaps the new store in, keeps the old one as `store.previous`, and runs the smoke test.
 - **The smoke test**, `uv run scripts/smoke_test.py https://quant-time-machine-api.up.railway.app`, checks `/health`, CORS for the web app, a macro value, a filing, and that prices answer 403, all as of June 5, 2020, whose answers never change. GitHub Actions runs it after each deploy ([`smoke.yml`](../.github/workflows/smoke.yml)), and the upload script runs it with `--data-version`. [`tests/test_smoke_test.py`](tests/test_smoke_test.py) runs the same checks against the fixtures.
@@ -365,11 +365,11 @@ The API runs on Railway's Hobby plan (D4) at <https://quant-time-machine-api.up.
 
 ## Spikes
 
-[`spikes/`](spikes/) holds the experiments behind the data, storage, and hosting decisions: the ALFRED, EDGAR, and price-source explorations, the storage benchmark, and the hosting measurements. See [`spikes/README.md`](spikes/README.md) for what each needs and how to run it. Their findings are written up in [`doc/data-sources.md`](../doc/data-sources.md), [`doc/storage.md`](../doc/storage.md), and [`doc/hosting.md`](../doc/hosting.md).
+[`spikes/`](spikes/) holds the experiments behind the data, storage, and hosting decisions: the ALFRED, EDGAR, and price-source explorations, the storage benchmark, and the hosting measurements. See [`spikes/README.md`](spikes/README.md) for what each needs and how to run it. Their findings are written up in [`doc/reference/data-sources.md`](../doc/reference/data-sources.md), [`doc/reference/storage.md`](../doc/reference/storage.md), and [`doc/reference/hosting.md`](../doc/reference/hosting.md).
 
 ## Sample-data scripts
 
-Four scripts in [`app/data/`](app/data/) pull a small sample (five tickers, 2010–2015) for testing, apart from ingestion. They aren't the supported pipeline. Their CSVs carry a date-only `available_date`, and their `get_*_as_of` helpers are coarse date filters that don't enforce the publication times in [`doc/time-model.md`](../doc/time-model.md); real reads go through `PointInTimeView`. The packages they need aren't backend dependencies, so `uv run --with` adds them for one run. From `backend/`:
+Four scripts in [`app/data/`](app/data/) pull a small sample (five tickers, 2010–2015) for testing, apart from ingestion. They aren't the supported pipeline. Their CSVs carry a date-only `available_date`, and their `get_*_as_of` helpers are coarse date filters that don't enforce the publication times in [`doc/reference/time-model.md`](../doc/reference/time-model.md); real reads go through `PointInTimeView`. The packages they need aren't backend dependencies, so `uv run --with` adds them for one run. From `backend/`:
 
 | Script | Pulls | Needs | Command |
 | --- | --- | --- | --- |
@@ -382,5 +382,5 @@ The CSVs go to `DATA_DIR/samples/`, which git ignores; never commit them. Each s
 
 ## Design principles (draft)
 
-- **No look-ahead.** Every data record carries the time it became publicly available, and all reads go through "as of" queries, so a simulation can only see what was known on its simulated date. The rules are in [`doc/time-model.md`](../doc/time-model.md).
+- **No look-ahead.** Every data record carries the time it became publicly available, and all reads go through "as of" queries, so a simulation can only see what was known on its simulated date. The rules are in [`doc/reference/time-model.md`](../doc/reference/time-model.md).
 - **Deterministic calculations.** The same inputs always produce the same results. Any future AI assistant helps plan experiments, while plain, tested code does the calculations.

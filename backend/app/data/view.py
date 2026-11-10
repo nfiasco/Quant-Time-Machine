@@ -1,7 +1,7 @@
 """PointInTimeView: the only way to read the point-in-time store (S3.3).
 
 A view is bound to one knowledge time T and answers only from rows with
-`available_at <= T` (doc/time-model.md). It opens its own in-memory DuckDB connection
+`available_at <= T` (doc/reference/time-model.md). It opens its own in-memory DuckDB connection
 and defines one SQL view per table with that condition built in, so no query on the
 connection can see a later row, even one that forgets to filter. Every read of rows goes
 through `_select`, which also re-checks each row and records it in the access log that
@@ -619,7 +619,7 @@ class PointInTimeView:
         """A universe's members at the knowledge time, by security ID.
 
         A company is a member from 00:00 ET on the day it joined until the day it left
-        (doc/time-model.md, rule 8). `starter_large_caps` leaves out Tesla on December
+        (doc/reference/time-model.md, rule 8). `starter_large_caps` leaves out Tesla on December
         1, 2020, because Tesla joined the S&P 500 on December 21, and includes it on
         January 4, 2021. Before 2010 it's empty (D3). Each member comes with its ticker,
         name, and CIK at the knowledge time; the ticker is None if the security had
@@ -714,7 +714,7 @@ class PointInTimeView:
         oldest first.
 
         `metric` is a name in app/data/sources/metrics.toml, such as "revenue". Each
-        quarter's value is the latest one filed by then (doc/time-model.md, rule 6). At
+        quarter's value is the latest one filed by then (doc/reference/time-model.md, rule 6). At
         09:30 ET on June 5, 2020, Apple's revenue for the quarter ended March 28, 2020
         is $58,313 million from its 10-Q; the 10-K and the next year's 10-Q that repeat
         it came later. A quarter no filing reported is derived from two year-to-date

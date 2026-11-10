@@ -1,5 +1,5 @@
 // The landing page's API example: the scroll story's question as one request, and its
-// response from the test data, shortened from doc/api-v1.md ("GET /v1/snapshot").
+// response from the test data, shortened from doc/reference/api-v1.md ("GET /v1/snapshot").
 // Prices stay null: the deployment withholds them (decision D2).
 
 export const API_EXAMPLE_REQUEST =

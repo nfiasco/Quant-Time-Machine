@@ -2,7 +2,7 @@
 #
 # SEC's ticker file (company_tickers.json) lists only today's tickers, so ticker history
 # comes from here: every member of the universes in universes.toml (S6.5) and the M2
-# ticker set (doc/data-sources.md), plus tickers that changed hands. FB became META, GOOG
+# ticker set (doc/reference/data-sources.md), plus tickers that changed hands. FB became META, GOOG
 # moved from Google's Class A shares to its Class C shares, and WB went from Wachovia to
 # Weibo.
 #

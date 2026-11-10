@@ -41,4 +41,4 @@ Use local copies and synthetic data for reproductions. Do not access another per
 
 ## Preventive controls
 
-The repository uses CodeQL, Dependabot alerts, secret scanning with push protection, dependency review, and required CI checks. Bots report findings and run checks; team members make code and dependency changes. Their scope and maintenance are documented in [GitHub settings](doc/github-settings.md). These controls do not establish that the application has passed a security audit; feature-specific reviews remain part of implementation.
+The repository uses CodeQL, Dependabot alerts, secret scanning with push protection, dependency review, and required CI checks. Bots report findings and run checks; team members make code and dependency changes. Their scope and maintenance are documented in [GitHub settings](../doc/project/github-settings.md). These controls do not establish that the application has passed a security audit; feature-specific reviews remain part of implementation.

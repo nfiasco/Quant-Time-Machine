@@ -34,7 +34,7 @@ def members(store: Path, as_of: str) -> dict[str, str | None]:
 
 def test_universe_change_applies_from_effective_date(fixture_store: Path) -> None:
     # S&P announced on November 16, 2020 that Tesla would join the S&P 500 before the
-    # open on Monday, December 21 (doc/time-model.md, rule 8).
+    # open on Monday, December 21 (doc/reference/time-model.md, rule 8).
     assert "tesla" not in members(fixture_store, "2020-12-01")
     assert "tesla" not in members(fixture_store, "2020-12-18")
     assert members(fixture_store, "2020-12-21")["tesla"] == "TSLA"
@@ -135,7 +135,7 @@ def test_the_membership_fixture_matches_the_curated_file(fixture_store: Path) ->
 
 
 def test_v1_follows_d3() -> None:
-    # doc/data-sources.md: 50 to 100 large US companies, at least 10 of which joined
+    # doc/reference/data-sources.md: 50 to 100 large US companies, at least 10 of which joined
     # after 2010-01-01, Tesla and Meta among them, and at least 10 left, Twitter among
     # them, with at least two banks.
     v1 = universes.UNIVERSES.by_name[V1]

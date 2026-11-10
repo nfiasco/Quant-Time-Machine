@@ -1,6 +1,6 @@
 """Time helpers: the market clock, the knowledge-time parser, and how people read times.
 
-The rules are in doc/time-model.md:
+The rules are in doc/reference/time-model.md:
 
 - Rule 1: instants are timezone-aware and compared in UTC. A naive datetime is a bug.
 - Rule 3: a knowledge time given as a bare date means 09:30 ET on that date. A timestamp

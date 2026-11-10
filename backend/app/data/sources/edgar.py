@@ -10,7 +10,7 @@ stay within SEC's limit of 10 per second. Only 10-K, 10-Q, and 8-K filings and t
 amendments are kept: JPMorgan alone has over 160,000 filings, nearly all structured-note
 prospectuses.
 
-**When a filing became public: its EDGAR acceptance time** (doc/time-model.md, rule 5).
+**When a filing became public: its EDGAR acceptance time** (doc/reference/time-model.md, rule 5).
 `acceptanceDateTime` ends in Z, but until late October 2026 most companies' files ran
 ahead of the true time by the Eastern UTC offset: 4 hours in EDT, 5 in EST. EDGAR's
 index pages confirmed this for Apple, Microsoft, JPMorgan, and Meta from 2006 to 2026,

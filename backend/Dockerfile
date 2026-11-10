@@ -1,5 +1,5 @@
 # The API's container image (S1.6, D4). Railway builds it from GitHub when a merge to
-# main changes what goes into it, after CI passes; doc/hosting.md has the settings. The
+# main changes what goes into it, after CI passes; doc/reference/hosting.md has the settings. The
 # data isn't in the image: DATA_DIR is /data, where Railway mounts the volume that holds
 # the store (scripts/upload_store.sh puts it there).
 

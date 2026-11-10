@@ -18,7 +18,7 @@ def fundamentals(client: TestClient, ticker: str = "AAPL", **params: str) -> Any
 
 def test_fact_versions_follow_filing_acceptance(client: TestClient) -> None:
     # Apple's revenue for the quarter ended March 28, 2020, is in three filings; on
-    # June 5, 2020, only the 10-Q had been accepted (doc/time-model.md, rule 6).
+    # June 5, 2020, only the 10-Q had been accepted (doc/reference/time-model.md, rule 6).
     body = fundamentals(client, as_of="2020-06-05", quarters="1")
 
     assert body == {

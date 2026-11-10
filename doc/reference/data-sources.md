@@ -9,7 +9,7 @@ For every source this memo answers:
 - the rate limits and the cost;
 - what its terms let us do (display it, redistribute it, use it in a public app).
 
-The spike scripts that produced the evidence are in [`backend/spikes/`](../backend/spikes/), and anyone with the keys can re-run them.
+The spike scripts that produced the evidence are in [`backend/spikes/`](../../backend/spikes/), and anyone with the keys can re-run them.
 
 ## Summary
 
@@ -51,7 +51,7 @@ The spike scripts that produced the evidence are in [`backend/spikes/`](../backe
 - **Per request:** `series/observations` returns at most 100,000 rows, and `series/vintagedates` at most 10,000. `vintage_dates` takes up to 2,000 dates per JSON request (fewer for some formats and daily series).
 - **Request rate:** client libraries and API directories put it at 120 requests per minute per key, with HTTP 429 beyond that. FRED's own terms only say it may impose limits at any time, so we stay well under that and back off on a 429.
 
-**Cost.** Free with an API key. Sign in at [fredaccount.stlouisfed.org](https://fredaccount.stlouisfed.org/apikeys) and request a key. It is 32 lowercase letters and digits, and goes in `FRED_API_KEY` ([setup](../README.md#configuration-and-api-keys)).
+**Cost.** Free with an API key. Sign in at [fredaccount.stlouisfed.org](https://fredaccount.stlouisfed.org/apikeys) and request a key. It is 32 lowercase letters and digits, and goes in `FRED_API_KEY` ([setup](../../README.md#configuration-and-api-keys)).
 
 **Terms** ([FRED API Terms of Use](https://fred.stlouisfed.org/docs/api/terms_of_use.html)):
 
@@ -59,7 +59,7 @@ The spike scripts that produced the evidence are in [`backend/spikes/`](../backe
 - **Third-party series.** Some series belong to third parties (their notes say "Copyright"). Anything beyond personal use requires the owner's permission, and FRED can't grant it. The ALFRED spike checked the six starter series: none mentions a copyright. They come from BLS, BEA, and the Federal Reserve Board. Check every new series in S4.6.
 - **Other rules.** Don't suggest endorsement, don't use "FRED" or "Federal Reserve Bank" in our hostnames, and publish a privacy policy if the app collects user information. FRED can change limits or end access at any time.
 
-**Spike S4.1 results** ([`spikes/alfred.py`](../backend/spikes/alfred.py), retrieved 2026-10-12):
+**Spike S4.1 results** ([`spikes/alfred.py`](../../backend/spikes/alfred.py), retrieved 2026-10-12):
 
 - **UNRATE's history.** Data starts in January 1948. ALFRED has 800 vintages, from 1960-03-15 to 2026-10-02, each a date with no time. The release is BLS's Employment Situation.
 - **January 1990, first print vs. revision:**
@@ -150,7 +150,7 @@ The `recent` block holds at least a year of filings, or the latest 1,000 if that
 | Apple, Microsoft, JPMorgan, Meta | 30, from 2006 to 2026, morning and evening | +4 h (EDT) or +5 h (EST), every one |
 | Twitter | 6, from 2014 to 2022 | 0: true UTC |
 
-Twitter's file has no shift, perhaps because Twitter stopped filing in 2022. Subtracting the offset anyway puts its early-morning 8-Ks at 02:00 to 04:00 ET, when EDGAR is closed, and an evening one on the wrong filing date. So [`sources/edgar.py`](../backend/app/data/sources/edgar.py) checks each company's file. Each filing whose filing date only one reading explains, given EDGAR's hours and the 5:30 PM rule, is a vote. The majority decides; without a majority for the shift, a file is read as shown (see the update below). Every file in the starter set was lopsided: Apple 281 to 0, Microsoft 323 to 0, JPMorgan 1,059 to 0, and Meta 191 to 0 for the shift, Twitter 51 to 1 against.
+Twitter's file has no shift, perhaps because Twitter stopped filing in 2022. Subtracting the offset anyway puts its early-morning 8-Ks at 02:00 to 04:00 ET, when EDGAR is closed, and an evening one on the wrong filing date. So [`sources/edgar.py`](../../backend/app/data/sources/edgar.py) checks each company's file. Each filing whose filing date only one reading explains, given EDGAR's hours and the 5:30 PM rule, is a vote. The majority decides; without a majority for the shift, a file is read as shown (see the update below). Every file in the starter set was lopsided: Apple 281 to 0, Microsoft 323 to 0, JPMorgan 1,059 to 0, and Meta 191 to 0 for the shift, Twitter 51 to 1 against.
 
 **Update (2026-10-31): SEC now serves true UTC.**
 
@@ -200,7 +200,7 @@ Retrieved 2026-10-11: Apple's revenue for the quarter ended March 28, 2020 (`Rev
 
 **Never use the frames API, or the `frame` field, in a backtest.** SEC describes frames as returning one fact per company "that is last filed". The `CY2020Q1` frame for this revenue cites the 2021 10-Q (0000320193-21-000056), not the original 10-Q from 2020 ([SEC EDGAR APIs](https://www.sec.gov/search-filings/edgar-application-programming-interfaces)). Here the number didn't change. For a restated number, frames would show the restatement as if it had been known all along.
 
-**How ingestion stores them (S5.5).** `ingest sec` downloads each company's company facts right after its filing history, if its submissions list any XBRL filings (`isXBRL`), so SPY, which files none, gets no request. [`sources/xbrl.py`](../backend/app/data/sources/xbrl.py) keeps the curated concepts in every unit SEC gives, in the `xbrl_facts` table:
+**How ingestion stores them (S5.5).** `ingest sec` downloads each company's company facts right after its filing history, if its submissions list any XBRL filings (`isXBRL`), so SPY, which files none, gets no request. [`sources/xbrl.py`](../../backend/app/data/sources/xbrl.py) keeps the curated concepts in every unit SEC gives, in the `xbrl_facts` table:
 
 - **The concepts:**
   - revenue: `RevenueFromContractWithCustomerExcludingAssessedTax`, `RevenueFromContractWithCustomerIncludingAssessedTax`, `Revenues`, `SalesRevenueNet`, and banks' `RevenuesNetOfInterestExpense`;
@@ -216,9 +216,9 @@ Retrieved 2026-10-11: Apple's revenue for the quarter ended March 28, 2020 (`Rev
 - **Only exact duplicates are dropped.** Two values one filing reported for the same period are both kept. None turned up on 2026-11-01 for Apple, Microsoft, JPMorgan, and 11 more companies.
 - **Size.** A company facts file runs to about 5 MB (Microsoft's: 4.9 MB). The store keeps only the curated concepts.
 
-**Standard metrics (S5.6).** [`sources/metrics.toml`](../backend/app/data/sources/metrics.toml) says what each metric means: `revenue`, `net_income`, `eps_diluted`, `operating_cash_flow`, `total_assets`, and `shares_outstanding`.
+**Standard metrics (S5.6).** [`sources/metrics.toml`](../../backend/app/data/sources/metrics.toml) says what each metric means: `revenue`, `net_income`, `eps_diluted`, `operating_cash_flow`, `total_assets`, and `shares_outstanding`.
 
-- **Concept order.** Each metric lists the concepts that can report it, most preferred first. For every period, the first concept with a value supplies it ([`app/data/fundamentals.py`](../backend/app/data/fundamentals.py)). So a company keeps one series when its tag changes, and each value says which concept it came from.
+- **Concept order.** Each metric lists the concepts that can report it, most preferred first. For every period, the first concept with a value supplies it ([`app/data/fundamentals.py`](../../backend/app/data/fundamentals.py)). So a company keeps one series when its tag changes, and each value says which concept it came from.
 - **ASC 606.**
   - Apple tagged revenue `SalesRevenueNet` in its 10-Qs until mid-2018, `Revenues` in its fiscal 2018 10-K, and `RevenueFromContractWithCustomerExcludingAssessedTax` from fiscal 2019 on, with comparatives back to fiscal 2017.
   - Microsoft moved to the new name with its fiscal 2018 10-K. Its revenue for the quarter ended March 31, 2018, $26,819 million, is `SalesRevenueNet` until that 10-K was accepted on August 3, 2018.
@@ -271,7 +271,7 @@ Coverage, from `uv run python -m app.data.coverage` on data version `20261101T20
 - **Point-in-time data:** **raw** (as-traded) prices with split and dividend events stored separately (adjusted prices leak future splits into the past; see the [time model](time-model.md)).
 - **Practicalities:** limits that let us load about 100 tickers, an affordable cost, and terms that let a public app show results.
 
-Spike S6.1 ([`spikes/prices.py`](../backend/spikes/prices.py)) pulls AAPL from 2005, plus three delisted tickers: Lehman Brothers (LEH, which traded as LEHMQ after bankruptcy) and Twitter (TWTR, taken private in 2022). As a raw-or-adjusted check, it reads AAPL's close on 2012-09-19: the raw close was $702.10, and split-adjusted for 2014's 7-for-1 and 2020's 4-for-1 splits it is about $25.08. Results retrieved 2026-10-12; Yahoo and Stooq gave the same results on 2026-10-11.
+Spike S6.1 ([`spikes/prices.py`](../../backend/spikes/prices.py)) pulls AAPL from 2005, plus three delisted tickers: Lehman Brothers (LEH, which traded as LEHMQ after bankruptcy) and Twitter (TWTR, taken private in 2022). As a raw-or-adjusted check, it reads AAPL's close on 2012-09-19: the raw close was $702.10, and split-adjusted for 2014's 7-for-1 and 2020's 4-for-1 splits it is about $25.08. Results retrieved 2026-10-12; Yahoo and Stooq gave the same results on 2026-10-11.
 
 | | Yahoo Finance (unofficial) | Stooq | Alpha Vantage, free | **Tiingo**, free | WRDS (CRSP) |
 | --- | --- | --- | --- | --- | --- |
@@ -326,7 +326,7 @@ What the test pull showed, and what follows:
    - (c) or budget for a redistribution license.
 
    Until then, the API must not serve raw Tiingo prices to anonymous users.
-4. **Keep the fetcher swappable.** S6.2's fetcher should sit behind a small interface, so a licensed or CRSP-based source can replace Tiingo without touching the rest of the system. Done: a new source implements `PriceSource` in [`sources/prices.py`](../backend/app/data/sources/prices.py), as [`sources/tiingo.py`](../backend/app/data/sources/tiingo.py) does.
+4. **Keep the fetcher swappable.** S6.2's fetcher should sit behind a small interface, so a licensed or CRSP-based source can replace Tiingo without touching the rest of the system. Done: a new source implements `PriceSource` in [`sources/prices.py`](../../backend/app/data/sources/prices.py), as [`sources/tiingo.py`](../../backend/app/data/sources/tiingo.py) does.
 
 ## WRDS (CRSP) at the University of Delaware
 
@@ -379,7 +379,7 @@ The plan stays as in the roadmap: v1 is a small, documented, curated universe th
 
 1. File 10-K and 10-Q reports with the SEC, so XBRL fundamentals exist (S5.5). Foreign companies that file 20-F reports don't qualify.
 2. Have Tiingo prices covering its whole membership spell, checked before it's added (R1). Coverage thins out before 2015.
-3. Have its ticker and CIK history, with sources, in [`securities.toml`](../backend/app/data/sources/securities.toml) (S5.2).
+3. Have its ticker and CIK history, with sources, in [`securities.toml`](../../backend/app/data/sources/securities.toml) (S5.2).
 
 A company we'd want but can't cover, such as Lehman Brothers, which Tiingo has no prices for, goes in a coverage-gaps table in this section with the reason. It isn't dropped silently, and the methodology page (S9.7) states the gap.
 
@@ -394,11 +394,11 @@ A company we'd want but can't cover, such as Lehman Brothers, which Tiingo has n
 - 13 left: 8 were acquired or taken private, and 5 were removed for size. AMD left in 2013 and rejoined in 2017, so it's one company with two spells.
 - The banks are JPMorgan, Bank of America, Wells Fargo, Citigroup, and Goldman Sachs.
 
-Every date is cited in [`universes.toml`](../backend/app/data/sources/universes.toml):
+Every date is cited in [`universes.toml`](../../backend/app/data/sources/universes.toml):
 
 - **S&P's own announcements** date every change after 2010, on its newsroom, press.spglobal.com. A change "after the close" counts from the next session.
 - **SPY's annual report** shows membership by 2010-01-01. Its schedule of investments lists every S&P 500 member SPY held on September 30, 2009, and each of these companies is also in its holdings on March 31, 2010.
-- **SEC filings** carry each company's identity, in [`securities.toml`](../backend/app/data/sources/securities.toml): its IPO prospectus, or a 2005 filing that names its ticker, plus name changes, new CIKs, and the end of trading.
+- **SEC filings** carry each company's identity, in [`securities.toml`](../../backend/app/data/sources/securities.toml): its IPO prospectus, or a 2005 filing that names its ticker, plus name changes, new CIKs, and the end of trading.
 
 | Company | Ticker | CIK | Member | Note |
 | --- | --- | --- | --- | --- |
@@ -453,7 +453,7 @@ Every date is cited in [`universes.toml`](../backend/app/data/sources/universes.
 | Uber Technologies, Inc. | UBER | 1543151 | 2023-12-18 on |  |
 | Xilinx, Inc. | XLNX | 743988 | 2010-01-01 to 2022-02-15 | Acquired by AMD |
 
-**Coverage gaps and candidates left out (checked 2026-10-31).** The list takes only companies whose dates and identity can be cited, and whose whole membership Tiingo covers. That means Tiingo's latest listing under the symbol, which is what its API answers with. [`test_universes.py`](../backend/tests/test_universes.py) checks the coverage against Tiingo's public ticker list (`-m network`).
+**Coverage gaps and candidates left out (checked 2026-10-31).** The list takes only companies whose dates and identity can be cited, and whose whole membership Tiingo covers. That means Tiingo's latest listing under the symbol, which is what its API answers with. [`test_universes.py`](../../backend/tests/test_universes.py) checks the coverage against Tiingo's public ticker list (`-m network`).
 
 | Candidate | Why it's out |
 | --- | --- |
@@ -481,7 +481,7 @@ The list can grow toward 100 members on the same rules.
 
 ### M2 ticker set
 
-Ingestion and the walking skeleton (M2) loaded these five companies plus the benchmark until universe v1 was built (S6.5). Each one is there to exercise a specific rule. They stay as the test set: [`tests/fixtures/`](../backend/tests/fixtures/) copies their history, and [`spikes/hosting.py`](../backend/spikes/hosting.py) cycles through them. All five are also universe members. Checked against SEC EDGAR and Tiingo's metadata on 2026-10-19:
+Ingestion and the walking skeleton (M2) loaded these five companies plus the benchmark until universe v1 was built (S6.5). Each one is there to exercise a specific rule. They stay as the test set: [`tests/fixtures/`](../../backend/tests/fixtures/) copies their history, and [`spikes/hosting.py`](../../backend/spikes/hosting.py) cycles through them. All five are also universe members. Checked against SEC EDGAR and Tiingo's metadata on 2026-10-19:
 
 | Ticker | Company | CIK | Tiingo prices | Why it's in the set |
 | --- | --- | --- | --- | --- |
@@ -501,7 +501,7 @@ Loading all six takes six Tiingo requests, against the free plan's 50 per hour a
 | **Delisted companies.** Yahoo has none. Tiingo has recent ones (Twitter) but few before 2010 (no Lehman). CRSP has them all, but for internal use only. | Survivorship bias: results look better than reality, especially in the early years | Check each universe member's coverage (S6.5). Include delisted companies the data covers. Report coverage gaps in every run (S6.7, R1). Measure the gap with CRSP if WRDS access comes through. |
 | **Historical index membership.** It's proprietary. | Today's index members applied to the past | A curated universe with sources (S6.5, D3); a rules-based universe later (S6.6). |
 | **Fundamentals before XBRL** (before 2009 to 2011, depending on company size). | No machine-readable fundamentals for those years | The engine rejects or warns when a spec needs them (§3.4); expect thin data in 2010 and 2011 (R3). |
-| **Ticker history.** SEC's ticker file lists only current tickers. | Old or reused tickers resolve to the wrong company | A curated, cited history for the starter universe and reused tickers, in [`securities.toml`](../backend/app/data/sources/securities.toml) (S5.2). A ticker only in SEC's file resolves only from when the file was downloaded. |
+| **Ticker history.** SEC's ticker file lists only current tickers. | Old or reused tickers resolve to the wrong company | A curated, cited history for the starter universe and reused tickers, in [`securities.toml`](../../backend/app/data/sources/securities.toml) (S5.2). A ticker only in SEC's file resolves only from when the file was downloaded. |
 | **Release times.** ALFRED has dates, not times. | A release could be visible too early, or too late | A release-time table plus the end-of-day default, flagged (S4.3). |
 | **ALFRED vintages start late** for some series. | Early values have no first-release record | Treat values before the first vintage as unknown (S4.3). The spike prints each starter series' first vintage. |
 | **EDGAR's acceptance time was shifted** by the Eastern UTC offset in most companies' files, but not all (Twitter's wasn't), until SEC switched to true UTC in late October 2026. Files cached earlier keep the shift. | Filings would appear 4 to 5 hours late, or early if the shift is removed where there's none | Detect the shift for each company's file and correct it in ingestion, with golden tests (S5.3, S3.6). A file without a majority for the shift is read as shown, the reading that can't make a filing visible early. Placeholder and impossible times fall back to the end of the filing date, flagged. |

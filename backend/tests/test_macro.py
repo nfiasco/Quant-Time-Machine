@@ -59,7 +59,7 @@ def test_june_5_2020_sees_may_at_0930_and_april_at_0800(fixture_store: Path) -> 
     at_0930 = read(fixture_store, "2020-06-05T09:30")
     at_0800 = read(fixture_store, "2020-06-05T08:00")
 
-    # The record doc/api-v1.md shows for GET /v1/macro/UNRATE?as_of=2020-06-05.
+    # The record doc/reference/api-v1.md shows for GET /v1/macro/UNRATE?as_of=2020-06-05.
     assert at_0930 == MacroObservation(
         series_id="UNRATE",
         title="Unemployment Rate",

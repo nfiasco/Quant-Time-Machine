@@ -7,7 +7,7 @@ order listed (UNRATE first), into the `macro_observations` table:
    different release stops the run, and other differences are logged.
 2. `series/observations` over the whole real-time range, 1776-07-04 to 9999-12-31.
    FRED's defaults are today's date, which returns today's revised values instead of
-   every version (doc/time-model.md, "API defaults that mean today").
+   every version (doc/reference/time-model.md, "API defaults that mean today").
 
 FRED answers with one record per real-time period: an observation's value from
 `realtime_start` through `realtime_end`. Each becomes a row whose `vintage_date` is
@@ -17,7 +17,7 @@ append-only store can't do. A missing value (FRED's ".") is stored as None.
 
 ALFRED dates a vintage but gives no time of day, so each row's `available_at` is its
 vintage date at its release's time in New York, from the catalog: the Employment
-Situation's 08:30 ET, for example (doc/time-model.md, rule 7). A release whose time
+Situation's 08:30 ET, for example (doc/reference/time-model.md, rule 7). A release whose time
 isn't known makes its vintages known at the end of the day, flagged `time_assumed`
 (rule 11), so a 09:30 decision first sees them the next day.
 """

@@ -2,11 +2,11 @@
 
 **Reviewed October 20, 2026. Recommendation; does not replace decision D1.**
 
-**Recommendation: keep DuckDB for analytics and Supabase/PostgreSQL for application state.** DuckDB fits the current scope: roughly 100 securities, daily data, SEC fundamentals, macro vintages, and monthly backtests. Local Python execution and limited operating effort suit the capstone. [Project requirements](roadmap.md), [DuckDB design](https://duckdb.org/why_duckdb).
+**Recommendation: keep DuckDB for analytics and Supabase/PostgreSQL for application state.** DuckDB fits the current scope: roughly 100 securities, daily data, SEC fundamentals, macro vintages, and monthly backtests. Local Python execution and limited operating effort suit the capstone. [Project requirements](../roadmap.md), [DuckDB design](https://duckdb.org/why_duckdb).
 
 **ClickHouse is the strongest analytical challenger. DuckLake is the most relevant storage improvement.** Evaluate them before treating the choice as final. Changing remains feasible; existing implementation work is not the reason to retain DuckDB.
 
-**What the evidence says.** The repository's synthetic benchmark measured the 180-date analytical query at **21.6 ms with DuckDB over Parquet**, versus **347.9 ms with PostgreSQL**. PostgreSQL was faster for individual lookups. These warm, local measurements exclude the complete backtest, realistic concurrency, and API overhead. They support DuckDB's fit but do not establish a universal winner. No comparative benchmark of the additional candidates was performed. [Benchmark and limitations](storage.md), [benchmark script](../backend/spikes/storage_benchmark.py).
+**What the evidence says.** The repository's synthetic benchmark measured the 180-date analytical query at **21.6 ms with DuckDB over Parquet**, versus **347.9 ms with PostgreSQL**. PostgreSQL was faster for individual lookups. These warm, local measurements exclude the complete backtest, realistic concurrency, and API overhead. They support DuckDB's fit but do not establish a universal winner. No comparative benchmark of the additional candidates was performed. [Benchmark and limitations](../reference/storage.md), [benchmark script](../../backend/spikes/storage_benchmark.py).
 
 **The alternatives that matter most**
 
@@ -32,7 +32,7 @@ These are workload-fit judgments, not measured performance rankings.
 
 **The main unresolved issue is reproducibility.** Every option must distinguish the observation date, when information became public, and which dataset version a saved run used. A filing from 2020 loaded in 2026 can belong in a 2020 simulation; a later public restatement cannot appear before its publication date.
 
-The current [`PointInTimeView`](../backend/app/data/view.py) does not implement persistent `data_version` selection (S3.7 has since added it; see the outcome below). The [`writer`](../backend/app/data/store.py) also needs coordinated ingestion, complete-batch publication, and corrections that preserve old inputs. Database “time travel” alone does not supply these guarantees.
+The current [`PointInTimeView`](../../backend/app/data/view.py) does not implement persistent `data_version` selection (S3.7 has since added it; see the outcome below). The [`writer`](../../backend/app/data/store.py) also needs coordinated ingestion, complete-batch publication, and corrections that preserve old inputs. Database “time travel” alone does not supply these guarantees.
 
 Two storage pitfalls matter:
 
@@ -56,7 +56,7 @@ Switch when another design demonstrably improves correctness, meets an unmet req
 
 DuckLake and ClickHouse remain later comparisons (steps 1 and 2 above). Revisit them if the manifest can't meet these rules, if ingestion needs more than one writer, or if a backtest misses the 60-second target because of storage.
 
-**Implemented in S3.7 (2026-10-31).** [`app/data/versions.py`](../backend/app/data/versions.py) writes the manifest at the end of each `ingest` run, and `PointInTimeView` pins to it, as described above. Three choices were made along the way:
+**Implemented in S3.7 (2026-10-31).** [`app/data/versions.py`](../../backend/app/data/versions.py) writes the manifest at the end of each `ingest` run, and `PointInTimeView` pins to it, as described above. Three choices were made along the way:
 
 - **Names.** A data version is named by when it was cut, such as `20261101T143005Z`.
 - **Checks.** A pinned view checks every listed file's size each time it opens, and its SHA-256 the first time in a process. Hashing on every open would slow every request as the store grows.

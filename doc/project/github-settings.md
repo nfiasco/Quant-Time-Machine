@@ -14,13 +14,13 @@ The repository keeps its MIT license and existing project board. Funding, a CLA 
 
 | Control | Configuration and purpose |
 | --- | --- |
-| Private vulnerability reporting | Enabled; [SECURITY.md](../SECURITY.md) also supplies a fallback contact. |
+| Private vulnerability reporting | Enabled; [SECURITY.md](../../.github/SECURITY.md) also supplies a fallback contact. |
 | Dependency graph | Enabled for supported manifests and lockfiles; inventories dependencies for alerts and review. |
 | Dependabot alerts | Enabled. Maintainers assess reachability, prioritize fixes, and record the reason for any dismissal. |
 | Automatic dependency changes | Disabled: no Dependabot security-update PRs and no version-update configuration. The team makes npm, uv, and Action updates through normal reviewed PRs. |
 | Secret scanning and push protection | Enabled for supported secret patterns. A finding requires credential rotation and investigation, not just deletion. Non-provider pattern scanning and validity checks remain disabled; these are not needed for the baseline. |
 | CodeQL | Default setup scans Actions, JavaScript/TypeScript, and Python with the standard query suite and remote threat model. GitHub manages the workflow and scheduled scans; no duplicate CodeQL YAML is needed. The main-branch ruleset requires results and blocks errors or high/critical security findings introduced by a PR. |
-| Dependency review | The [PR workflow](../.github/workflows/dependency-review.yml) rejects newly introduced dependencies with known high or critical vulnerabilities. Lower-severity alerts still require triage. |
+| Dependency review | The [PR workflow](../../.github/workflows/dependency-review.yml) rejects newly introduced dependencies with known high or critical vulnerabilities. Lower-severity alerts still require triage. |
 
 Alerts update as GitHub processes dependency changes and published advisories. Coverage depends on supported ecosystems and manifest parsing; an empty alert list is not proof that dependencies are safe. Check the alert dashboard regularly because automated fix PRs are intentionally disabled. Do not copy sensitive findings into public issues before coordinated disclosure.
 
@@ -29,7 +29,7 @@ Alerts update as GitHub processes dependency changes and published advisories. C
 - The active **Protect main** ruleset requires a PR and the six checks listed in the [team workflow](github-workflow.md#automation-and-maintenance). It blocks branch deletion and force pushes and requires resolved review conversations. Its existing zero-required-approvals setting is retained; adopting the planned one-review requirement remains tracked in S1.4. Contributors should still request peer review.
 - Actions tokens default to read access and cannot approve PRs. Individual jobs/workflows request only their needed permissions. The privileged organization workflow runs trusted default-branch code and never executes PR code or reads PR artifacts.
 - Third-party Actions in repository workflows are pinned to full commit SHAs. Maintainers review upstream releases and update those pins manually, verifying the release's commit. Checkouts disable credential persistence; jobs have bounded timeouts.
-- ESLint, Vitest, the Next.js production/type-checking build, Ruff, pytest, metadata-policy tests, and the container build/start check cover the current stack. Accessibility also requires the manual checks in [ACCESSIBILITY.md](../ACCESSIBILITY.md).
+- ESLint, Vitest, the Next.js production/type-checking build, Ruff, pytest, metadata-policy tests, and the container build/start check cover the current stack. Accessibility also requires the manual checks in [ACCESSIBILITY.md](../../.github/ACCESSIBILITY.md).
 - Successfully merged branches are deleted automatically. There is no automatic merge policy for dependency PRs and no stale-issue bot.
 
 ## Optional products and agents

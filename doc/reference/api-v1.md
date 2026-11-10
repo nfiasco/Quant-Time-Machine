@@ -593,7 +593,7 @@ What was known at a moment, and what wasn't yet, for chosen companies and series
 | Section | Holds | Rule |
 | --- | --- | --- |
 | `known` | For each company: the latest daily bar, the latest 10-K, 10-Q, and 8-K, the latest quarter of revenue, and its universes. For each series: the latest observation. | Every record's `available_at` is at or before `knowledge_time`. It's read through `PointInTimeView`, like every other endpoint. |
-| `not_yet_known` | For each company: the next bar to close, the next 10-K, 10-Q, and 8-K, later amendments to filings already accepted, later versions of the revenue quarter in `known`, and later universe changes. For each series: the later versions of the observation in `known`. | Every record's `available_at` is after `knowledge_time`, and no later than when the response's data version was cut. It comes from a separate look-ahead module, [`app/data/look_ahead.py`](../backend/app/data/look_ahead.py), that exists only to teach. A test keeps the backtest engine from importing it, directly or through another module. |
+| `not_yet_known` | For each company: the next bar to close, the next 10-K, 10-Q, and 8-K, later amendments to filings already accepted, later versions of the revenue quarter in `known`, and later universe changes. For each series: the later versions of the observation in `known`. | Every record's `available_at` is after `knowledge_time`, and no later than when the response's data version was cut. It comes from a separate look-ahead module, [`app/data/look_ahead.py`](../../backend/app/data/look_ahead.py), that exists only to teach. A test keeps the backtest engine from importing it, directly or through another module. |
 
 `not_yet_known` shows what a backtest must not see, so never feed it into anything else.
 
@@ -952,6 +952,6 @@ The backend allows requests from the origins in its `CORS_ORIGINS` setting: by d
 | --- | --- | --- |
 | `POST /v1/backtests`, `GET /v1/backtests/{id}`, `GET /v1/backtests/{id}/audit` | S8.4 | 4 |
 
-`POST /v1/backtests` will take an experiment spec as its body: the model in [`app/backtest/spec.py`](../backend/app/backtest/spec.py), whose JSON Schema is [`experiment-spec-v1.schema.json`](experiment-spec-v1.schema.json) (S7.1).
+`POST /v1/backtests` will take an experiment spec as its body: the model in [`app/backtest/spec.py`](../../backend/app/backtest/spec.py), whose JSON Schema is [`experiment-spec-v1.schema.json`](experiment-spec-v1.schema.json) (S7.1).
 
 A price history and a whole macro series as known at a time (`get_price_history_as_of` and `get_macro_series_as_of`) will get endpoints when a page needs them, using the same envelope.

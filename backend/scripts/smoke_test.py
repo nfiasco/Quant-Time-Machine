@@ -10,7 +10,7 @@ From backend/:
     uv run scripts/smoke_test.py URL --data-version 20261101T202624Z
 
 Every check asks about June 5, 2020 at 09:30 ET, the acceptance example in
-doc/time-model.md. Point-in-time answers don't change when more data is ingested, so the
+doc/reference/time-model.md. Point-in-time answers don't change when more data is ingested, so the
 expected values hold for any store that covers 2020. The checks:
 
 - health: /health answers ok.

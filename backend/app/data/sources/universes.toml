@@ -1,6 +1,6 @@
 # Universe membership (S6.5): which securities were in each universe, and when.
 #
-# starter_large_caps is universe v1 (decision D3, doc/data-sources.md): large US
+# starter_large_caps is universe v1 (decision D3, doc/reference/data-sources.md): large US
 # companies, each a member from the effective date it joined the S&P 500 until the
 # effective date it left, as S&P Dow Jones Indices announced them. It deliberately keeps
 # companies that later left, so a backtest doesn't see only today's survivors.
@@ -325,7 +325,7 @@ removed_source = "https://press.spglobal.com/2024-09-06-Palantir-Technologies,-D
 security = "tesla"
 added = 2020-12-21
 # S&P: added "effective prior to the open of trading on Monday, December 21". This is
-# rule 8's example in doc/time-model.md.
+# rule 8's example in doc/reference/time-model.md.
 source = "https://press.spglobal.com/2020-11-16-Tesla-Set-to-Join-S-P-500"
 
 [[universes.members]]

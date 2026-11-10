@@ -43,7 +43,7 @@ def spec(start: str | None = None, **schedule: Any) -> ExperimentSpec:
 
 
 def test_fill_strictly_after_decision(fixture_store: Path) -> None:
-    # The golden case (doc/time-model.md, rule 10): a decision at 09:30 ET on Monday,
+    # The golden case (doc/reference/time-model.md, rule 10): a decision at 09:30 ET on Monday,
     # June 1, 2020 fills at that day's 16:00 close.
     june_1 = date(2020, 6, 1)
     decided = rebalance(utc(2020, 6, 1, 13, 30))

@@ -3,7 +3,7 @@
 A data version is the store as one completed ingestion run left it. Its manifest,
 DATA_DIR/store/_versions/<data_version>.json, lists every Parquet file with its size and
 SHA-256 hash, the rows per table and per source, and the latest `ingested_at` of any
-row. The design is in doc/database-choice-review.md:
+row. The design is in doc/research/database-choice-review.md:
 
 - **Written last.** `python -m app.data.ingest` writes a manifest only after its
   ingester finishes, so a run that fails part way, or stops at a rate limit, leaves no

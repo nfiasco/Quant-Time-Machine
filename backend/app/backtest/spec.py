@@ -9,7 +9,7 @@ two in sync.
   which names each invalid field the way the API's 422 errors do: "schedule.fill must
   be 'same_day_close' or 'next_day_open'."
 - `json_schema()` is the spec's JSON Schema, for the API and the assistant. It's
-  committed as doc/experiment-spec-v1.schema.json, and printed by
+  committed as doc/reference/experiment-spec-v1.schema.json, and printed by
 
       uv run python -m app.backtest.spec
 
@@ -42,7 +42,7 @@ from pydantic_core import ErrorDetails, PydanticCustomError
 from app.data.sources.universes import UNIVERSES
 
 FillRule = Literal["same_day_close", "next_day_open"]
-"""When a decision's trades fill (doc/time-model.md, rule 10)."""
+"""When a decision's trades fill (doc/reference/time-model.md, rule 10)."""
 
 DECISION = re.compile(
     r"first_trading_day ([01][0-9]|2[0-3]):([0-5][0-9]) America/New_York"

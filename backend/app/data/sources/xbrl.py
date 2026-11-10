@@ -8,7 +8,7 @@ revenue family, net income, diluted EPS, operating cash flow, total assets, and 
 outstanding.
 
 **When a fact became public: the acceptance time of the filing that reported it**
-(doc/time-model.md, rule 6). A fact's `filed` is a date only, so its accession number
+(doc/reference/time-model.md, rule 6). A fact's `filed` is a date only, so its accession number
 (`accn`) is joined to that filing's corrected acceptance time, from the `filings` rows
 the same run wrote. Companies repeat numbers, as comparatives in later filings and in
 restatements, and each appearance is a row of its own, known from its own filing's
@@ -18,7 +18,7 @@ time. A fact whose filing isn't in `filings`, such as one from a proxy statement
 time was assumed is flagged too.
 
 **Never SEC's `frame`.** SEC puts it on the last-filed fact for each calendar period,
-which no one knew at the time, so it isn't stored (doc/data-sources.md).
+which no one knew at the time, so it isn't stored (doc/reference/data-sources.md).
 
 Only exact duplicates collapse. Two values one filing reported for the same period are
 both kept, because the table's key includes the value.

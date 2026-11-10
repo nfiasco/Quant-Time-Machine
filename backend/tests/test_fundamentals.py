@@ -559,7 +559,7 @@ def known(
 
 def test_fact_versions_follow_filing_acceptance(fixture_store: Path) -> None:
     # Apple's revenue for the quarter ended March 28, 2020: $58,313 million in its
-    # 10-Q, the 10-K, and the next year's 10-Q (doc/time-model.md, rule 6). On June 5,
+    # 10-Q, the 10-K, and the next year's 10-Q (doc/reference/time-model.md, rule 6). On June 5,
     # 2020, only the 10-Q had been accepted.
     june_5 = known(fixture_store, "2020-06-05")
 

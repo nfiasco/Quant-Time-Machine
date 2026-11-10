@@ -1,7 +1,7 @@
 // The scroll story's facts: what was known at June 5, 2020, 9:30 AM ET, and when each
 // fact became public. Every value and timestamp comes from the snapshot golden test
 // (backend/tests/test_api_snapshot.py), its fixtures (backend/tests/fixtures/), and
-// doc/time-model.md. Change them only together with those.
+// doc/reference/time-model.md. Change them only together with those.
 
 import type { EtDateTime } from "@/lib/time";
 

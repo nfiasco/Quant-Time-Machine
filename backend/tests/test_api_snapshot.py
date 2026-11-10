@@ -8,11 +8,11 @@ from fastapi.testclient import TestClient
 
 from tests.fixture_loader import FIXTURE_DATA_VERSION
 
-TIME_MODEL = Path(__file__).resolve().parents[2] / "doc" / "time-model.md"
+TIME_MODEL = Path(__file__).resolve().parents[2] / "doc" / "reference" / "time-model.md"
 TABLE_HEADING = "\n## June 5, 2020, at 09:30 ET (13:30Z)\n"
 
 JUNE_5 = {"as_of": "2020-06-05", "tickers": "AAPL,TSLA", "series": "UNRATE,FEDFUNDS"}
-"""The June 5, 2020 table in doc/time-model.md, as one request."""
+"""The June 5, 2020 table in doc/reference/time-model.md, as one request."""
 
 T = datetime.fromisoformat("2020-06-05T09:30:00-04:00")
 

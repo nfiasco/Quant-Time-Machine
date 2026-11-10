@@ -1,7 +1,7 @@
-"""Conventions every /v1 endpoint follows (S8.1; the contract is doc/api-v1.md).
+"""Conventions every /v1 endpoint follows (S8.1; the contract is doc/reference/api-v1.md).
 
 - **Knowledge time.** Each endpoint takes `as_of`, parsed by `parse_knowledge_time`
-  (doc/time-model.md, rule 3): `2020-06-05` means 09:30 ET. It's required, because an
+  (doc/reference/time-model.md, rule 3): `2020-06-05` means 09:30 ET. It's required, because an
   API default of "now" is a classic way for look-ahead to sneak in.
 - **Reads.** A handler that reads data takes `view: View`: one `PointInTimeView` per
   request, bound to `as_of` and pinned to the app store's newest data version (S3.7),
@@ -163,7 +163,7 @@ class DataResponse[T](AsOfResponse):
 
 
 class Provenance(BaseModel):
-    """Where a record came from and when it became public (doc/time-model.md).
+    """Where a record came from and when it became public (doc/reference/time-model.md).
 
     Models built on it read the records in app/data/records.py by attribute, so an
     endpoint can return a record as `data` as it is.

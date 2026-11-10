@@ -27,22 +27,11 @@ The goal is not an AI that predicts stocks. It's a research environment where yo
 | [`frontend/`](frontend/)                   | Next.js web app (TypeScript, React, Tailwind CSS), deployed on Vercel                                |
 | [`backend/`](backend/)                     | Python API (FastAPI), home of the point-in-time data layer and the backtester                        |
 | [`backend/spikes/`](backend/spikes/)       | Sprint 1 experiments behind our data and storage decisions                                           |
-| [`doc/`](doc/)                             | Project docs (see below)                                                                             |
-| [`.github/`](.github/)                     | CI workflow, pull request template, and issue templates                                              |
-| [`supabase/`](supabase/)                   | Supabase (PostgreSQL and Auth) config for user accounts and each user's saved data; no schema yet ([how it fits](doc/storage.md#two-stores-point-in-time-data-and-accounts)) |
+| [`doc/`](doc/)                             | Roadmap, technical reference, project workflow, and research notes                                                                             |
+| [`.github/`](.github/)                     | Community policies, CI workflows, and templates                                              |
+| [`supabase/`](supabase/)                   | Supabase (PostgreSQL and Auth) config for user accounts and each user's saved data; no schema yet ([how it fits](doc/reference/storage.md#two-stores-point-in-time-data-and-accounts)) |
 
-Each app has its own README with more details. The main docs:
-
-| Doc                                          | What it covers                                                                                          |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| [Roadmap and backlog](doc/roadmap.md)        | Requirements, milestones, sprints, every epic and story, risks, and the decision log                    |
-| [Team workflow](doc/github-workflow.md) | Issue/PR requirements, project views, automation, and maintenance |
-| [Contribution history](doc/contribution-history.md) | Verified completed-story contributors and historical PR evidence |
-| [Time model](doc/time-model.md)              | How "known at time *T*" works for every kind of data, with worked examples                              |
-| [Data sources](doc/data-sources.md)          | Each data source's coverage, timestamps, limits, cost, and terms of use; known gaps; price-source choice |
-| [Storage](doc/storage.md)                    | Why point-in-time data lives in Parquet files queried by DuckDB, with the benchmark                     |
-| [API v1 contract](doc/api-v1.md)             | The `/v1` response envelope, errors, and example responses the frontend builds against                  |
-| [Frontend guidelines](frontend/GUIDELINES.md) | The web app's design system, file structure, coding conventions, and rules for new pages                |
+See the [documentation index](doc/README.md) for the roadmap, technical reference, and project guides. Each app has its own README; frontend contributors should also read the [frontend guidelines](frontend/GUIDELINES.md).
 
 ## Tech stack
 
@@ -50,7 +39,7 @@ Each app has its own README with more details. The main docs:
 | -------- | ---------------------------------------------------------------------------------------- |
 | Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, shadcn/ui (Radix UI), Lucide icons, ESLint, Vitest |
 | Backend  | Python 3.14, FastAPI, uv (dependencies), pytest, Ruff (lint and format)                  |
-| Data     | Point-in-time data: Parquet files queried with DuckDB, in-process ([decision D1](doc/storage.md)). Accounts and user data: Supabase (PostgreSQL and Auth) |
+| Data     | Point-in-time data: Parquet files queried with DuckDB, in-process ([decision D1](doc/reference/storage.md)). Accounts and user data: Supabase (PostgreSQL and Auth) |
 | Hosting  | Vercel (frontend); Railway (backend API and data volume)                                       |
 | CI       | GitHub Actions                                                                           |
 
@@ -89,7 +78,7 @@ Running the apps and the tests needs no keys: tests use small fixtures, never li
 - **Backend:** copy [`backend/.env.example`](backend/.env.example) to `backend/.env` and fill it in. All settings load through one module, [`backend/app/config.py`](backend/app/config.py).
   - `FRED_API_KEY`: a free key from [FRED](https://fredaccount.stlouisfed.org/apikeys). Create a FRED account, then request a key; it's 32 lowercase letters and digits.
   - `SEC_USER_AGENT`: the SEC refuses automated requests that don't identify who's asking. Use your name or the project's name plus a contact email, for example `"Quant Time Machine (UD CISC 498) jdoe@udel.edu"`.
-  - `TIINGO_API_KEY`: the token for daily prices (our price source, [decision D2](doc/data-sources.md#daily-prices-decision-d2)). Create a free [Tiingo](https://www.tiingo.com) account and copy the token from its [API token page](https://www.tiingo.com/account/api/token).
+  - `TIINGO_API_KEY`: the token for daily prices (our price source, [decision D2](doc/reference/data-sources.md#daily-prices-decision-d2)). Create a free [Tiingo](https://www.tiingo.com) account and copy the token from its [API token page](https://www.tiingo.com/account/api/token).
   - `DATA_DIR`: where downloaded data goes (default `backend/data/`, which git ignores).
   - `CORS_ORIGINS`: the web pages allowed to call the API from a browser, separated by commas (default `http://localhost:3000`). Add the deployed frontend's address here.
 - **Frontend:** copy [`frontend/.env.example`](frontend/.env.example) to `frontend/.env.local`. `NEXT_PUBLIC_API_URL` is the backend's address (default `http://localhost:8000`). Anything starting with `NEXT_PUBLIC_` is visible in the browser, so never put a secret there.
@@ -114,7 +103,7 @@ The frontend is deployed on [Vercel](https://vercel.com):
 2. Set **Root Directory** to `frontend`. Vercel detects Next.js automatically, so no `vercel.json` is needed.
 3. Deploy. Every push to `main` updates production, and every pull request gets its own preview URL.
 
-The API runs on [Railway](https://railway.com)'s Hobby plan (decision D4) at <https://quant-time-machine-api.up.railway.app>. Railway builds `backend/Dockerfile` when a merge to `main` changes the backend's image, once CI passes, and the point-in-time store lives on a Railway volume. In Vercel, `NEXT_PUBLIC_API_URL` points Production at it; previews keep the default. Settings, the store upload, and the smoke test are in [`doc/hosting.md`](doc/hosting.md#the-deployment-on-railway) and the [backend README](backend/README.md#deployment).
+The API runs on [Railway](https://railway.com)'s Hobby plan (decision D4) at <https://quant-time-machine-api.up.railway.app>. Railway builds `backend/Dockerfile` when a merge to `main` changes the backend's image, once CI passes, and the point-in-time store lives on a Railway volume. In Vercel, `NEXT_PUBLIC_API_URL` points Production at it; previews keep the default. Settings, the store upload, and the smoke test are in [`doc/reference/hosting.md`](doc/reference/hosting.md#the-deployment-on-railway) and the [backend README](backend/README.md#deployment).
 
 ## Roadmap (draft)
 
@@ -140,25 +129,25 @@ The full plan, with requirements, milestones, sprints, and the epics, stories, a
 
 - **Raw datasets are never committed.** Everything downloaded from a data source goes under `DATA_DIR` (default `backend/data/`), which git ignores, along with local database files (`*.duckdb`). The only data in the repository is tiny test fixtures under `backend/tests/fixtures/`: synthetic values plus a few published figures, small enough to review.
 - **Secrets are never committed.** Keys live in git-ignored `.env` files or in the hosting provider's settings, never in code, notebooks, or the browser bundle. If a key is ever committed, revoke it immediately: deleting it from a later commit doesn't remove it from history.
-- **Each source's terms are followed.** That means the SEC's fair-access rules (at most 10 requests per second, with a declared User-Agent), FRED's API terms, and the license of whichever price source we use. We don't redistribute data the terms don't allow. Details are in [`doc/data-sources.md`](doc/data-sources.md).
-- **Every stored fact records where it came from and when it became public.** Downloads keep their source URL and fetch time, so any number can be traced back. See the [time model](doc/time-model.md).
+- **Each source's terms are followed.** That means the SEC's fair-access rules (at most 10 requests per second, with a declared User-Agent), FRED's API terms, and the license of whichever price source we use. We don't redistribute data the terms don't allow. Details are in [`doc/reference/data-sources.md`](doc/reference/data-sources.md).
+- **Every stored fact records where it came from and when it became public.** Downloads keep their source URL and fetch time, so any number can be traced back. See the [time model](doc/reference/time-model.md).
 
 This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis. By using it, you agree to the [FRED® API Terms of Use](https://fred.stlouisfed.org/docs/api/terms_of_use.html).
 
 ## Community and contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, coding conventions, validation, and the PR process. The [team workflow](doc/github-workflow.md) explains issue metadata and project automation.
+Read [CONTRIBUTING.md](.github/CONTRIBUTING.md) for setup, coding conventions, validation, and the PR process. The [team workflow](doc/project/github-workflow.md) explains issue metadata and project automation.
 
-- [Code of Conduct](CODE_OF_CONDUCT.md): participation expectations and private reporting.
-- [Security policy](SECURITY.md): supported code and private vulnerability reports.
-- [Accessibility](ACCESSIBILITY.md): standards, review steps, and barrier reporting.
-- [Support](SUPPORT.md): where to ask for help or report a problem.
-- [Discussions](https://github.com/nfiasco/Quant-Time-Machine/discussions): Q&A, proposals, and community updates; see the [category guide](doc/discussions.md).
-- [Repository security and quality settings](doc/github-settings.md): automated checks and maintenance decisions.
+- [Code of Conduct](.github/CODE_OF_CONDUCT.md): participation expectations and private reporting.
+- [Security policy](.github/SECURITY.md): supported code and private vulnerability reports.
+- [Accessibility](.github/ACCESSIBILITY.md): standards, review steps, and barrier reporting.
+- [Support](.github/SUPPORT.md): where to ask for help or report a problem.
+- [Discussions](https://github.com/nfiasco/Quant-Time-Machine/discussions): Q&A, proposals, and community updates; see the [category guide](doc/project/discussions.md).
+- [Repository security and quality settings](doc/project/github-settings.md): automated checks and maintenance decisions.
 
 ## License
 
-[MIT](LICENSE). Data from third-party sources keeps its own terms; see [`doc/data-sources.md`](doc/data-sources.md).
+[MIT](LICENSE). Data from third-party sources keeps its own terms; see [`doc/reference/data-sources.md`](doc/reference/data-sources.md).
 
 ## Team
 

@@ -263,7 +263,7 @@ def utc(*args: int) -> datetime:
 
 
 def test_may_2020_unrate_known_at_0930_not_0800(tmp_path: Path) -> None:
-    # The May 2020 jobs report came out at 08:30 ET on June 5 (doc/time-model.md).
+    # The May 2020 jobs report came out at 08:30 ET on June 5 (doc/reference/time-model.md).
     server = FakeServer(
         FakeFred(
             {
