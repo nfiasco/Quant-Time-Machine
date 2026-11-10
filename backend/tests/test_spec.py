@@ -9,6 +9,7 @@ from typing import Any
 import pytest
 
 from app.backtest.spec import ExperimentSpec, SpecError, json_schema, parse_spec
+from app.data.sources.alfred import SERIES
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 CANONICAL = Path(__file__).parent / "fixtures" / "specs" / "canonical.json"
@@ -79,12 +80,44 @@ def test_the_canonical_spec_is_valid() -> None:
         ("portfolio.long_only", False),
         ("filters", []),
         ("signals.mom_12_1.skip_months", 0),
+        ("signals.mom_12_1", {"type": "momentum", "lookback_months": 6}),
+        ("signals.rev_accel", {"type": "revenue_growth", "basis": "yoy_quarterly"}),
+        (
+            "signals.mom_12_1",
+            {
+                "type": "macro_change",
+                "series": "GDP",
+                "releases": 1,
+                "change": "relative",
+            },
+        ),
         ("costs.bps_per_trade", 2.5),
         ("benchmark", "BRK.B"),
     ],
 )
 def test_other_valid_specs(path: str, value: object) -> None:
     assert isinstance(parse_spec(changed(path, value)), ExperimentSpec)
+
+
+def test_momentum_is_12_1_by_default() -> None:
+    spec = parse_spec(changed("signals.mom_12_1", {"type": "momentum"}))
+
+    momentum = spec.signals["mom_12_1"]
+    assert momentum == parse_spec(canonical()).signals["mom_12_1"]
+    # A saved spec states the defaults it ran with.
+    assert spec.model_dump(mode="json")["signals"]["mom_12_1"] == {
+        "type": "momentum",
+        "lookback_months": 12,
+        "skip_months": 1,
+    }
+
+
+@pytest.mark.parametrize("series", SERIES)
+def test_a_macro_change_can_name_any_catalog_series(series: str) -> None:
+    signal = {"type": "macro_change", "series": series, "releases": 3}
+    spec = parse_spec(changed("signals.mom_12_1", signal | {"change": "absolute"}))
+
+    assert spec.signals["mom_12_1"].type == "macro_change"
 
 
 def test_a_1600_decision_fills_at_the_next_open() -> None:
@@ -148,7 +181,10 @@ INVALID = [
         "signals.mom_12_1.type",
         "momentun",
         "signals.mom_12_1.type",
-        ("signals.mom_12_1.type must be 'revenue_growth_acceleration' or 'momentum'."),
+        (
+            "signals.mom_12_1.type must be 'momentum', 'revenue_growth', "
+            "'revenue_growth_acceleration' or 'macro_change'."
+        ),
     ),
     (
         "signals.mom_12_1.type",
@@ -164,6 +200,12 @@ INVALID = [
     ),
     (
         "signals.mom_12_1.lookback_months",
+        121,
+        "signals.mom_12_1.lookback_months",
+        "signals.mom_12_1.lookback_months must be at most 120.",
+    ),
+    (
+        "signals.mom_12_1.lookback_months",
         12.5,
         "signals.mom_12_1.lookback_months",
         "signals.mom_12_1.lookback_months must be a whole number.",
@@ -173,6 +215,68 @@ INVALID = [
         12,
         "signals.mom_12_1.skip_months",
         "signals.mom_12_1.skip_months must be less than lookback_months, 12.",
+    ),
+    (
+        "signals.mom_12_1",
+        {"type": "momentum", "lookback_months": 1},
+        "signals.mom_12_1.skip_months",
+        (
+            "signals.mom_12_1.skip_months must be less than lookback_months, 1, and "
+            "it's 1 by default."
+        ),
+    ),
+    (
+        "signals.mom_12_1",
+        {
+            "type": "macro_change",
+            "series": "unrate",
+            "releases": 3,
+            "change": "absolute",
+        },
+        "signals.mom_12_1.series",
+        (
+            "signals.mom_12_1.series must be 'UNRATE', 'PAYEMS', 'CPIAUCSL', 'GDP', "
+            "'FEDFUNDS' or 'TB3MS'."
+        ),
+    ),
+    (
+        "signals.mom_12_1",
+        {
+            "type": "macro_change",
+            "series": "UNRATE",
+            "releases": 0,
+            "change": "absolute",
+        },
+        "signals.mom_12_1.releases",
+        "signals.mom_12_1.releases must be at least 1.",
+    ),
+    (
+        "signals.mom_12_1",
+        {
+            "type": "macro_change",
+            "series": "UNRATE",
+            "releases": 121,
+            "change": "absolute",
+        },
+        "signals.mom_12_1.releases",
+        "signals.mom_12_1.releases must be at most 120.",
+    ),
+    (
+        "signals.mom_12_1",
+        {
+            "type": "macro_change",
+            "series": "UNRATE",
+            "releases": 3,
+            "change": "percent",
+        },
+        "signals.mom_12_1.change",
+        "signals.mom_12_1.change must be 'absolute' or 'relative'.",
+    ),
+    (
+        "signals.mom_12_1",
+        {"type": "macro_change", "series": "UNRATE", "releases": 3},
+        "signals.mom_12_1.change",
+        "signals.mom_12_1.change is required.",
     ),
     (
         "signals.rev_accel.basis",

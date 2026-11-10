@@ -17,8 +17,11 @@ two in sync.
   Schema, for the catalog (S8.5).
 
 A spec checks only what it can on its own: shapes, names, and the rules between its
-fields. Whether our data covers it, such as fundamentals before XBRL, or whether the
-engine supports an option, such as value weights, is for the engine to say (S7.3).
+fields. Its universe must be a curated list, and a macro signal's series one in the
+macro catalog (app/data/sources/alfred_series.toml). Whether our data covers it, such
+as fundamentals before XBRL, or whether the engine supports an option, such as value
+weights, is for the engine to say (S7.3). What each signal computes is in
+doc/reference/signals.md (S7.4).
 """
 
 import json
@@ -39,6 +42,7 @@ from pydantic import (
 )
 from pydantic_core import ErrorDetails, PydanticCustomError
 
+from app.data.sources.alfred import SERIES
 from app.data.sources.universes import UNIVERSES
 
 FillRule = Literal["same_day_close", "next_day_open"]
@@ -57,9 +61,8 @@ decision before it."""
 SIGNAL_ID = re.compile(r"[a-z][a-z0-9_]*")
 TICKER = re.compile(r"[A-Z0-9][A-Z0-9.-]*")
 
-_SIGNAL_TYPES = {"revenue_growth_acceleration", "momentum"}
-"""The `type` of each kind of signal. Pydantic puts it in the location of an error
-inside a signal, after the signal's ID."""
+MAX_MONTHS_BACK = 120
+"""The most months, or releases, a signal can reach back: ten years of monthly data."""
 
 
 def _broken(field: str, rule: str) -> PydanticCustomError:
@@ -159,6 +162,36 @@ class ScheduleSpec(_Part):
         return time(int(match[1]), int(match[2]))
 
 
+class MomentumSignal(_Part):
+    """The total return over a lookback, leaving out the most recent months: 12-1 by
+    default."""
+
+    type: Literal["momentum"]
+    lookback_months: int = Field(default=12, ge=1, le=MAX_MONTHS_BACK)
+    """How many months back the return starts: 12, the default, for 12-1 momentum. At
+    most 120."""
+    skip_months: int = Field(default=1, ge=0)
+    """How many of the latest months to leave out: 1, the default, for 12-1 momentum.
+    Fewer than `lookback_months`."""
+
+    @model_validator(mode="after")
+    def _skip_within_lookback(self) -> Self:
+        if self.skip_months >= self.lookback_months:
+            rule = f"must be less than lookback_months, {self.lookback_months}"
+            if "skip_months" not in self.model_fields_set:
+                rule += f", and it's {self.skip_months} by default"
+            raise _broken("skip_months", rule)
+        return self
+
+
+class RevenueGrowthSignal(_Part):
+    """The latest quarter's revenue growth over the same quarter a year earlier."""
+
+    type: Literal["revenue_growth"]
+    basis: Literal["yoy_quarterly"]
+    """Each quarter's growth over the same quarter a year earlier."""
+
+
 class RevenueGrowthAccelerationSignal(_Part):
     """This quarter's year-over-year revenue growth minus last quarter's."""
 
@@ -167,30 +200,45 @@ class RevenueGrowthAccelerationSignal(_Part):
     """Each quarter's growth over the same quarter a year earlier."""
 
 
-class MomentumSignal(_Part):
-    """The total return over a lookback, leaving out the most recent months."""
+class MacroChangeSignal(_Part):
+    """A macro series' change over its latest releases, as published by the decision.
+    It's the same for every security, so a filter on it holds securities only while the
+    economy meets a condition, such as unemployment falling."""
 
-    type: Literal["momentum"]
-    lookback_months: int = Field(ge=1)
-    """How many months back the return starts: 12 for 12-1 momentum."""
-    skip_months: int = Field(ge=0)
-    """How many of the latest months to leave out: 1 for 12-1 momentum. Fewer than
-    `lookback_months`."""
+    type: Literal["macro_change"]
+    series: str
+    """A series in the macro catalog, such as "UNRATE", the unemployment rate."""
+    releases: int = Field(ge=1, le=MAX_MONTHS_BACK)
+    """How many releases back the change starts: 3 compares the latest observation with
+    the one three months before it, or three quarters for a quarterly series. At most
+    120."""
+    change: Literal["absolute", "relative"]
+    """"absolute" subtracts, in the series' units, such as percentage points for UNRATE.
+    "relative" divides: 0.03 is 3%."""
 
-    @model_validator(mode="after")
-    def _skip_within_lookback(self) -> Self:
-        if self.skip_months >= self.lookback_months:
-            raise _broken(
-                "skip_months",
-                f"must be less than lookback_months, {self.lookback_months}",
-            )
-        return self
+    @field_validator("series")
+    @classmethod
+    def _known(cls, series: str) -> str:
+        if series not in SERIES:
+            raise _broken("", f"must be {_one_of(SERIES)}")
+        return series
 
 
 SignalSpec = Annotated[
-    RevenueGrowthAccelerationSignal | MomentumSignal, Field(discriminator="type")
+    MomentumSignal
+    | RevenueGrowthSignal
+    | RevenueGrowthAccelerationSignal
+    | MacroChangeSignal,
+    Field(discriminator="type"),
 ]
-"""A signal from the library (S7.4), chosen by its `type`."""
+"""A signal from the library (S7.4; doc/reference/signals.md), chosen by its `type`."""
+
+_SIGNAL_TYPES = frozenset(
+    get_args(model.model_fields["type"].annotation)[0]
+    for model in get_args(get_args(SignalSpec)[0])
+)
+"""The `type` of each kind of signal. Pydantic puts it in the location of an error
+inside a signal, after the signal's ID."""
 
 
 class FilterSpec(_Part):
@@ -379,6 +427,8 @@ def _explain(field: str, kind: str, context: Mapping[str, Any], message: str) ->
             if isinstance(bound, float) and bound.is_integer():
                 bound = int(bound)
             return f"{field} must be at least {bound}."
+        case "less_than_equal":
+            return f"{field} must be at most {context['le']}."
         case "int_parsing" | "int_from_float" | "int_type":
             return f"{field} must be a whole number."
         case "float_parsing" | "float_type":

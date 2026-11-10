@@ -17,10 +17,15 @@ function describeDecision(decision: string): string {
 
 function describeSignal(signal: SignalSpec): string {
   switch (signal.type) {
+    case "momentum":
+      // The spec's defaults: 12-1 momentum.
+      return `Momentum, ${signal.lookback_months ?? 12}-month lookback, skipping the last ${signal.skip_months ?? 1}`;
+    case "revenue_growth":
+      return "Revenue growth (year over year, quarterly)";
     case "revenue_growth_acceleration":
       return "Revenue growth acceleration (year over year, quarterly)";
-    case "momentum":
-      return `Momentum, ${signal.lookback_months}-month lookback, skipping the last ${signal.skip_months}`;
+    case "macro_change":
+      return `${signal.series}'s ${signal.change} change over its last ${signal.releases} ${signal.releases === 1 ? "release" : "releases"}`;
   }
 }
 
