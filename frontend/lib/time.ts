@@ -64,8 +64,59 @@ export function toAsOfParam(t: EtDateTime): string {
   return `${t.year}-${pad(t.month)}-${pad(t.day)}T${pad(t.hour)}:${pad(t.minute)}`;
 }
 
+/** A calendar date, such as a session, a period end, or a filing date. */
+export type EtDate = Pick<EtDateTime, "year" | "month" | "day">;
+
+/** Parses a `YYYY-MM-DD` date from the API. Returns null for anything else. */
+export function parseIsoDate(value: string): EtDate | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const parsed = parseAsOf(value);
+  return parsed ? { year: parsed.year, month: parsed.month, day: parsed.day } : null;
+}
+
+/**
+ * The New York wall-clock time of an API timestamp, such as `2020-06-05T08:30:00-04:00`.
+ * The API writes every timestamp in New York time with its offset, so the first 16
+ * characters are the ET wall-clock time (doc/api-v1.md, "Conventions").
+ */
+export function etDateTimeOf(timestamp: string): EtDateTime | null {
+  return parseAsOf(timestamp.slice(0, 16));
+}
+
+const FRACTION_PATTERN = /\.(\d{3})(\d+)/;
+
+/**
+ * The instant of an API timestamp in milliseconds since the epoch, for comparing and
+ * sorting. Keeps fractions finer than a millisecond (the API writes microseconds, such as
+ * `23:59:59.999999` for an assumed end of day), so a record never crosses a moment.
+ * NaN for a malformed value.
+ */
+export function instantOf(timestamp: string): number {
+  // Date.parse reads ISO 8601 with an offset the same way everywhere, but only to the
+  // millisecond: parse that much and add the rest.
+  const fraction = FRACTION_PATTERN.exec(timestamp);
+  if (!fraction) return Date.parse(timestamp);
+  const milliseconds = Date.parse(timestamp.replace(fraction[0], `.${fraction[1]}`));
+  return milliseconds + Number(`0.${fraction[2]}`);
+}
+
+/**
+ * An observation period as people say it: "May 2020" for a monthly series, "Q2 2020"
+ * for a quarterly one, "2020" for an annual one, otherwise the date ("Jun 4, 2020").
+ * `period` is the API's `YYYY-MM-DD` start of the period.
+ */
+export function formatPeriod(period: string, frequency: string): string {
+  const date = parseIsoDate(period);
+  if (!date) return period;
+  const kind = frequency.trim().toLowerCase();
+  if (kind.startsWith("month")) return `${MONTHS[date.month - 1]} ${date.year}`;
+  if (kind.startsWith("quarter")) return `Q${Math.floor((date.month - 1) / 3) + 1} ${date.year}`;
+  if (kind.startsWith("annual") || kind.startsWith("year")) return String(date.year);
+  return formatEtShortDate(date);
+}
+
 /** For example "June 5, 2020". */
-export function formatEtDate(t: EtDateTime): string {
+export function formatEtDate(t: EtDate): string {
   return `${MONTHS[t.month - 1]} ${t.day}, ${t.year}`;
 }
 
@@ -81,7 +132,7 @@ export function formatEtDateTime(t: EtDateTime): string {
 }
 
 /** Compact date for tight spaces, for example "Jun 5, 2020". */
-export function formatEtShortDate(t: Pick<EtDateTime, "year" | "month" | "day">): string {
+export function formatEtShortDate(t: EtDate): string {
   return `${MONTHS[t.month - 1].slice(0, 3)} ${t.day}, ${t.year}`;
 }
 

@@ -568,7 +568,7 @@ Issues and Projects are complementary: the issue is the work record; the project
 | Start date / Target date | Planning windows for roadmap display, not proof of delivery. Unconfirmed end-of-term dates remain unset. |
 | Assignees / Milestone / Parent issue | Native issue fields. Completed-story assignees follow verified authored contributions; future ownership is a planning decision. PRs use the primary milestone of their work. |
 
-**Status meanings:** Backlog has no completed implementation for its remaining deliverable; Ready has implemented prerequisites and an existing owner; In progress means committed partial delivery with outstanding criteria, not proof someone is actively coding today; In review requires an open review/merge step; Done requires all story acceptance criteria. The implementation audit found no open implementation PRs, so no story is marked In review. In the separate Pull requests view, Done means the PR lifecycle ended; the native merge icon and `not merged` label distinguish delivered changes from abandoned proposals.
+**Status meanings:** Backlog has no completed implementation for its remaining deliverable; Ready has implemented prerequisites and an existing owner; In progress means committed partial delivery with outstanding criteria, not proof someone is actively coding today; In review requires an open review/merge step; Done requires all story acceptance criteria. In the separate Pull requests view, Done means the PR lifecycle ended; the native merge icon and `not merged` label distinguish delivered changes from abandoned proposals.
 
 ### 6.3 Labels
 
@@ -688,8 +688,8 @@ Every story in one table. Verified contributors are listed for completed stories
 | [S8.4](#s84-backtest-endpoints) | Backtest endpoints | E8 | P0 | M | 4 | M4 | Backlog | [#25](https://github.com/nfiasco/Quant-Time-Machine/issues/25) | See issue |
 | [S8.5](#s85-catalog-endpoints) | Catalog endpoints | E8 | P0 | S | 3 | M3 | ✅ Done | [#146](https://github.com/nfiasco/Quant-Time-Machine/issues/146) | [nfiasco](https://github.com/nfiasco) |
 | [S8.6](#s86-typed-client-and-response-caching) | Typed client and response caching | E8 | P2 | S | 5 | M5 | Backlog | [#147](https://github.com/nfiasco/Quant-Time-Machine/issues/147) | See issue |
-| [S9.1](#s91-app-shell-and-api-client) | App shell and API client | E9 | P0 | S | 2 | M2 | In progress | [#148](https://github.com/nfiasco/Quant-Time-Machine/issues/148) | See issue |
-| [S9.2](#s92-time-machine-explorer) | Time Machine explorer | E9 | P0 | L | 3 | M3 | In progress | [#35](https://github.com/nfiasco/Quant-Time-Machine/issues/35) | See issue |
+| [S9.1](#s91-app-shell-and-api-client) | App shell and API client | E9 | P0 | S | 2 | M2 | In review | [#148](https://github.com/nfiasco/Quant-Time-Machine/issues/148) | See issue |
+| [S9.2](#s92-time-machine-explorer) | Time Machine explorer | E9 | P0 | L | 3 | M3 | In review | [#35](https://github.com/nfiasco/Quant-Time-Machine/issues/35) | See issue |
 | [S9.3](#s93-macro-revision-viewer) | Macro revision viewer | E9 | P1 | M | 4 | M4 | Backlog | [#149](https://github.com/nfiasco/Quant-Time-Machine/issues/149) | See issue |
 | [S9.4](#s94-company-filing-timeline) | Company filing timeline | E9 | P2 | M | 5 | M5 | Backlog | [#150](https://github.com/nfiasco/Quant-Time-Machine/issues/150) | See issue |
 | [S9.5](#s95-backtest-builder) | Backtest builder | E9 | P0 | L | 5 | M5 | In progress | [#33](https://github.com/nfiasco/Quant-Time-Machine/issues/33) | See issue |
@@ -2114,7 +2114,7 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 
 #### S9.1 App shell and API client
 
-**Priority:** P0 · **Size:** S · **Sprint:** 2 · **Milestone:** M2 · **Area:** web · **Depends on:** S1.5 · **Reqs:** FR-W1 · **Status:** In progress
+**Priority:** P0 · **Size:** S · **Sprint:** 2 · **Milestone:** M2 · **Area:** web · **Depends on:** S1.5 · **Reqs:** FR-W1 · **Status:** In review
 
 **Story:** As a user, I want consistent navigation and clear loading and error states, so that the app feels like one product.
 
@@ -2130,15 +2130,15 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 - [x] Build the layout and navigation
 - [x] Write the API helper and error handling
 - [x] Add shared loading, empty, and error states and the dashboard API health check
-- [ ] Build the live M2 June 5 data page, completing the integration through S9.2
+- [x] Build the live M2 June 5 data page, completing the integration through S9.2
 
-**Progress evidence (2026-11-08):** The app shell, navigation, API helper, dashboard health check, and shared states are merged. The required live June 5 data page is not; it remains the M2 carry-over into S9.2. Evidence: [PR #51](https://github.com/nfiasco/Quant-Time-Machine/pull/51), [PR #52](https://github.com/nfiasco/Quant-Time-Machine/pull/52), [PR #93](https://github.com/nfiasco/Quant-Time-Machine/pull/93), `frontend/components/layout/app-sidebar.tsx`, `frontend/lib/api/client.ts`, `frontend/app/(app)/loading.tsx`, `frontend/app/(app)/error.tsx`.
+**Progress evidence (2026-11-09):** The app shell, navigation, API helper, dashboard health check, and shared states are merged. The live June 5 data page arrives with the Time Machine explorer (S9.2), in review: `/time-machine?as_of=2020-06-05T09:30&tickers=AAPL,TSLA&series=UNRATE,FEDFUNDS` shows the June 5, 2020 as-of results from the API. Evidence: [PR #51](https://github.com/nfiasco/Quant-Time-Machine/pull/51), [PR #52](https://github.com/nfiasco/Quant-Time-Machine/pull/52), [PR #93](https://github.com/nfiasco/Quant-Time-Machine/pull/93), `frontend/components/layout/app-sidebar.tsx`, `frontend/lib/api/client.ts`, `frontend/app/(app)/loading.tsx`, `frontend/app/(app)/error.tsx`.
 
 **GitHub:** [#148](https://github.com/nfiasco/Quant-Time-Machine/issues/148) · **Parent epic:** [#15](https://github.com/nfiasco/Quant-Time-Machine/issues/15)
 
 #### S9.2 Time Machine explorer
 
-**Priority:** P0 · **Size:** L · **Sprint:** 3 · **Milestone:** M3 · **Area:** web · **Depends on:** S8.3, S9.1 · **Reqs:** FR-W1, FR-D9 · **Status:** In progress
+**Priority:** P0 · **Size:** L · **Sprint:** 3 · **Milestone:** M3 · **Area:** web · **Depends on:** S8.3, S9.1 · **Reqs:** FR-W1, FR-D9 · **Status:** In review
 
 **Story:** As a student researcher, I want to pick a moment and see what was known and what wasn't, so that I understand look-ahead bias concretely.
 
@@ -2152,12 +2152,12 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 **Tasks**
 
 - [x] Add the explorer route with knowledge-time URL parsing and display
-- [ ] Build date/time controls, ticker search, and the series picker
-- [ ] Render known and not-yet-known sections from `/v1/snapshot`
-- [ ] Keep the complete form state in shareable URL parameters
-- [ ] Add snapshot-specific empty and error states
+- [x] Build date/time controls, ticker search, and the series picker
+- [x] Render known and not-yet-known sections from `/v1/snapshot`
+- [x] Keep the complete form state in shareable URL parameters
+- [x] Add snapshot-specific empty and error states
 
-**Progress evidence (2026-11-08):** The committed explorer route parses/displays as_of but renders PlannedPage. The landing-page illustration is static and makes no API calls. Live snapshot rendering, picker controls, and complete shareable state are outstanding. Evidence: [PR #51](https://github.com/nfiasco/Quant-Time-Machine/pull/51), [PR #92](https://github.com/nfiasco/Quant-Time-Machine/pull/92), `frontend/app/(app)/time-machine/page.tsx`, `frontend/features/landing/story/events.ts`.
+**Progress evidence (2026-11-09):** In review. The explorer renders live snapshots from `/v1/snapshot`: date and time controls, a ticker search over the universe on the chosen date with free entry, a series picker, and one knowledge horizon per company and series. The URL holds the whole view, and the page has empty, invalid-link, API-error, and unreachable-API states. Unit tests (Vitest, now in CI) cover the URL rules and show that a record dated after the knowledge time can't land on the known side. Evidence: `frontend/app/(app)/time-machine/page.tsx`, `frontend/features/time-machine/`, `frontend/features/time-machine/snapshot-events.test.ts`. Earlier work: [PR #51](https://github.com/nfiasco/Quant-Time-Machine/pull/51), [PR #92](https://github.com/nfiasco/Quant-Time-Machine/pull/92).
 
 **Additional committed groundwork (2026-11-09):** Local branch `feature/s9.2-time-machine-explorer` contains commit `351da187d3969398510f0cfddbd29aa8ddd42a64`, adding typed v1 responses, snapshot/catalog client functions, and API failure handling. This commit is not merged into the audited main branch; live rendering, controls, and the remaining UI acceptance criteria are still open. No uncommitted work is included.
 

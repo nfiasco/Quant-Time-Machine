@@ -48,7 +48,7 @@ Each app has its own README with more details. The main docs:
 
 | Area     | Tools                                                                                    |
 | -------- | ---------------------------------------------------------------------------------------- |
-| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, shadcn/ui (Radix UI), Lucide icons, ESLint |
+| Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, shadcn/ui (Radix UI), Lucide icons, ESLint, Vitest |
 | Backend  | Python 3.14, FastAPI, uv (dependencies), pytest, Ruff (lint and format)                  |
 | Data     | Point-in-time data: Parquet files queried with DuckDB, in-process ([decision D1](doc/storage.md)). Accounts and user data: Supabase (PostgreSQL and Auth) |
 | Hosting  | Vercel (frontend); backend hosting not decided yet                                       |
@@ -99,7 +99,7 @@ Both `.env` files are git-ignored. Real environment variables override them, whi
 ### Run the same checks as CI
 
 ```bash
-cd frontend && npm run lint && npm run build
+cd frontend && npm run lint && npm test && npm run build
 ```
 
 ```bash

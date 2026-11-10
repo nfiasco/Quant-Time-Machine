@@ -19,4 +19,4 @@ Follow [`GUIDELINES.md`](GUIDELINES.md) for every frontend change. The rules mos
 - Register every route in `config/navigation.ts`; pages take their metadata from it with `routeMetadata`.
 - Call the backend only through `lib/api/`. Format market times only with `lib/time.ts` (New York time, labelled ET).
 - Server Components by default; `"use client"` only on small leaf components.
-- Run `npm run lint && npm run build` before calling a change done.
+- Run `npm run lint && npm test && npm run build` before calling a change done.

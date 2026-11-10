@@ -13,7 +13,7 @@ How we build the Quant Time Machine web app: the design system, where code goes,
 7. **Accessible by default.** Labels on every input, visible focus, keyboard support, AA contrast, and color is never the only signal.
 8. **Plain words, no advice.** Use the glossary terms; never phrase anything as an investment recommendation.
 9. **Check the states.** Loading, empty, and error states exist; pages work at 375 px, 768 px, and desktop widths, in light and dark.
-10. **CI must pass.** `npm run lint && npm run build`, plus a screenshot in the pull request for UI changes.
+10. **CI must pass.** `npm run lint && npm test && npm run build`, plus a screenshot in the pull request for UI changes.
 
 ## 1. Principles
 
@@ -90,6 +90,8 @@ Primitives live in `components/ui/` and come from [shadcn/ui](https://ui.shadcn.
 | `Empty` | Empty states, always with a next action. |
 | `Skeleton`, `Spinner` | Loading placeholders shaped like the content; pending buttons. |
 | `Tooltip` | Supplementary labels only (for example, icon-only buttons). Never the only place information lives. |
+| `Checkbox` | Multiple choice from a short list, in a `FieldSet` with `FieldGroup data-slot="checkbox-group"` (the Time Machine's series). |
+| `Popover` + `Command` | A searchable picker: shadcn's combobox recipe for Radix (see `features/time-machine/ticker-picker.tsx`). shadcn's own `combobox` is built on Base UI, a second headless library, so don't add it. `command` brought `dialog`, `input-group`, and `textarea` with it. |
 | `Sheet`, `Separator`, `Sidebar` | Used by the app shell. |
 
 ### Project components
@@ -98,9 +100,10 @@ Primitives live in `components/ui/` and come from [shadcn/ui](https://ui.shadcn.
 | --- | --- | --- |
 | `PageHeader` | `components/layout/` | The top of every page: `h1`, subtitle, badge, actions |
 | `PlannedPage` | `components/feedback/` | Placeholder for an unbuilt page, from its `config/navigation.ts` entry |
-| `ErrorState` | `components/feedback/` | Failure message with retry; used by `error.tsx` |
+| `ErrorState` | `components/feedback/` | Failure message with retry; used by `error.tsx`. A Server Component passes `actions={<RetryButton />}` instead of `onRetry`. |
+| `RetryButton` | `components/feedback/` | "Try again" for an inline error a Server Component renders: refreshes the page on the server |
 | `ThemeToggle`, `Brand`, `AccountNav` | `components/layout/` | Shell pieces |
-| `KnowledgeHorizon` | `features/time-machine/` | Known vs. not-yet-known split at a moment |
+| `KnowledgeHorizon` | `features/time-machine/` | Known vs. not-yet-known split at a moment. Splits side by side when its container is 36rem wide (`@xl`); `headingLevel`, `emptyKnown`, `emptyNotYetKnown`, and `collapseAfter` fit it inside a card. Events can carry a source `link` and a `caveat`. |
 | `SpecSummary` | `features/backtests/` | An experiment spec in plain language, with its JSON |
 
 **Icons:** [Lucide](https://lucide.dev) via `lucide-react`, using the `…Icon` names (`CalendarClockIcon`). Default size is `size-4`; decorative icons get `aria-hidden`. Lucide 1.x has no brand logos.
@@ -110,6 +113,7 @@ Primitives live in `components/ui/` and come from [shadcn/ui](https://ui.shadcn.
 Every view that loads data designs all of these:
 
 - **Loading.** A route-level `loading.tsx`, or `<Suspense>` around the slow part, showing `Skeleton`s shaped like the content.
+- **Pending.** A navigation that changes only the search params keeps the old page until the new one is ready; `loading.tsx` doesn't show again. Run it in a transition (`startTransition(() => router.push(href, { scroll: false }))`), put `data-pending` on the form while `isPending`, and dim what's stale with `group-has-data-pending/<group>:opacity-60` (see the Time Machine).
 - **Empty.** `Empty` with a title, one sentence on why it's empty, and the next action.
 - **Error.** `error.tsx` boundaries render `ErrorState` with `retry`. Say what failed and what to do; never show a stack trace.
 - **Planned.** Pages that don't exist yet render `PlannedPage`, which shows the story and milestone from the roadmap.
@@ -130,7 +134,7 @@ Target WCAG 2.2 AA; NFR-12 asks for keyboard-usable forms, sufficient contrast, 
 
 - **Time.** The market clock is `America/New_York`. Show market times as ET with the label ("June 5, 2020, 9:30 AM ET"), using `lib/time.ts`. Never use `toLocaleString()` or the viewer's time zone: results differ between server and browser and break hydration. A bare date means 09:30 ET on that date (roadmap §2.2).
 - **Provenance.** Wherever a value appears, its `available_at` and source should be one step away.
-- **Numbers.** `tabular-nums`, consistent precision within a column, units in the header (%, bps, $). Returns use `positive`/`negative` plus the sign.
+- **Numbers.** Format them only with `lib/format.ts` (fixed `en-US`, like the times). `tabular-nums`, consistent precision within a column, units in the header (%, bps, $). Returns use `positive`/`negative` plus the sign.
 - **Words.** Use the glossary (doc/roadmap.md §11): knowledge time, as of, `available_at`, known, not yet known, decision, fill, vintage, data version. Sentence case for headings and buttons. Say exactly what happened ("You're not signed in: accounts aren't live yet"), not "Oops!". Never recommend trades or imply predictions; the footer carries the disclaimer and FRED's notice.
 
 ## 9. Code conventions
@@ -148,7 +152,7 @@ components/
 features/<name>/ Code for one feature: its components, presets, types, actions
 config/         Site constants and the route registry
 hooks/          Shared React hooks
-lib/            Framework-agnostic helpers: api/, time, theme, utils
+lib/            Framework-agnostic helpers: api/, time, format, theme, utils
 ```
 
 - Start feature code in `features/<name>/`. Move it to `components/` or `lib/` once a second feature needs it.
@@ -171,8 +175,9 @@ lib/            Framework-agnostic helpers: api/, time, theme, utils
 ### Data and URL state
 
 - Call the backend only through `lib/api/` (`apiFetch` plus one typed function per endpoint). The backend accepts browser (CORS) requests only from the origins in its `CORS_ORIGINS` setting (S8.1), which defaults to `http://localhost:3000`. Before fetching from the browser on a deployed site, add that site's origin there.
-- Hand-written API types are temporary; generate them from the OpenAPI schema when S8.6 lands.
-- Shareable state lives in the URL, using the API's parameter names: `as_of`, `tickers`, `series`, `preset`. Parse and validate on read (see `parseAsOf`).
+- Call the API from Server Components. Wrap a call in `settle` (`lib/api/errors.ts`) to render its failure in place: a 4xx comes back with the API's sentence and field names, so it can sit next to the right field.
+- Hand-written API types live in `lib/api/types.ts`, copied from `doc/api-v1.md`; they're temporary until S8.6 generates them from the OpenAPI schema.
+- Shareable state lives in the URL, using the API's parameter names: `as_of`, `tickers`, `series`, `preset`. Parse and validate on read (see `parseAsOf` and `features/time-machine/params.ts`). Lists are one comma-separated value, and links keep commas and colons readable.
 
 ### Styling
 
@@ -190,6 +195,7 @@ This version differs from older tutorials and training data. Before using an API
 - `params` and `searchParams` are Promises. Type pages with the generated helpers: `async function Page(props: PageProps<"/time-machine">)`, then `await props.searchParams`.
 - `typedRoutes` is on: `Link` `href`s and router calls are type-checked, so a link to a missing page fails the build. Cast a computed string with `as Route` only when you must.
 - `error.tsx` receives `retry` (preferred over `reset`).
+- `loading.tsx` shows on a first visit and when arriving from another route, but not when only the search params change (see [Pending](#6-states)).
 - Route protection (S16.3) belongs in `proxy.ts`; `middleware.ts` is deprecated.
 - `next/form` gives GET forms client-side navigation (see the dashboard's quick start).
 - In development, React Strict Mode remounts the page and resets attributes on `<html>`; `ThemeSync` re-applies the theme class.
@@ -201,7 +207,7 @@ This version differs from older tutorials and training data. Before using an API
 2. Create `app/(app)/<path>/page.tsx`: export `metadata = routeMetadata(routes.<name>)` and render `PlannedPage` until the real UI exists.
 3. Build the UI in `features/<name>/`, composed from `components/ui` and the shared components.
 4. Design the loading, empty, and error states; check 375 px, 768 px, and desktop, in light and dark.
-5. Run `npm run lint && npm run build`, and attach a screenshot to the pull request (Definition of Done).
+5. Run `npm run lint && npm test && npm run build`, and attach a screenshot to the pull request (Definition of Done).
 
 ## 12. Landing page
 
@@ -213,3 +219,12 @@ The public page at `/` ([`features/landing/`](features/landing)) is marketing, n
   - The server renders the whole story as a static page; reduced motion and no JavaScript get exactly that. The engine changes only styles and `data-` attributes and reverts them on unmount.
   - Every fact on the timeline must come from tested data: today, the snapshot golden test (`backend/tests/test_api_snapshot.py`). Never invent a value, and never show prices.
   - Decoration that moves on its own (the ticker wall) has a pause control, stops when hidden, and says it isn't market data.
+
+## 13. Testing
+
+Unit tests run with [Vitest](https://vitest.dev) (`npm test`, and in CI). They cover the code that decides what a page shows, not how it looks:
+
+- **What to test.** Framework-free modules: `lib/` helpers and the pure files in a feature, such as `features/time-machine/params.ts` (the URL rules) and `snapshot-events.ts` (which side of T each record lands on). Name the file after the module, `params.test.ts`, next to it.
+- **What not to test here.** Async Server Components can't run under Vitest; check pages in the browser at the three widths and in both themes, and attach the screenshot.
+- **Use the API's own examples.** Fixtures come from the API's documented responses (its OpenAPI examples), typed with `satisfies V1Response<…>` so `next build` fails if `lib/api/types.ts` drifts. Never invent values.
+- **Prove nothing leaks.** Anything that reads point-in-time data includes a test that a record dated after the knowledge time can't show as known (roadmap §6.6).
