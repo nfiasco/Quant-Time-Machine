@@ -1,0 +1,48 @@
+name: Bug report
+description: Report a reproducible defect.
+labels: [bug]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the observed and expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include inputs, route or command, environment, and a minimal example. Do not include secrets.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Add logs, screenshots, or a failing test. Redact credentials and private data.
+    validations:
+      required: false
+  - type: textarea
+    id: related
+    attributes:
+      label: Related work
+      description: Link the affected story or PR when known.
+    validations:
+      required: false
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: P0 is required for the semester demo; P1 is planned; P2 is optional.
+      options: [P0, P1, P2]
+      default: 1
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [data, engine, api, web, ai, infra, research]
+    validations:
+      required: true
