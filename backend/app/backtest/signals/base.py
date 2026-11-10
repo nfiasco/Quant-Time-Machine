@@ -1,4 +1,5 @@
-"""What the simulation loop asks of a signal (S7.3).
+"""What the simulation loop asks of a signal (S7.3), and what the library's signals share
+(S7.4).
 
 A spec names each of its signals' kind by its `type` (app/backtest/spec.py), and at
 every decision the engine evaluates each signal for the universe's members, through
@@ -7,20 +8,17 @@ the view bound to the decision's time, so a signal can read only what was known 
 
 - `Signal` is what a kind of signal implements.
 - `SignalValue` is its answer for one security: a value, or why there's none.
-- `SIGNALS` lists the kinds the engine can evaluate, by `type`.
-
-The library itself is S7.4's: momentum, revenue growth and its acceleration, and macro
-conditions. Until it adds them to `SIGNALS`, the engine rejects a spec that uses one,
-and tests pass signals of their own.
+- `decision_day` and `months_before` place a signal's inputs on the calendar.
 """
 
 import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from types import MappingProxyType
+from datetime import date
 from typing import Any, Protocol
 
 from app.data.records import UniverseMember
+from app.data.timeutil import ET
 from app.data.view import PointInTimeView
 
 
@@ -30,8 +28,8 @@ class SignalValue:
 
     value: float | None
     reason: str | None = None
-    """Why there's no value, as a sentence a results page can show: "Fewer than 13
-    months of prices were known." None when there's a value."""
+    """Why there's no value, as a sentence a results page can show: "It had no close on
+    2019-12-31, the start of its 12-1 momentum window." None when there's a value."""
 
     def __post_init__(self) -> None:
         if (self.value is None) == (self.reason is None):
@@ -58,6 +56,14 @@ class Signal(Protocol):
         ...
 
 
-SIGNALS: Mapping[str, Signal] = MappingProxyType({})
-"""The kinds of signal the engine can evaluate, by their `type` in a spec. S7.4 adds
-momentum and revenue growth acceleration."""
+def decision_day(view: PointInTimeView) -> date:
+    """The New York date of the view's knowledge time: the day of the decision it
+    serves."""
+    return view.knowledge_time.astimezone(ET).date()
+
+
+def months_before(month: date, months: int) -> date:
+    """The first day of the month `months` before `month`'s: 2019-06-01 is 12 months
+    before June 2020, and `month` itself, as its first day, is 0 months before."""
+    index = month.year * 12 + month.month - 1 - months
+    return date(index // 12, index % 12 + 1, 1)
