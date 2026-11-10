@@ -20,7 +20,7 @@ Company identity ties tickers to securities over time (S5.2), universe v1 says w
 Install [uv](https://docs.astral.sh/uv/) once (`brew install uv` on macOS; see the uv docs for Windows and Linux). uv installs the correct Python version (pinned in [`.python-version`](.python-version)) and all dependencies:
 
 ```bash
-uv sync             # create .venv/ and install dependencies from uv.lock
+uv sync --locked    # create .venv/ and install dependencies from uv.lock
 uv run fastapi dev  # start the dev server with auto-reload
 ```
 

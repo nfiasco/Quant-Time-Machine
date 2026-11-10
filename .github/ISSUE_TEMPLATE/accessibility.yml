@@ -1,0 +1,34 @@
+name: Accessibility barrier
+description: Report a barrier to using the interface or documentation.
+labels: [bug, accessibility, "area: web"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A plain-text description is enough; no screenshot or WCAG expertise is required.
+        For a private report or help with this form, email nfiasco@udel.edu.
+        Never include passwords, tokens, personal research, or restricted data.
+  - type: input
+    id: location
+    attributes:
+      label: Page or document
+      description: Include the URL or file and the commit/version if known.
+    validations:
+      required: true
+  - type: textarea
+    id: barrier
+    attributes:
+      label: Task and barrier
+      description: What were you trying to do, what happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment and reproduction
+      description: Optional steps, browser/device, assistive technology, zoom, or motion settings. Do not disclose medical information.
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Impact or workaround
+      description: Does this prevent the task? Include any workaround you found.

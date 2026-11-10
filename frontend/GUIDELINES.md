@@ -123,6 +123,8 @@ Every view that loads data designs all of these:
 
 Target WCAG 2.2 AA; NFR-12 asks for keyboard-usable forms, sufficient contrast, and a layout that works at tablet width.
 
+See the project [accessibility policy](../ACCESSIBILITY.md) for the full target, manual review checklist, and reporting process. This target is not a claim of audited conformance.
+
 - Use semantic HTML first: one `h1`, ordered headings, landmarks (`header`, `nav`, `main`, `footer`), lists for lists, `<button>` for actions and `<a>`/`Link` for navigation.
 - Every input has a visible label. Icon-only buttons have an `aria-label` or `sr-only` text.
 - Focus is always visible (the token `ring`), and everything works with the keyboard. The shell has a skip link to `#main-content`.

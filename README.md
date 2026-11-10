@@ -4,7 +4,7 @@ AI-assisted quantitative research platform for point-in-time backtesting. Recons
 
 **Live site:** [quant-time-machine-uy5f.vercel.app](https://quant-time-machine-uy5f.vercel.app/)
 
-> **Status:** Decisions and discovery (CISC 498, Fall 2026, milestone M1). The time model, data sources, and storage engine are written up in [`doc/`](doc/); the point-in-time data layer comes next. The roadmap is a draft, not a commitment.
+> **Status:** Active development (CISC 498/499). The point-in-time store, ingestion, read API, and Time Machine explorer are implemented. Backtesting is partially implemented; accounts, saved experiments, and the research assistant remain planned. See the [roadmap](doc/roadmap.md) for feature-level status.
 
 ## The problem
 
@@ -51,7 +51,7 @@ Each app has its own README with more details. The main docs:
 | Frontend | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS 4, shadcn/ui (Radix UI), Lucide icons, ESLint, Vitest |
 | Backend  | Python 3.14, FastAPI, uv (dependencies), pytest, Ruff (lint and format)                  |
 | Data     | Point-in-time data: Parquet files queried with DuckDB, in-process ([decision D1](doc/storage.md)). Accounts and user data: Supabase (PostgreSQL and Auth) |
-| Hosting  | Vercel (frontend); backend hosting not decided yet                                       |
+| Hosting  | Vercel (frontend); Railway (backend API and data volume)                                       |
 | CI       | GitHub Actions                                                                           |
 
 ## Getting started
@@ -66,7 +66,7 @@ Each app has its own README with more details. The main docs:
 
 ```bash
 cd frontend
-npm install
+npm ci
 npm run dev
 ```
 
@@ -76,7 +76,7 @@ Open http://localhost:3000.
 
 ```bash
 cd backend
-uv sync
+uv sync --locked
 uv run fastapi dev
 ```
 
@@ -145,16 +145,16 @@ The full plan, with requirements, milestones, sprints, and the epics, stories, a
 
 This product uses the FRED® API but is not endorsed or certified by the Federal Reserve Bank of St. Louis. By using it, you agree to the [FRED® API Terms of Use](https://fred.stlouisfed.org/docs/api/terms_of_use.html).
 
-## Contributing
+## Community and contributing
 
-How we work is described in [roadmap §6](doc/roadmap.md#6-running-the-project-board): the board, the working agreement, and the Definition of Ready and Done.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup, coding conventions, validation, and the PR process. The [team workflow](doc/github-workflow.md) explains issue metadata and project automation.
 
-1. Pick up an issue from the board. New issues use the story, spike, or bug template in [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/).
-2. Create a branch from `main`, one story per branch (for example, `feature/s4-4-macro-as-of`).
-3. Open a pull request that says `Closes #<issue>`. The [pull request template](.github/pull_request_template.md) includes the Definition of Done checklist; keep pull requests under about 400 changed lines.
-4. Make sure CI passes and get a teammate's review before merging.
-
-Never commit secrets or raw data (see the [data policy](#data-policy)).
+- [Code of Conduct](CODE_OF_CONDUCT.md): participation expectations and private reporting.
+- [Security policy](SECURITY.md): supported code and private vulnerability reports.
+- [Accessibility](ACCESSIBILITY.md): standards, review steps, and barrier reporting.
+- [Support](SUPPORT.md): where to ask for help or report a problem.
+- [Discussions](https://github.com/nfiasco/Quant-Time-Machine/discussions): Q&A, proposals, and community updates; see the [category guide](doc/discussions.md).
+- [Repository security and quality settings](doc/github-settings.md): automated checks and maintenance decisions.
 
 ## License
 

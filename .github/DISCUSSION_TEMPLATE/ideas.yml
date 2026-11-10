@@ -1,0 +1,26 @@
+title: ""
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form to explore a proposal before creating a delivery issue.
+        Follow our [Code of Conduct](https://github.com/nfiasco/Quant-Time-Machine/blob/main/CODE_OF_CONDUCT.md) and use synthetic examples.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and intended users
+      description: Describe the need and how people handle it today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal and alternatives
+      description: Explain the proposed behavior, alternatives, and tradeoffs.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and scope
+      description: Link related discussions or roadmap work and describe data, accessibility, or security considerations.
