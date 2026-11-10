@@ -42,8 +42,9 @@ class PriceBar:
     """
 
     security_id: str
-    ticker: str
-    """The ticker at the knowledge time: FB for Facebook's bars in 2020."""
+    ticker: str | None
+    """The ticker at the knowledge time: FB for Facebook's bars in 2020. None for the
+    bars of a security that had stopped trading, read by its ID (S7.3)."""
     cik: int | None
     session_date: date
     open: float | None
@@ -66,8 +67,9 @@ class CorporateAction:
     """
 
     security_id: str
-    ticker: str
-    """The ticker at the knowledge time."""
+    ticker: str | None
+    """The ticker at the knowledge time, or None once the security had stopped
+    trading, as for `PriceBar`."""
     cik: int | None
     ex_date: date
     action: str
@@ -172,7 +174,10 @@ class Security:
 
     security_id: str
     """Ours, and stable: it doesn't change when the ticker, name, or CIK does."""
-    ticker: str
+    ticker: str | None
+    """The ticker at the knowledge time, or None once the security had stopped
+    trading: Twitter's from October 28, 2022. Only `PointInTimeView.get_security`
+    finds such a security; `resolve_ticker` always finds one with its ticker."""
     name: str
     """The name at the knowledge time, such as "Facebook, Inc." in 2020."""
     cik: int | None

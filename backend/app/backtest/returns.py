@@ -16,17 +16,26 @@ A day's return is known at its session's close, with its bar, and a month's retu
 compounds its sessions'. Adjusted prices are never used: a vendor rescales them after
 every later split and dividend, so they carry the future. These returns reproduce
 Tiingo's adjusted closes anyway (tests/test_returns_vs_tiingo.py).
+
+A holding's return runs from the price it was bought at to the price it's valued at,
+each a session's open or close (S7.3): `holding_return`. Between them it compounds the
+daily returns above. Only a session in which the security traded has a price a trade
+could get or a holding could be valued at. Tiingo also has bars for sessions that
+didn't trade: one with no volume that repeats the previous close, such as Twitter's on
+October 28, 2022, and leftovers after a delisting, such as 353 shares of Xilinx on
+February 14, 2022, though Nasdaq had halted it before that day's open.
 """
 
 import itertools
 import math
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from fractions import Fraction
+from typing import Literal
 
 from app.data import calendar
-from app.data.records import CorporateAction, PriceBar
+from app.data.records import CorporateAction, PriceBar, Security
 from app.data.view import PointInTimeView
 
 SIMPLE_RATIO_SIDE = 10
@@ -76,6 +85,41 @@ class MonthlyReturn:
     """The last session's close."""
 
 
+@dataclass(frozen=True)
+class PricePoint:
+    """A price a trade gets or a holding is valued at: one session's open or close."""
+
+    session: date
+    price: Literal["open", "close"]
+
+    @property
+    def time(self) -> datetime:
+        """When the price was set, in UTC: the session's open or its close."""
+        if self.price == "open":
+            return calendar.session_open(self.session)
+        return calendar.session_close(self.session)
+
+    def __str__(self) -> str:
+        return f"{self.session.isoformat()} {self.price}"
+
+
+@dataclass(frozen=True)
+class HoldingReturn:
+    """A holding's total return from the price it was bought at to the price it was
+    valued at (S7.3)."""
+
+    security_id: str
+    entry: PricePoint
+    exit: PricePoint
+    """Where it was valued: the exit asked for, or, if its bars ended before it, its
+    last close."""
+    value: float
+    """0.01 is 1%."""
+    complete: bool
+    """Whether it reached the exit asked for. Not when the security stopped trading
+    first, or its bar for the exit is missing."""
+
+
 def round_split_factor(factor: float) -> float:
     """A vendor's split factor, rounded to the simple ratio it stands for.
 
@@ -113,19 +157,7 @@ def daily_total_returns(
     bar (S6.2).
     """
     _check_series("bars", bars)
-    splits: dict[date, float] = {}
-    dividends: dict[date, float] = {}
-    for action in actions:
-        if bars and action.security_id != bars[0].security_id:
-            raise ValueError(
-                f"an action of {action.security_id} among {bars[0].security_id}'s bars"
-            )
-        by_date = {"split": splits, "dividend": dividends}.get(action.action)
-        if by_date is None:
-            raise ValueError(f"unknown corporate action {action.action!r}")
-        if action.ex_date in by_date:
-            raise ValueError(f"two {action.action}s on {action.ex_date}")
-        by_date[action.ex_date] = action.value
+    splits, dividends = _by_ex_date(actions, bars[0].security_id if bars else None)
 
     priced = [
         (bar, bar.close) for bar in bars if bar.close is not None and bar.close > 0
@@ -195,9 +227,114 @@ def monthly_total_returns(daily: Sequence[DailyReturn]) -> list[MonthlyReturn]:
     return months
 
 
+def fills_at(bars: Sequence[PriceBar], point: PricePoint) -> bool:
+    """Whether a trade could fill at `point`, among one security's bars: its session
+    has a bar with that price and a close, both above zero, and some volume. A holding
+    bought at an open needs that day's close too, to be valued from it on.
+
+    A bar with zero volume is a session in which nothing traded: Tiingo repeats the
+    previous close in it. A bar without a volume counts as traded.
+    """
+    bar = next((bar for bar in bars if bar.session_date == point.session), None)
+    if bar is None or not _traded(bar):
+        return False
+    price = bar.open if point.price == "open" else bar.close
+    return _positive(price) and _positive(bar.close)
+
+
+def holding_return(
+    bars: Sequence[PriceBar],
+    actions: Sequence[CorporateAction],
+    entry: PricePoint,
+    exit: PricePoint,
+) -> HoldingReturn | None:
+    """A holding's total return from `entry` to `exit`, from one security's bars and
+    actions (S7.3).
+
+    Trades fill at a session's open or close (app/backtest/schedule.py), so a holding
+    runs from one of those prices to another, and its growth multiplies these legs:
+
+    - From an open, close / open of the entry's session. That open is already ex-split
+      and ex-dividend, so the leg needs neither.
+    - For each later session through the last close before the exit, its daily total
+      return, k_t * (close_t + div_t) / close_{t-1}, as `daily_total_returns` makes it.
+    - To an open, k * (open + div) / close_{t-1}, with the exit session's split factor
+      and dividend: whoever holds at the close before an ex-date gets its dividend.
+
+    `bars` come oldest first and must include the entry's session, and `actions` are
+    the same security's. Returns None if no trade could fill at the entry (`fills_at`).
+    If none could at the exit either, because the bars end before it, as when a security
+    stops trading, or nothing traded then, the holding is valued at its last close that
+    traded instead, and the result isn't `complete`.
+
+    Raises ValueError if the exit doesn't come after the entry, and for bars or actions
+    that `daily_total_returns` rejects.
+    """
+    if _order(exit) <= _order(entry):
+        raise ValueError(
+            f"a holding's exit, {exit}, must come after its entry, {entry}"
+        )
+    _check_series("bars", bars)
+    if not fills_at(bars, entry):
+        return None
+    by_session = {bar.session_date: bar for bar in bars}
+    first = by_session[entry.session]
+    splits, dividends = _by_ex_date(actions, first.security_id)
+
+    # From the entry's price to its session's close, then close to close up to the
+    # exit: through its session for a close, through the session before for an open.
+    start = _price(first, "close") / _price(first, entry.price)
+    held = [
+        bar
+        for bar in bars
+        if entry.session <= bar.session_date
+        and (
+            bar.session_date <= exit.session
+            if exit.price == "close"
+            else bar.session_date < exit.session
+        )
+    ]
+    held_actions = [
+        action
+        for action in actions
+        if entry.session < action.ex_date <= held[-1].session_date
+    ]
+    daily = daily_total_returns(held, held_actions)
+
+    final = by_session.get(exit.session)
+    if (
+        exit.price == "open"
+        and final is not None
+        and _traded(final)
+        and _positive(final.open)
+    ):
+        previous = by_session[daily[-1].session_date] if daily else first
+        split = round_split_factor(splits.get(exit.session, 1.0))
+        dividend = dividends.get(exit.session, 0.0)
+        growth = _compound(start, daily) * split
+        growth *= (_price(final, "open") + dividend) / _price(previous, "close")
+        return HoldingReturn(first.security_id, entry, exit, growth - 1, True)
+
+    # Otherwise it's valued at its last close that traded: the exit's, if that's one.
+    last = entry.session
+    for day in daily:
+        if _traded(by_session[day.session_date]):
+            last = day.session_date
+    growth = _compound(start, (day for day in daily if day.session_date <= last))
+    if exit.price == "close" and last == exit.session:
+        return HoldingReturn(first.security_id, entry, exit, growth - 1, True)
+    return HoldingReturn(
+        first.security_id,
+        entry,
+        PricePoint(last, "close"),
+        growth - 1,
+        complete=False,
+    )
+
+
 def total_returns_as_of(
     view: PointInTimeView,
-    ticker: str,
+    security: str | Security,
     start: date | None = None,
     end: date | None = None,
 ) -> list[DailyReturn]:
@@ -209,12 +346,80 @@ def total_returns_as_of(
     starts at that session. At 09:30 ET on September 1, 2020, Apple's returns from
     2020-07-31 cover August's sessions and include the 4-for-1 split of August 31. The
     bars and actions are read through `view`, so only what was known by then counts,
-    and every row read is in its access log. The ticker is resolved at the knowledge
-    time, as for `get_price_as_of`.
+    and every row read is in its access log. `security` is a ticker, resolved at the
+    knowledge time, or a `Security` the view gave (see `get_price_series_as_of`).
     """
-    bars = view.get_price_series_as_of(ticker, start, end)
-    actions = view.get_corporate_actions_as_of(ticker, start, end)
+    bars = view.get_price_series_as_of(security, start, end)
+    actions = view.get_corporate_actions_as_of(security, start, end)
     return daily_total_returns(bars, actions)
+
+
+def holding_return_as_of(
+    view: PointInTimeView,
+    security: str | Security,
+    entry: PricePoint,
+    exit: PricePoint,
+) -> HoldingReturn | None:
+    """`holding_return` from the bars and actions known at the view's knowledge time.
+
+    The view must be bound at or after the close of the exit's session, when its bar
+    became known (doc/reference/time-model.md, rule 4): a next-day open is read after
+    that session's close. `security` is a ticker or a `Security`, as for
+    `total_returns_as_of`. A `Security` that had stopped trading by then has no bars
+    from the day it stopped on (`_until_stopped`). Raises ValueError for a view bound
+    earlier.
+    """
+    _check_known(view, exit)
+    bars = view.get_price_series_as_of(security, entry.session, exit.session)
+    actions = view.get_corporate_actions_as_of(security, entry.session, exit.session)
+    bars, actions = _until_stopped(security, bars, actions)
+    return holding_return(bars, actions, entry, exit)
+
+
+def fills_at_as_of(
+    view: PointInTimeView, security: str | Security, point: PricePoint
+) -> bool:
+    """`fills_at` from the bars known at the view's knowledge time, which must be bound
+    at or after the close of the point's session, as for `holding_return_as_of`. A
+    `Security` that had stopped trading by the point's session doesn't fill there,
+    whatever bars its vendor has. Raises ValueError for a view bound earlier."""
+    _check_known(view, point)
+    bars = view.get_price_series_as_of(security, point.session, point.session)
+    bars, _ = _until_stopped(security, bars, [])
+    return fills_at(bars, point)
+
+
+def _until_stopped(
+    security: str | Security,
+    bars: Sequence[PriceBar],
+    actions: Sequence[CorporateAction],
+) -> tuple[list[PriceBar], list[CorporateAction]]:
+    """The bars and actions from before the day `security` stopped trading, if it had
+    by the knowledge time: `PointInTimeView.get_security` gives it with no ticker from
+    that day, which app/data/sources/securities.toml dates from a filing. A vendor's bar
+    from then on is a leftover, such as Tiingo's for Xilinx on February 14, 2022."""
+    if (
+        isinstance(security, str)
+        or security.ticker is not None
+        or security.effective_date is None
+    ):
+        return list(bars), list(actions)
+    stopped = security.effective_date
+    return (
+        [bar for bar in bars if bar.session_date < stopped],
+        [action for action in actions if action.ex_date < stopped],
+    )
+
+
+def _check_known(view: PointInTimeView, point: PricePoint) -> None:
+    """Raise ValueError unless the view is bound at or after the close of `point`'s
+    session, when its bar became known (doc/reference/time-model.md, rule 4)."""
+    known = calendar.session_close(point.session)
+    if view.knowledge_time < known:
+        raise ValueError(
+            f"the {point} is known only at {known.isoformat()}, after the view's "
+            f"knowledge time {view.knowledge_time.isoformat()}"
+        )
 
 
 def _check_series(kind: str, items: Sequence[PriceBar] | Sequence[DailyReturn]) -> None:
@@ -234,3 +439,57 @@ def _check_series(kind: str, items: Sequence[PriceBar] | Sequence[DailyReturn]) 
 def _next_month(month: date) -> date:
     """The first day of the month after `month`'s."""
     return date(month.year + month.month // 12, month.month % 12 + 1, 1)
+
+
+def _by_ex_date(
+    actions: Sequence[CorporateAction], security_id: str | None
+) -> tuple[dict[date, float], dict[date, float]]:
+    """The split factors and the dividends of one security's actions, by ex-date.
+
+    Raises ValueError for an action of a security other than `security_id`, an action
+    of an unknown kind, and two of one kind on a day.
+    """
+    splits: dict[date, float] = {}
+    dividends: dict[date, float] = {}
+    for action in actions:
+        if security_id is not None and action.security_id != security_id:
+            raise ValueError(
+                f"an action of {action.security_id} among {security_id}'s bars"
+            )
+        by_date = {"split": splits, "dividend": dividends}.get(action.action)
+        if by_date is None:
+            raise ValueError(f"unknown corporate action {action.action!r}")
+        if action.ex_date in by_date:
+            raise ValueError(f"two {action.action}s on {action.ex_date}")
+        by_date[action.ex_date] = action.value
+    return splits, dividends
+
+
+def _order(point: PricePoint) -> tuple[date, int]:
+    """Sorts price points in time: a session's open comes before its close."""
+    return (point.session, 0 if point.price == "open" else 1)
+
+
+def _price(bar: PriceBar, price: Literal["open", "close"]) -> float:
+    """A bar's open or close, which the caller has checked is there."""
+    value = bar.open if price == "open" else bar.close
+    assert value is not None
+    return value
+
+
+def _positive(price: float | None) -> bool:
+    """Whether a price is there and above zero, so a trade could get it."""
+    return price is not None and price > 0
+
+
+def _traded(bar: PriceBar) -> bool:
+    """Whether anything traded in a bar's session: not if its volume is zero. A bar
+    without a volume counts as traded."""
+    return bar.volume != 0
+
+
+def _compound(growth: float, daily: Iterable[DailyReturn]) -> float:
+    """`growth` multiplied by 1 plus each daily return."""
+    for day in daily:
+        growth *= 1 + day.value
+    return growth

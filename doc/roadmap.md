@@ -679,7 +679,7 @@ Every story in one table. Verified contributors are listed for completed stories
 | [S6.7](#s67-delistings-and-coverage-report) | Delistings and coverage report | E6 | P1 | M | 4 | M4 | In progress | [#140](https://github.com/nfiasco/Quant-Time-Machine/issues/140) | See issue |
 | [S7.1](#s71-experiment-spec-v1) | Experiment spec v1 | E7 | P0 | M | 3 | M3 | ✅ Done | [#141](https://github.com/nfiasco/Quant-Time-Machine/issues/141) | [nfiasco](https://github.com/nfiasco) |
 | [S7.2](#s72-rebalance-schedule-and-decision-and-fill-timing) | Rebalance schedule and decision and fill timing | E7 | P0 | S | 3 | M3 | ✅ Done | [#142](https://github.com/nfiasco/Quant-Time-Machine/issues/142) | [nfiasco](https://github.com/nfiasco) |
-| [S7.3](#s73-simulation-loop) | Simulation loop | E7 | P0 | L | 4 | M4 | Ready | [#30](https://github.com/nfiasco/Quant-Time-Machine/issues/30) | See issue |
+| [S7.3](#s73-simulation-loop) | Simulation loop | E7 | P0 | L | 4 | M4 | In review | [#30](https://github.com/nfiasco/Quant-Time-Machine/issues/30) | See issue |
 | [S7.4](#s74-signal-library-v1) | Signal library v1 | E7 | P0 | M | 4 | M4 | Ready | [#31](https://github.com/nfiasco/Quant-Time-Machine/issues/31) | See issue |
 | [S7.5](#s75-portfolio-construction-and-costs) | Portfolio construction and costs | E7 | P0 | M | 4 | M4 | Backlog | [#143](https://github.com/nfiasco/Quant-Time-Machine/issues/143) | See issue |
 | [S7.6](#s76-metrics-and-benchmark-comparison) | Metrics and benchmark comparison | E7 | P0 | M | 4 | M4 | Backlog | [#32](https://github.com/nfiasco/Quant-Time-Machine/issues/32) | See issue |
@@ -1757,12 +1757,12 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Tasks**
 
-- [ ] Detect last trading dates for engine exits
-- [ ] Add the engine hook for delisting exits and result warnings
+- [x] Detect last trading dates for engine exits: a holding's last session that traded, which excludes Tiingo's zero-volume bars and its bars from the day the curated history ends the ticker (S7.3)
+- [x] Add the engine hook for delisting exits and result warnings: the simulation loop values a holding whose bars end at its last close, sells it at the next fill, and warns (S7.3). The rule isn't configurable yet
 - [x] Implement and test fundamentals coverage reporting (S5.6)
 - [ ] Extend reporting to combined price/fundamental gaps by security and period
 
-**Progress evidence (2026-11-08):** The fundamentals coverage report exists. Combined price/fundamental gaps, delisting exits, and run warnings still need the simulation engine. Evidence: [PR #81](https://github.com/nfiasco/Quant-Time-Machine/pull/81), [PR #84](https://github.com/nfiasco/Quant-Time-Machine/pull/84), `backend/app/data/coverage.py`, `backend/tests/test_coverage.py`.
+**Progress evidence (2026-11-10):** The fundamentals coverage report exists, and the simulation loop exits delisted holdings at their last close that traded, with a warning (S7.3). Tiingo ends Twitter's, Pioneer Natural Resources', and Marathon Oil's bars with a zero-volume bar that repeats the last close, and Xilinx's with 353 shares after Nasdaq halted it; none of these counts. Combined price/fundamental gaps and a configurable delisting rule remain. Evidence: [PR #81](https://github.com/nfiasco/Quant-Time-Machine/pull/81), [PR #84](https://github.com/nfiasco/Quant-Time-Machine/pull/84), `backend/app/data/coverage.py`, `backend/tests/test_coverage.py`, `backend/app/backtest/simulation.py`.
 
 **GitHub:** [#140](https://github.com/nfiasco/Quant-Time-Machine/issues/140) · **Parent epic:** [#101](https://github.com/nfiasco/Quant-Time-Machine/issues/101)
 
@@ -1824,7 +1824,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 #### S7.3 Simulation loop
 
-**Priority:** P0 · **Size:** L · **Sprint:** 4 · **Milestone:** M4 · **Area:** engine · **Depends on:** S7.2, S3.3, S6.4 · **Reqs:** FR-B2, FR-B8 · **Status:** Ready
+**Priority:** P0 · **Size:** L · **Sprint:** 4 · **Milestone:** M4 · **Area:** engine · **Depends on:** S7.2, S3.3, S6.4 · **Reqs:** FR-B2, FR-B8 · **Status:** In review
 
 **Story:** As a researcher, I want the engine to step through history one decision at a time, so that each decision sees only what was known then.
 
@@ -1836,12 +1836,12 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Tasks**
 
-- [ ] Write the portfolio state and the loop
-- [ ] Compute trades, costs, and holding-period returns
-- [ ] Collect warnings
-- [ ] Write toy-data tests
+- [x] Write the portfolio state and the loop: [`app/backtest/simulation.py`](../backend/app/backtest/simulation.py). `simulate(spec, views)` gets a view factory, never the store: each decision reads through a view bound to its time, and each fill is valued and traded through a view bound to the close of its session. Holdings are read by security ID, through the new `PointInTimeView.get_security`, so a ticker change or a delisting doesn't lose them
+- [x] Compute trades, costs, and holding-period returns: [`app/backtest/portfolio.py`](../backend/app/backtest/portfolio.py) for the filters, equal weights, and costs in basis points of the value traded, and `holding_return` in [`app/backtest/returns.py`](../backend/app/backtest/returns.py) from one fill's price to the next's, at an open or a close. Value weights and long-short are rejected with a `SpecError` until S7.5
+- [x] Collect warnings: members that stopped trading or have no signal value, empty portfolios, securities without a price at their fill, delisting exits at the last close, missing prices, a missing benchmark, and decisions that would fill after the period
+- [x] Write toy-data tests: [`tests/test_simulation.py`](../backend/tests/test_simulation.py), on a made-up market ([`tests/toy_market.py`](../backend/tests/toy_market.py)): a hand-checked run of three stocks over four months, each decision seeing only bars through the previous close, a view-factory and store-access guard, next-day open fills, and each warning
 
-**Progress evidence (2026-11-08):** The committed backtest package has returns, spec validation, and scheduling, but no simulation loop. Its implemented dependencies are ready; the existing issue owner is retained. Evidence: `backend/app/backtest/__init__.py`.
+**Progress evidence (2026-11-10):** The loop runs a spec end to end on toy data, with a scripted signal, and a smoke run on the local store from 2020 to 2022 took 28 seconds for 36 decisions. The signal registry (`app/backtest/signals.py`) is empty until S7.4, so the canonical spec is rejected until then, and a test says so. Evidence: `backend/app/backtest/simulation.py`, `backend/tests/test_simulation.py`.
 
 **GitHub:** [#30](https://github.com/nfiasco/Quant-Time-Machine/issues/30) · **Parent epic:** [#14](https://github.com/nfiasco/Quant-Time-Machine/issues/14)
 

@@ -21,6 +21,7 @@ app/data/records.py:
 - `get_revision_history`: every version of one observation published so far (S4.5)
 - `series_coverage`: each catalog series, and how much of it was published (S8.5)
 - `resolve_ticker`: the security that used a ticker at the time (S5.2)
+- `get_security`: a curated security by its ID, even after it stopped trading (S7.3)
 - `get_price_as_of`, `get_price_history_as_of`, and `get_price_series_as_of`: daily
   bars whose sessions had closed (S6.3, S6.4)
 - `get_corporate_actions_as_of`: splits and cash dividends by ex-date, known with their
@@ -418,6 +419,36 @@ class PointInTimeView:
             return _sec_security(rows[0])
         raise NotFoundError("ticker", ticker, knowledge_time=self.knowledge_time)
 
+    def get_security(self, security_id: str) -> Security:
+        """A curated security, by its ID, as identified at the knowledge time (S7.3).
+
+        Its ticker, name, and CIK are the ones that applied then, as for
+        `resolve_ticker`: `meta` is FB in 2020 and META from June 9, 2022. Unlike a
+        ticker, the ID still finds a security that had stopped trading, whose ticker is
+        then None: Twitter's from October 28, 2022. The backtest engine reads its
+        holdings this way (app/backtest/simulation.py).
+
+        Raises NotFoundError if no version of the security was known yet, or for an ID
+        only SEC's ticker file knows, which isn't stable.
+        """
+        rows = self._select(
+            "securities",
+            where="security_id = ?",
+            params=[security_id],
+            latest_per_key=True,
+        )
+        if not rows:
+            raise NotFoundError(
+                "security", security_id, knowledge_time=self.knowledge_time
+            )
+        return _curated_security(rows[0])
+
+    def _identify(self, security: str | Security) -> Security:
+        """A ticker resolved at the knowledge time, or a `Security` as given."""
+        if isinstance(security, Security):
+            return security
+        return self.resolve_ticker(security)
+
     def get_price_as_of(
         self, ticker: str, session: date | None = None
     ) -> PriceBar | None:
@@ -474,16 +505,23 @@ class PointInTimeView:
         return [_price_bar(security, row) for row in reversed(rows)]
 
     def get_price_series_as_of(
-        self, ticker: str, start: date | None = None, end: date | None = None
+        self,
+        security: str | Security,
+        start: date | None = None,
+        end: date | None = None,
     ) -> list[PriceBar]:
         """A security's daily bars known at the knowledge time, oldest first.
 
         Each session from `start` through `end` (both optional and inclusive) whose bar
         was known by then, for total returns (app/backtest/returns.py). A session
-        without a bar is skipped, not filled. The ticker is resolved as for
-        `get_price_as_of`, so FB in 2020 reads Facebook's whole history.
+        without a bar is skipped, not filled.
+
+        `security` is a ticker, resolved as for `get_price_as_of`, so FB in 2020 reads
+        Facebook's whole history. Or it's a `Security` this view gave, from
+        `get_security` or `resolve_ticker`, whose bars are read by its ID: a holding's
+        bars can still be read after its ticker changed or it stopped trading.
         """
-        security = self.resolve_ticker(ticker)
+        security = self._identify(security)
         where = "security_id = ?"
         params: list[object] = [security.security_id]
         if start is not None:
@@ -502,7 +540,10 @@ class PointInTimeView:
         return [_price_bar(security, row) for row in rows]
 
     def get_corporate_actions_as_of(
-        self, ticker: str, start: date | None = None, end: date | None = None
+        self,
+        security: str | Security,
+        start: date | None = None,
+        end: date | None = None,
     ) -> list[CorporateAction]:
         """A security's splits and cash dividends known at the knowledge time, oldest
         first.
@@ -511,9 +552,10 @@ class PointInTimeView:
         action came with its ex-date's bar, so it's known at that session's close: at
         15:59 ET on August 31, 2020, Apple's 4-for-1 split that day isn't known yet.
         Split factors are the vendor's, such as 7.000007; total returns round them
-        (app/backtest/returns.py). The ticker is resolved as for `get_price_as_of`.
+        (app/backtest/returns.py). `security` is a ticker or a `Security`, as for
+        `get_price_series_as_of`.
         """
-        security = self.resolve_ticker(ticker)
+        security = self._identify(security)
         where = "security_id = ?"
         params: list[object] = [security.security_id]
         if start is not None:

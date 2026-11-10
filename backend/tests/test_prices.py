@@ -3,9 +3,12 @@ from pathlib import Path
 
 import pytest
 
+from app.data import calendar
 from app.data.calendar import CalendarError
 from app.data.errors import LookAheadError, NotFoundError
 from app.data.records import CorporateAction, PriceBar
+from app.data.store import write_rows
+from app.data.tables import PRICE_BARS
 from app.data.timeutil import parse_knowledge_time
 from app.data.view import AccessRecord, PointInTimeView
 
@@ -203,6 +206,61 @@ def test_fb_in_2020_reads_facebooks_series(fixture_store: Path) -> None:
         ("meta", "FB", date(2020, 6, 4)),
         ("meta", "FB", date(2020, 6, 5)),
     ]
+
+
+def test_a_securitys_bars_are_read_by_its_id_after_a_ticker_change(
+    fixture_store: Path,
+) -> None:
+    # FB became META on June 9, 2022, so the backtest engine reads a holding by its ID.
+    with view_at(fixture_store, "2023-01-03") as view:
+        with pytest.raises(NotFoundError, match="unknown ticker: FB"):
+            view.get_price_series_as_of("FB")
+        meta = view.get_security("meta")
+        bars = view.get_price_series_as_of(meta, date(2020, 6, 5))
+
+    assert [(b.security_id, b.ticker, b.session_date) for b in bars] == [
+        ("meta", "META", date(2020, 6, 5)),  # under its ticker at the knowledge time
+    ]
+
+
+def test_a_security_that_stopped_trading_is_read_by_its_id(
+    fixture_store: Path,
+) -> None:
+    # Twitter's last session was Thursday, October 27, 2022. Made-up bars, as in the
+    # fixtures.
+    write_rows(
+        fixture_store,
+        PRICE_BARS,
+        [
+            {
+                "security_id": "twitter",
+                "session_date": day,
+                "open": close,
+                "high": close,
+                "low": close,
+                "close": close,
+                "volume": 1000,
+                "source": "tiingo",
+                "source_ref": f"made up: TWTR {day}",
+                "available_at": calendar.session_close(day),
+                "time_assumed": False,
+            }
+            for day, close in ((date(2022, 10, 26), 52.0), (date(2022, 10, 27), 53.5))
+        ],
+    )
+    with view_at(fixture_store, "2022-11-01T16:00") as view:
+        with pytest.raises(NotFoundError, match="unknown ticker: TWTR"):
+            view.get_price_series_as_of("TWTR")
+        twitter = view.get_security("twitter")
+        bars = view.get_price_series_as_of(twitter, date(2022, 10, 3))
+        actions = view.get_corporate_actions_as_of(twitter)
+
+    assert twitter.ticker is None
+    assert [(b.ticker, b.session_date, b.close) for b in bars] == [
+        (None, date(2022, 10, 26), 52.0),
+        (None, date(2022, 10, 27), 53.5),
+    ]
+    assert actions == []
 
 
 def test_a_corporate_action_is_known_at_its_ex_dates_close(
