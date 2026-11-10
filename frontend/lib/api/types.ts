@@ -1,4 +1,4 @@
-// Response types for the research API v1, copied from doc/api-v1.md ("TypeScript types").
+// Response types for the research API v1, copied from doc/reference/api-v1.md ("TypeScript types").
 // Hand-written until S8.6 generates them from the OpenAPI schema. Keep them in step with
 // the doc: features/time-machine/fixtures/ checks the snapshot's example against them
 // with `satisfies`, so `next build` fails when they drift.

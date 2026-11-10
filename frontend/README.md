@@ -23,7 +23,7 @@ The homepage (`/`, code in [`features/landing/`](features/landing)) is a scroll 
 - **Motion.** [GSAP](https://gsap.com) ScrollTrigger scrubs one timeline over a sticky stage; [Lenis](https://lenis.darkroom.engineering) smooths wheel scrolling. Both load only in the browser and only when motion is allowed. With reduced motion (or no JavaScript), the same content renders as a static page. Pacing lives in [`story/beats.ts`](features/landing/story/beats.ts).
 - **Look.** Neutral black and white with one accent, terminal amber, in both themes: the same palette as the workspace (`app/globals.css`, GUIDELINES.md §3).
 
-The page makes no API calls and needs no keys.
+The page makes no API calls and needs no keys. See [S9.8](../doc/roadmap.md#s98-public-landing-page) for delivery evidence.
 
 ## Time Machine
 

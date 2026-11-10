@@ -12,7 +12,7 @@ Quant Time Machine aims to meet [WCAG 2.2 Level AA](https://www.w3.org/TR/WCAG22
 - Respect `prefers-reduced-motion`. Essential information must remain available without the landing page's scroll animation. Avoid flashing content and provide alternatives to drag-only interactions.
 - Give charts and timelines a useful textual summary and accessible values. Include units, provenance, and time-zone labels; a screenshot or color legend alone is not an alternative. Add descriptive alt text and captions/transcripts when introducing informative images or media.
 
-Implementation conventions live in [frontend/GUIDELINES.md](frontend/GUIDELINES.md#7-accessibility). Existing building blocks include a skip link, labeled forms, semantic status text, shared focus styles, and a reduced-motion landing-page path. Reusing a component does not remove the need to check it in context.
+Implementation conventions live in [frontend/GUIDELINES.md](../frontend/GUIDELINES.md#7-accessibility). Existing building blocks include a skip link, labeled forms, semantic status text, shared focus styles, and a reduced-motion landing-page path. Reusing a component does not remove the need to check it in context.
 
 ## Checking a change
 

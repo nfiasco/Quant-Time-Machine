@@ -1,6 +1,6 @@
 # Getting help
 
-Start with the [project README](README.md), [frontend guide](frontend/README.md), and [backend guide](backend/README.md). The [roadmap](doc/roadmap.md) identifies planned features; an unfinished page is not evidence that its backend capability exists.
+Start with the [project README](../README.md), [frontend guide](../frontend/README.md), and [backend guide](../backend/README.md). The [roadmap](../doc/roadmap.md) identifies planned features; an unfinished page is not evidence that its backend capability exists.
 
 | Need | Where to go |
 | --- | --- |

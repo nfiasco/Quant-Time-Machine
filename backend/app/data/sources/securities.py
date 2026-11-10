@@ -6,7 +6,7 @@
   security's ticker, name, or CIK, known from 00:00 ET on the day it took effect.
 - `sec_tickers`, from SEC's ticker file (company_tickers.json): one full snapshot per
   download. The file lists only the tickers in use when it's downloaded, so a snapshot
-  is known from that moment, and flagged `time_assumed` (doc/time-model.md, rule 11).
+  is known from that moment, and flagged `time_assumed` (doc/reference/time-model.md, rule 11).
 
 `PointInTimeView.resolve_ticker` reads both: the curated history first, then the
 newest snapshot known at the knowledge time. Ingestion warns when a curated security's

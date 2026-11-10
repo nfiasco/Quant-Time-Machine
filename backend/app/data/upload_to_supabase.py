@@ -6,7 +6,7 @@ It reads the CSVs from DATA_DIR/samples/ and needs SUPABASE_URL and SUPABASE_KEY
 in backend/.env. The tables must already exist in the Supabase project.
 
 The API doesn't read these tables: it serves point-in-time data from the Parquet
-store (decision D1, doc/storage.md).
+store (decision D1, doc/reference/storage.md).
 """
 
 import os

@@ -14,7 +14,7 @@ The head checks for #10, #11, #43, #44, and #65 include backend failures. Histor
 
 ## Completed stories
 
-All 32 completed stories now have evidence-backed assignees. Twenty-seven assignments changed. The three research stories below credit both the initial research contributor and the contributor who implemented the reproducible findings. Open-story ownership remains a planning decision.
+The original audit verified assignees for 32 completed stories and changed 27 assignments. The landing page (S9.8) was recorded afterward. The three research stories below credit both the initial research contributor and the contributor who implemented the reproducible findings. Open-story ownership remains a planning decision.
 
 | Story | Verified contributors | Merged evidence | Contribution detail |
 | --- | --- | --- | --- |
@@ -49,6 +49,7 @@ All 32 completed stories now have evidence-backed assignees. Twenty-seven assign
 | [S8.2](https://github.com/nfiasco/Quant-Time-Machine/issues/24) | [nfiasco](https://github.com/nfiasco) | [#70](https://github.com/nfiasco/Quant-Time-Machine/pull/70), [#83](https://github.com/nfiasco/Quant-Time-Machine/pull/83), [#89](https://github.com/nfiasco/Quant-Time-Machine/pull/89) | Implementation and completion evidence are in the merged PRs listed below. |
 | [S8.3](https://github.com/nfiasco/Quant-Time-Machine/issues/145) | [nfiasco](https://github.com/nfiasco) | [#91](https://github.com/nfiasco/Quant-Time-Machine/pull/91) | Implementation and completion evidence are in the merged PRs listed below. |
 | [S8.5](https://github.com/nfiasco/Quant-Time-Machine/issues/146) | [nfiasco](https://github.com/nfiasco) | [#90](https://github.com/nfiasco/Quant-Time-Machine/pull/90) | Implementation and completion evidence are in the merged PRs listed below. |
+| [S9.8](https://github.com/nfiasco/Quant-Time-Machine/issues/203) | [iguy1](https://github.com/iguy1), [nfiasco](https://github.com/nfiasco) | [#88](https://github.com/nfiasco/Quant-Time-Machine/pull/88), [#92](https://github.com/nfiasco/Quant-Time-Machine/pull/92) | iguy1 shipped the initial homepage; nfiasco implemented the scroll story and static fallback. |
 | [S15.1](https://github.com/nfiasco/Quant-Time-Machine/issues/40) | [nfiasco](https://github.com/nfiasco) | [#96](https://github.com/nfiasco/Quant-Time-Machine/pull/96) | Implementation and completion evidence are in the merged PRs listed below. |
 
 The corrections to S3.3 and S3.6 follow the actual PointInTimeView and golden-fixture commits. Earlier empty engine files and exploratory downloaded datasets are still credited to their authors on #46 and #59, but are separate from those stories' completed acceptance criteria. S15.1 follows the Railway deployment commits in #96, not the person who merged them or an earlier planning assignment.
@@ -59,7 +60,7 @@ PR #94 was opened by `jacobchacko05`; GitHub attributes its implementation commi
 
 ## PR index
 
-The milestone is the primary delivery workstream, not an inference from merge date. Static landing pages support the M2 shell/epic E9 without creating artificial completed stories. Prototype PRs #59 and #65 retain their M2 context and explicitly state their limitations.
+The milestone is the primary delivery workstream, not an inference from merge date. The two landing page PRs implement [S9.8](../roadmap.md#s98-public-landing-page), the public introduction to the workspace. Prototype PRs #59 and #65 retain their M2 context and explicitly state their limitations.
 
 | PR | Work | Assignees | Milestone | Outcome |
 | --- | --- | --- | --- | --- |

@@ -1,9 +1,9 @@
 """What point-in-time reads return: one frozen dataclass per kind of record.
 
-Field names match the API contract (doc/api-v1.md), so the /v1 endpoints (S8.2) can
+Field names match the API contract (doc/reference/api-v1.md), so the /v1 endpoints (S8.2) can
 return records as they are. Every record carries its provenance: when it became public
 (`available_at`, in UTC), whether that time was assumed rather than published
-(`time_assumed`, doc/time-model.md rule 11), and where it came from (`source` and
+(`time_assumed`, doc/reference/time-model.md rule 11), and where it came from (`source` and
 `source_ref`).
 """
 
@@ -104,7 +104,7 @@ class Filing:
     filing_date: date
     """For display only: filings accepted after 5:30 PM ET get the next business day."""
     available_at: datetime
-    """EDGAR's acceptance time, corrected (doc/time-model.md, rule 5)."""
+    """EDGAR's acceptance time, corrected (doc/reference/time-model.md, rule 5)."""
     time_assumed: bool
     document_url: str | None
     index_url: str
@@ -149,7 +149,7 @@ class UniverseChange:
     member any more."""
     available_at: datetime
     """00:00 ET on `effective`: a change applies from its effective date, never
-    earlier (doc/time-model.md, rule 8)."""
+    earlier (doc/reference/time-model.md, rule 8)."""
     time_assumed: bool
     source: str
     source_ref: str
@@ -305,7 +305,7 @@ class Fundamental:
     """The filings the value came from: one, or two for a derived quarter, the longer
     total's first."""
     available_at: datetime
-    """When the last of those filings was accepted (doc/time-model.md, rule 6)."""
+    """When the last of those filings was accepted (doc/reference/time-model.md, rule 6)."""
     time_assumed: bool
     source: str
     source_ref: str

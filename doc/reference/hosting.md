@@ -1,10 +1,10 @@
 # Backend and data hosting (decision D4)
 
-> **Spike S1.6.** Decided 2026-10-23, pending team review. The measurements come from [`backend/spikes/hosting.py`](../backend/spikes/hosting.py), run on the real M2 store (ingested 2026-10-23) on a laptop and on the deployed machine. Prices and limits were checked on 2026-10-23. They change, so check them again before S15.1. Updated 2026-10-29: the team deferred the card until a host is needed, before S8.4 (Sprint 4). The free trial lapsed on 2026-10-31, and Sprint 3 runs locally. Also re-evaluated on 2026-10-29, with one owner allowed and AWS Lambda and Cloudflare added ([re-evaluation](#re-evaluation-2026-10-29-one-owner-aws-lambda-and-cloudflare)). Updated 2026-10-31: with a $5-a-month limit and the owner willing to do the setup, AWS Lambda is the lead candidate. A spike before S8.4 decides, with Fly as the fallback ([plan](#plan-2026-10-31-try-aws-lambda-first-with-fly-as-the-fallback)). **Decided 2026-11-06: Railway's Hobby plan** ([decision](#decision-2026-11-06-railway)), after Railway reopened sign-ups on 2026-11-02. It replaces both the Fly decision and the Lambda plan, and Google Cloud Run's free tier is the way out if paying stops being worth it. **Measured against Cloud Run the same day** with the same image ([benchmark](#railway-vs-cloud-run-measured-2026-11-06)): the decision stands. **Deployed on 2026-11-07** at <https://quant-time-machine-api.up.railway.app> ([the deployment](#the-deployment-on-railway)).
+> **Spike S1.6.** Decided 2026-10-23, pending team review. The measurements come from [`backend/spikes/hosting.py`](../../backend/spikes/hosting.py), run on the real M2 store (ingested 2026-10-23) on a laptop and on the deployed machine. Prices and limits were checked on 2026-10-23. They change, so check them again before S15.1. Updated 2026-10-29: the team deferred the card until a host is needed, before S8.4 (Sprint 4). The free trial lapsed on 2026-10-31, and Sprint 3 runs locally. Also re-evaluated on 2026-10-29, with one owner allowed and AWS Lambda and Cloudflare added ([re-evaluation](#re-evaluation-2026-10-29-one-owner-aws-lambda-and-cloudflare)). Updated 2026-10-31: with a $5-a-month limit and the owner willing to do the setup, AWS Lambda is the lead candidate. A spike before S8.4 decides, with Fly as the fallback ([plan](#plan-2026-10-31-try-aws-lambda-first-with-fly-as-the-fallback)). **Decided 2026-11-06: Railway's Hobby plan** ([decision](#decision-2026-11-06-railway)), after Railway reopened sign-ups on 2026-11-02. It replaces both the Fly decision and the Lambda plan, and Google Cloud Run's free tier is the way out if paying stops being worth it. **Measured against Cloud Run the same day** with the same image ([benchmark](#railway-vs-cloud-run-measured-2026-11-06)): the decision stands. **Deployed on 2026-11-07** at <https://quant-time-machine-api.up.railway.app> ([the deployment](#the-deployment-on-railway)).
 
 ## Decision, 2026-11-06: Railway
 
-**The API will run on Railway's Hobby plan:** $5 a month, which includes $5 of usage, on the owner's personal account. Railway builds the same [`backend/Dockerfile`](../backend/Dockerfile) from GitHub and redeploys it on each merge to `main`. This replaces the [Fly.io decision](#original-decision-2026-10-23-flyio) and the [Lambda plan](#plan-2026-10-31-try-aws-lambda-first-with-fly-as-the-fallback). S15.1 deployed it on 2026-11-07, ahead of its sprint ([the deployment](#the-deployment-on-railway)).
+**The API will run on Railway's Hobby plan:** $5 a month, which includes $5 of usage, on the owner's personal account. Railway builds the same [`backend/Dockerfile`](../../backend/Dockerfile) from GitHub and redeploys it on each merge to `main`. This replaces the [Fly.io decision](#original-decision-2026-10-23-flyio) and the [Lambda plan](#plan-2026-10-31-try-aws-lambda-first-with-fly-as-the-fallback). S15.1 deployed it on 2026-11-07, ahead of its sprint ([the deployment](#the-deployment-on-railway)).
 
 - **Why Railway:**
   - **No cold starts.** The service stays on, so the first request after a quiet spell is as fast as any other. Cloud Run and Lambda scale to zero: Cloud Run took 5.6–14 s to answer the first request after scaling to zero ([measured](#railway-vs-cloud-run-measured-2026-11-06)), and Fly took 7.2 s after auto-stop.
@@ -26,7 +26,7 @@
 
 ### Railway vs Cloud Run, measured 2026-11-06
 
-Before committing, we deployed the same image to both and measured them side by side with [`backend/spikes/host_compare/`](../backend/spikes/host_compare/). The image was `backend/Dockerfile` with the universe store baked in and a thin wrapper that adds timing routes: every `/v1` route was the real one, and prices still answered 403. Each service got 1 vCPU and 1 GB in northern Virginia (us-east4): Railway on its trial plan, and Cloud Run with request-based billing (the mode with the free tier), startup CPU boost, and sign-in required. The client was a laptop in Delaware.
+Before committing, we deployed the same image to both and measured them side by side with [`backend/spikes/host_compare/`](../../backend/spikes/host_compare/). The image was `backend/Dockerfile` with the universe store baked in and a thin wrapper that adds timing routes: every `/v1` route was the real one, and prices still answered 403. Each service got 1 vCPU and 1 GB in northern Virginia (us-east4): Railway on its trial plan, and Cloud Run with request-based billing (the mode with the free tier), startup CPU boost, and sign-in required. The client was a laptop in Delaware.
 
 | Measure | Railway | Cloud Run |
 | --- | --- | --- |
@@ -117,7 +117,7 @@ Prices and limits were checked on 2026-11-06, for our API's low traffic.
 
 - **Where it runs:** project `quant-time-machine`, service `api`, environment `production`, on the owner's Hobby plan. It's in US East (Virginia, `us-east4-eqdc4a`), next to Vercel's `iad1`, as one replica, always on.
 - **The store** is on the volume `api-data` (5 GB) at `/data`, so `DATA_DIR/store` is `/data/store`. It holds the universe v1 store with S5.5's XBRL facts: data version `20261101T202624Z`, 239 files, 8.6 MB.
-- **The image** is [`backend/Dockerfile`](../backend/Dockerfile). It listens on `$PORT`, and the server runs as an unprivileged user (uid 10001), which can read the store because the uploaded files are world-readable.
+- **The image** is [`backend/Dockerfile`](../../backend/Dockerfile). It listens on `$PORT`, and the server runs as an unprivileged user (uid 10001), which can read the store because the uploaded files are world-readable.
 - **No secrets on the host.** Serving needs no API keys, and ingestion runs on a laptop. Railway's 2026-10-21 incident exposed customers' variables, so keep it that way as long as possible. S16.4's sign-in secret will be the first.
 
 ### Settings
@@ -143,13 +143,13 @@ Railway holds these settings; there's no config file for them in the repository.
 
 - **A merge to `main` that touches a watch path** starts a build once CI passes on that commit. The old deployment keeps serving during the build, which takes about 45 s.
 - **Each switch to a new deployment has an outage of about 12 seconds.** Railway never mounts a volume in two deployments at once, so it stops the old one before starting the new one. Measured on 2026-11-07 across `railway redeploy`, polling `/health` every 0.3 s: two 502s, then requests hung until the new deployment answered, 11.6 s after the last good answer. Merges that don't touch the image don't redeploy.
-- **GitHub shows each deploy** as a deployment to `quant-time-machine / production`. Once it's live, [`smoke.yml`](../.github/workflows/smoke.yml) runs the smoke test against it, so a broken deploy shows up as a failed run.
+- **GitHub shows each deploy** as a deployment to `quant-time-machine / production`. Once it's live, [`smoke.yml`](../../.github/workflows/smoke.yml) runs the smoke test against it, so a broken deploy shows up as a failed run.
 - **A failed build** leaves the old deployment serving. Railway emails the owner.
 - **By hand:** `railway redeploy --service api` redeploys the current image, and `railway restart` restarts it. `railway up` deploys a local folder; it skips CI, and the next merge replaces it.
 
 ### Updating the store
 
-After ingesting locally, the owner runs [`backend/scripts/upload_store.sh`](../backend/scripts/upload_store.sh). It:
+After ingesting locally, the owner runs [`backend/scripts/upload_store.sh`](../../backend/scripts/upload_store.sh). It:
 
 1. copies `DATA_DIR/store`, `_versions/` included and without Finder files, to `/data/store.new`, with `railway volume files upload`;
 2. swaps it in: the current store becomes `/data/store.previous`, and the new one `/data/store`. Requests between the two renames, a second or two, find no store. To roll back, swap the names back with `railway volume files rename`;
@@ -167,7 +167,7 @@ Hobby has one member, so only the owner can run it.
 
 ### Checking it
 
-- **Smoke test:** from `backend/`, `uv run scripts/smoke_test.py https://quant-time-machine-api.up.railway.app`. It checks `/health`, CORS for the Vercel origin, May 2020's first UNRATE print, Apple's 10-Q, and that prices answer 403. All of these are as of June 5, 2020, so the answers never change. GitHub Actions runs it after each deploy ([`smoke.yml`](../.github/workflows/smoke.yml)). [`tests/test_smoke_test.py`](../backend/tests/test_smoke_test.py) runs the same checks against the fixtures in CI. Vercel's deployments trigger `smoke.yml` too, so the Actions tab lists them as skipped runs.
+- **Smoke test:** from `backend/`, `uv run scripts/smoke_test.py https://quant-time-machine-api.up.railway.app`. It checks `/health`, CORS for the Vercel origin, May 2020's first UNRATE print, Apple's 10-Q, and that prices answer 403. All of these are as of June 5, 2020, so the answers never change. GitHub Actions runs it after each deploy ([`smoke.yml`](../../.github/workflows/smoke.yml)). [`tests/test_smoke_test.py`](../../backend/tests/test_smoke_test.py) runs the same checks against the fixtures in CI. Vercel's deployments trigger `smoke.yml` too, so the Actions tab lists them as skipped runs.
 - **Logs and metrics:** `railway logs`, with `--build` or `--http` for those logs, and `railway metrics`.
 - **A shell on the host:** `railway ssh`. It runs as the server's unprivileged user, so the store is read-only there. To time the hosting spike on the host, run `railway ssh -- python -m spikes.hosting --data-dir /data`.
 - **Spending:** `railway usage` and `railway usage limit status`.
@@ -218,12 +218,12 @@ On a new account, or after an accident, run these from the repository root, in t
 - [x] Subscribe to Hobby, and set the usage limits: an email at $5 and a hard limit at $10 (2026-11-07).
 - [x] Create the service from this repository with `/backend` as its root directory, in US East, with watch paths and a health check (2026-11-07).
 - [x] Install the Railway GitHub App on this repository only, and turn on auto-deploy and Wait for CI (2026-11-07).
-- [x] Run the smoke test after each deploy, from GitHub Actions ([`smoke.yml`](../.github/workflows/smoke.yml)).
+- [x] Run the smoke test after each deploy, from GitHub Actions ([`smoke.yml`](../../.github/workflows/smoke.yml)).
 - [x] Put the store on a volume at `/data`, `_versions/` included (2026-11-07, data version `20261101T202624Z`).
 - [x] Set `DATA_DIR` and `CORS_ORIGINS`, with `SERVE_RAW_PRICES` unset.
 - [x] Set `NEXT_PUBLIC_API_URL` on Vercel for Production, and redeploy it (2026-11-07). The dashboard says "API online". Previews keep the default, so the API needs no preview origins in `CORS_ORIGINS`.
-- [x] Write the smoke test: [`backend/scripts/smoke_test.py`](../backend/scripts/smoke_test.py).
-- [x] Script the store upload, until ingestion runs on a schedule (S15.5): [`backend/scripts/upload_store.sh`](../backend/scripts/upload_store.sh).
+- [x] Write the smoke test: [`backend/scripts/smoke_test.py`](../../backend/scripts/smoke_test.py).
+- [x] Script the store upload, until ingestion runs on a schedule (S15.5): [`backend/scripts/upload_store.sh`](../../backend/scripts/upload_store.sh).
 - [x] Run the server as a non-root user.
 - [x] Remove `backend/fly.toml` and the Fly steps.
 - [x] Delete the 2026-11-06 benchmark deployments (2026-11-07). Railway project `qtm-bench` went offline at once and is permanently deleted on 2026-11-09. Google Cloud project `qtm-bench-1106-hm6q` can be restored with `gcloud projects undelete` for 30 days.
@@ -236,7 +236,7 @@ On a new account, or after an accident, run these from the repository root, in t
 
 *Replaced on 2026-11-06 by [Railway](#decision-2026-11-06-railway).*
 
-**The API runs on Fly.io.** It's a container built from [`backend/Dockerfile`](../backend/Dockerfile), on one shared-CPU machine in Ashburn, Virginia (`iad`), with the point-in-time store on a 1 GB volume at `/data`. Its configuration was `backend/fly.toml`, removed on 2026-11-07 along with the Fly deploy steps (both are in git history).
+**The API runs on Fly.io.** It's a container built from [`backend/Dockerfile`](../../backend/Dockerfile), on one shared-CPU machine in Ashburn, Virginia (`iad`), with the point-in-time store on a 1 GB volume at `/data`. Its configuration was `backend/fly.toml`, removed on 2026-11-07 along with the Fly deploy steps (both are in git history).
 
 - **Deployed** at <https://quant-time-machine-api.fly.dev> on Fly's free trial, which lapsed on 2026-10-31, so the URL no longer answers. The card is deferred until a host is needed again, before S8.4 ([Cost and the trial](#cost-and-the-trial)).
 - **Next:** AWS Lambda is the lead candidate for that host, and a spike before S8.4 decides between it and Fly ([plan](#plan-2026-10-31-try-aws-lambda-first-with-fly-as-the-fallback)).

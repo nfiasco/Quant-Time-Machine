@@ -100,7 +100,7 @@ A bar's open, high, low, close, and volume form one record, known at that day's 
 - **An early close.** On Friday, November 27, 2020, the market closed at 13:00 ET, so that day's bar is known at `18:00Z`.
 - **Vendor timing isn't market timing.** Vendors publish end-of-day data later; Tiingo says around 17:30 ET, with corrections until 20:00 ET. The close was known to the market at the close, so that's what we use, and a vendor's correction to the same bar isn't a new version.
 
-**Total returns (S6.4).** Prices are stored and read as traded, so a signal that needs a price level, such as market cap, uses a raw close. Splits and dividends enter only through returns, in [`app/backtest/returns.py`](../backend/app/backtest/returns.py). A session's total return is
+**Total returns (S6.4).** Prices are stored and read as traded, so a signal that needs a price level, such as market cap, uses a raw close. Splits and dividends enter only through returns, in [`app/backtest/returns.py`](../../backend/app/backtest/returns.py). A session's total return is
 
 ```text
 r_t = k_t × (close_t + div_t) / close_(t−1) − 1
@@ -166,7 +166,7 @@ Periods are sorted by length, so Apple's 14-week first quarters and 53-week year
 
 ALFRED records each published version of an observation (a *vintage*) with a `realtime_start` date, but no time of day. We add the release's scheduled time from a release-time table (S4.3); for example, BLS publishes the Employment Situation at 08:30 ET. If a release's time isn't known, we use the end of that day, so it's first usable on the next trading day, and we flag it.
 
-The release-time table lives in [`alfred_series.toml`](../backend/app/data/sources/alfred_series.toml), next to the series that use it. Sources were checked on 2026-10-21:
+The release-time table lives in [`alfred_series.toml`](../../backend/app/data/sources/alfred_series.toml), next to the series that use it. Sources were checked on 2026-10-21:
 
 | Release (FRED ID) | Series | Time (ET) | Source |
 | --- | --- | --- | --- |
@@ -184,7 +184,7 @@ A release that came out at another time on one day gets an exception. The Octobe
 - **January 1990 unemployment.**
   - First published as 5.3% on Friday, February 2, 1990 (08:30 EST = 13:30Z).
   - Revised to 5.4% in the vintage of March 8, 1996, and unchanged since.
-  - So any knowledge time from February 2, 1990 through March 7, 1996 sees 5.3%, and from March 8, 1996 on, 5.4%. This was verified with [`spikes/alfred.py`](../backend/spikes/alfred.py).
+  - So any knowledge time from February 2, 1990 through March 7, 1996 sees 5.3%, and from March 8, 1996 on, 5.4%. This was verified with [`spikes/alfred.py`](../../backend/spikes/alfred.py).
 - **Unknown release time.** A vintage dated 2020-06-01 with no known release time gets `available_at = 2020-06-01 23:59:59.999999 ET`. It's first used by the June 2 09:30 decision and flagged `time_assumed`.
 - **Before the first vintage.** ALFRED's archive starts later than the data for every starter series. For example, GDP's first vintage is 1991-12-04, and FEDFUNDS's and TB3MS's is 1996-12-03. Values before a series' first archived vintage count as unknown until that vintage.
 
@@ -224,7 +224,7 @@ A decision at 09:30 ET on Monday, June 1, 2020 sees prices through Friday, May 2
 - **Why same-day close:** it keeps the decision and the fill in one session. The 6.5-hour gap is realistic for a monthly strategy. It also matches the experiment spec (`"fill": "same_day_close"`, roadmap §3.4).
 - **What stays configurable:** both options satisfy "fill strictly after the decision". The spec keeps the fill setting (S7.2), and the timing stress test (S14.3) compares them.
 
-**In code (S7.2).** [`app/backtest/schedule.py`](../backend/app/backtest/schedule.py) makes each decision and its fill.
+**In code (S7.2).** [`app/backtest/schedule.py`](../../backend/app/backtest/schedule.py) makes each decision and its fill.
 
 - **A same-day close fill must come after its decision.** A spec with a 16:00 decision and that fill is invalid. One with a 13:30 decision fails on the early-close days it covers, such as July 3 in 2006, 2017, and 2023, and the error names each one.
 - **A next-day open fill** is at the next session's open. After Friday, October 26, 2012, that was Wednesday, October 31's, because Hurricane Sandy closed the market for two days.
@@ -256,11 +256,11 @@ This is the acceptance test for the snapshot endpoint (S8.3) and the Time Machin
 | Fed and other economic data as published by that morning | The latest vintage at or before *T*, such as May 2020's FEDFUNDS: 2020-06-01T20:15Z | ✓ |
 | Universe changes effective after June 5 | Their effective dates, such as Tesla's: 2020-12-21T05:00Z | ✗ |
 
-[`tests/test_api_snapshot.py`](../backend/tests/test_api_snapshot.py) checks every row against `GET /v1/snapshot?as_of=2020-06-05&tickers=AAPL,TSLA&series=UNRATE,FEDFUNDS` (S8.3). It reads this table, so a row added here fails until it's checked too. FEDFUNDS stands for the Fed's data: May 2020's average, 0.05%, was published at 16:15 ET on June 1. Tesla stands for the universe: it joined the S&P 500 on December 21, 2020.
+[`tests/test_api_snapshot.py`](../../backend/tests/test_api_snapshot.py) checks every row against `GET /v1/snapshot?as_of=2020-06-05&tickers=AAPL,TSLA&series=UNRATE,FEDFUNDS` (S8.3). It reads this table, so a row added here fails until it's checked too. FEDFUNDS stands for the Fed's data: May 2020's average, 0.05%, was published at 16:15 ET on June 1. Tesla stands for the universe: it joined the S&P 500 on December 21, 2020.
 
 ## Where look-ahead bias creeps in
 
-The pitfalls table in [roadmap §2.4](roadmap.md#24-where-look-ahead-bias-creeps-in) lists the traps these rules close. Two more turned up in Sprint 1:
+The pitfalls table in [roadmap §2.4](../roadmap.md#24-where-look-ahead-bias-creeps-in) lists the traps these rules close. Two more turned up in Sprint 1:
 
 - **Timestamps that lie about their zone.** EDGAR's JSON acceptance times (rule 5), until SEC switched them to true UTC in late October 2026.
 - **API defaults that mean "today".** FRED's `realtime_start` and `realtime_end` default to today, so a query without them returns revised data. Our research notebook fell into exactly this: it passed a `vintage_date` parameter, which FRED ignores, and silently got today's values.
@@ -276,7 +276,7 @@ The pitfalls table in [roadmap §2.4](roadmap.md#24-where-look-ahead-bias-creeps
    A release without a time in the table uses the end-of-day rule and is flagged.
 4. **A derived quarter can mix bases for a while after a recast.** When a company recasts earlier results, such as after selling a business, its next 10-K recasts the full year before any 10-Q recasts the matching nine months. Until one does, a fourth quarter derived from the two mixes old and new figures. The next filings fix it.
 5. **Per-share amounts are never derived.** Diluted EPS doesn't add up across quarters, because the share count changes. So a fourth quarter's EPS appears only if a filing reported it, and Apple's and Microsoft's 10-Ks stopped reporting quarters after fiscal 2020.
-6. **Ticker history.** SEC's ticker file lists only current tickers, so ticker history comes from a curated file, [`securities.toml`](../backend/app/data/sources/securities.toml) (S5.2).
+6. **Ticker history.** SEC's ticker file lists only current tickers, so ticker history comes from a curated file, [`securities.toml`](../../backend/app/data/sources/securities.toml) (S5.2).
    - It covers universe v1's members and the M2 test set, plus tickers that changed hands: FB became META, GOOG moved from Google's Class A to its Class C shares, and WB went from Wachovia to Weibo. Each change cites its source.
    - A member listed long before our price history has a history that starts on 2005-01-03, so its earlier tickers don't resolve.
    - A ticker that only SEC's file lists is known only from when that file was downloaded, so it can't be used for earlier dates.

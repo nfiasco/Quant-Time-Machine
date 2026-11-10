@@ -26,7 +26,7 @@ def accepted(when: datetime, *, assumed: bool = False) -> dict[str, Any]:
 
 
 # Apple's 10-Q for fiscal Q2 2020, its 10-K for fiscal 2020, and its 10-Q for fiscal Q2
-# 2021, with their acceptance times (doc/time-model.md, rule 6).
+# 2021, with their acceptance times (doc/reference/time-model.md, rule 6).
 APPLE_FILINGS = {
     "0000320193-20-000052": accepted(utc(2020, 4, 30, 22, 3, 10)),
     "0000320193-20-000096": accepted(utc(2020, 10, 29, 22, 6, 25)),

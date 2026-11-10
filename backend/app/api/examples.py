@@ -688,7 +688,7 @@ def _apple_march_2020_revenue(accession: str, available_at: str) -> dict[str, An
 SNAPSHOT_JUNE_5 = (
     "/v1/snapshot?as_of=2020-06-05&tickers=AAPL,TSLA&series=UNRATE,FEDFUNDS"
 )
-"""The June 5, 2020 table in doc/time-model.md, as one request."""
+"""The June 5, 2020 table in doc/reference/time-model.md, as one request."""
 
 _NO_FILINGS = {"10-K": None, "10-Q": None, "8-K": None}
 

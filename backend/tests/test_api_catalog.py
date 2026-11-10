@@ -9,7 +9,10 @@ from app.backtest.spec import SignalSpec
 from app.data.sources.alfred import SERIES
 
 SCHEMA_FILE = (
-    Path(__file__).resolve().parents[2] / "doc" / "experiment-spec-v1.schema.json"
+    Path(__file__).resolve().parents[2]
+    / "doc"
+    / "reference"
+    / "experiment-spec-v1.schema.json"
 )
 
 

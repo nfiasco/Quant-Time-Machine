@@ -137,7 +137,7 @@ class Timeline {
   add(expectKnown: boolean, availableAt: string, event: Omit<MomentEvent, "at" | "known">) {
     const at = etDateTimeOf(availableAt);
     const instant = instantOf(availableAt);
-    // Inclusive: a record public exactly at T is known at T (doc/time-model.md).
+    // Inclusive: a record public exactly at T is known at T (doc/reference/time-model.md).
     const known = instant <= this.t;
     if (!at || Number.isNaN(instant) || known !== expectKnown) {
       this.hidden += 1;

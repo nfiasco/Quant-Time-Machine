@@ -1,6 +1,6 @@
 """The error body every API error uses, and the handlers and middleware that produce it.
 
-Every error answers with the shape in the contract (doc/api-v1.md):
+Every error answers with the shape in the contract (doc/reference/api-v1.md):
 
     {"error": {"code": "invalid_request", "message": "...", "details": [...]}}
 

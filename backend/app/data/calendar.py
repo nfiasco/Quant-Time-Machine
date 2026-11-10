@@ -1,4 +1,4 @@
-"""The NYSE trading calendar (S3.5; doc/time-model.md, rule 2).
+"""The NYSE trading calendar (S3.5; doc/reference/time-model.md, rule 2).
 
 A thin wrapper around exchange_calendars' XNYS calendar, which knows holidays, early
 closes, and unscheduled closures such as Hurricane Sandy. Never work out trading days

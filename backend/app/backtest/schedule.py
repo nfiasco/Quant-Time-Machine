@@ -1,4 +1,4 @@
-"""Rebalance decisions and when their trades fill (S7.2; doc/time-model.md, rules 9 and
+"""Rebalance decisions and when their trades fill (S7.2; doc/reference/time-model.md, rules 9 and
 10).
 
 Decisions fall on the first trading day of each month, at a New York time: 09:30 by

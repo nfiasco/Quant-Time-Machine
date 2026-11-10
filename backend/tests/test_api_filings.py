@@ -8,7 +8,7 @@ from app.data.sources.edgar import FORM_FAMILIES
 from tests.fixture_loader import FIXTURE_DATA_VERSION
 
 # Apple's 10-Qs for the quarters ended December 28, 2019, March 28, 2020, and June 27,
-# 2020, accepted on January 28, April 30, and July 30 (doc/time-model.md, rule 5).
+# 2020, accepted on January 28, April 30, and July 30 (doc/reference/time-model.md, rule 5).
 Q1, Q2, Q3 = (
     "0000320193-20-000010",
     "0000320193-20-000052",

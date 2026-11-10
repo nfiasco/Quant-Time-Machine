@@ -7,7 +7,7 @@
 #
 # Release times (S4.3). ALFRED dates each vintage but gives no time of day, so a vintage
 # becomes known at its date plus its release's `time`, New York wall-clock time
-# (doc/time-model.md, rule 7). `sources` cite the schedule each time comes from, checked
+# (doc/reference/time-model.md, rule 7). `sources` cite the schedule each time comes from, checked
 # on 2026-10-21. A release whose time isn't known says time = "unknown": its vintages are
 # known at 23:59:59.999999 ET that day and flagged time_assumed (rule 11).
 # `exceptions` are days a release came out at another time, each with its source.

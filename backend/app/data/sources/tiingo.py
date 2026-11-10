@@ -9,7 +9,7 @@ and the split factor are read: adjusted prices change every time a later split o
 dividend happens, so they'd carry the future into the past. They stay only in the raw
 cache, as Tiingo sent them.
 
-Tiingo's free plan is for internal use only (doc/data-sources.md, D2), and allows 50
+Tiingo's free plan is for internal use only (doc/reference/data-sources.md, D2), and allows 50
 requests an hour; a run makes one per security that has new sessions. Loading more
 than 50 securities from scratch stops at the limit, and the next run picks up with the
 securities that still have no bars.

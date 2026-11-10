@@ -2,13 +2,13 @@
 
 The curated file universes.toml lists each universe's membership spells. A security
 joins on `added` and leaves on `removed`, and each date cites its source. Universe v1 is
-`starter_large_caps` (decision D3, doc/data-sources.md): large US companies, each a
+`starter_large_caps` (decision D3, doc/reference/data-sources.md): large US companies, each a
 member from the effective date it joined the S&P 500 until the date it left, from
 2010-01-01 on.
 
 Ingestion writes the spells to the `universe_members` table. A spell is known from
 00:00 ET on `added`, and its removal is a second version, known only from 00:00 ET on
-`removed` (doc/time-model.md, rule 8). `PointInTimeView.universe_as_of` reads them.
+`removed` (doc/reference/time-model.md, rule 8). `PointInTimeView.universe_as_of` reads them.
 
 The price and filing ingesters load `ingest_set()`: every member of every universe,
 plus the benchmarks, such as SPY, which are loaded but never members.

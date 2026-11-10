@@ -68,7 +68,7 @@ PRICE_BARS = TableSpec(
 """Raw daily bars, as traded and never adjusted for later splits or dividends (S6.2).
 
 A bar is known at its session's close: 16:00 ET, or 13:00 ET on early-close days
-(doc/time-model.md, rule 4)."""
+(doc/reference/time-model.md, rule 4)."""
 
 CORPORATE_ACTIONS = TableSpec(
     name="corporate_actions",
@@ -105,7 +105,7 @@ FILINGS = TableSpec(
 )
 """Each company's 10-K, 10-Q, and 8-K filings and their amendments, from EDGAR (S5.3).
 
-`available_at` is the filing's acceptance time, corrected (doc/time-model.md, rule 5),
+`available_at` is the filing's acceptance time, corrected (doc/reference/time-model.md, rule 5),
 never its filing date. `acceptance_raw` keeps EDGAR's uncorrected value for auditing.
 `amends` is the accession number of the filing an amendment changes, when it's known."""
 
@@ -139,7 +139,7 @@ XBRL_FACTS = TableSpec(
 
 A row is one fact as one filing reported it. A value repeated in a later filing, as a
 comparative or a restatement, is another row, known from that filing's acceptance time
-(doc/time-model.md, rule 6). `available_at` is the acceptance time of the filing
+(doc/reference/time-model.md, rule 6). `available_at` is the acceptance time of the filing
 `accession_number` names, from `filings`; for a filing that isn't there, such as a
 proxy statement, it's the end of `filed` in New York, flagged `time_assumed` (rule 11).
 
@@ -166,7 +166,7 @@ UNIVERSE_MEMBERS = TableSpec(
 A spell is a security's time in a universe, from `added` until `removed`. Its first
 version is known from 00:00 ET on `added`, with `removed` None. If the security leaves,
 a second version, known from 00:00 ET on `removed`, sets it. So no row shows a removal
-before it happened (doc/time-model.md, rule 8), and a spell's latest version known at a
+before it happened (doc/reference/time-model.md, rule 8), and a spell's latest version known at a
 knowledge time says whether the security was a member then."""
 
 TABLES: dict[str, TableSpec] = {

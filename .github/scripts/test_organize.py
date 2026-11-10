@@ -47,9 +47,9 @@ class PolicyTests(unittest.TestCase):
     def test_preserve_explicit_metadata_and_idempotency(self):
         pr = pull()
         self.assertEqual(desired_metadata(pr, [issue(24, 4, 'api')], []), {})
-        patch_ = desired_metadata(pr, [], ['doc/github-workflow.md'])
+        patch_ = desired_metadata(pr, [], ['doc/project/github-workflow.md'])
         pr['labels'] = [{'name': name} for name in patch_['labels']]
-        self.assertEqual(desired_metadata(pr, [], ['doc/github-workflow.md']), {})
+        self.assertEqual(desired_metadata(pr, [], ['doc/project/github-workflow.md']), {})
 
     def test_invalid_duplicate_labels_and_missing_owner_milestone_fail(self):
         pr = pull()

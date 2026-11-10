@@ -238,7 +238,7 @@ def get_snapshot(
     ] = None,
 ) -> SnapshotResponse:
     """What was known at the knowledge time, and what wasn't yet, for some companies and
-    series: the June 5, 2020 table in doc/time-model.md. `known` is each company's
+    series: the June 5, 2020 table in doc/reference/time-model.md. `known` is each company's
     latest bar, filings, and revenue quarter, its universes, and each series' latest
     observation. `not_yet_known` is what came after: the next bar and filings, later
     amendments, later versions of that revenue quarter, universe changes, and later

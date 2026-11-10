@@ -1,8 +1,8 @@
 # GitHub team workflow
 
-[Delivery project](https://github.com/users/nfiasco/projects/2) · [Roadmap](roadmap.md) · [Contribution history](contribution-history.md)
+[Delivery project](https://github.com/users/nfiasco/projects/2) · [Roadmap](../roadmap.md) · [Contribution history](contribution-history.md)
 
-Start with [CONTRIBUTING.md](../CONTRIBUTING.md) for local setup and contribution standards. Use [Discussions](discussions.md) for questions and early proposals, and [private security reporting](../SECURITY.md) for vulnerabilities.
+Start with [CONTRIBUTING.md](../../.github/CONTRIBUTING.md) for local setup and contribution standards. Use [Discussions](discussions.md) for questions and early proposals, and [private security reporting](../../.github/SECURITY.md) for vulnerabilities.
 
 Issues describe work and acceptance criteria. PRs describe a proposed code or documentation change. The project organizes both using filtered views; it is not a second issue database.
 

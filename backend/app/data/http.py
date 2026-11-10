@@ -1,6 +1,6 @@
 """A polite HTTP client for ingestion: rate limits, retries, and the raw cache (S3.4).
 
-Each source's limits come from its terms (doc/data-sources.md):
+Each source's limits come from its terms (doc/reference/data-sources.md):
 
 - SEC EDGAR: at most 10 requests per second, with a User-Agent that names us and
   gives a contact email.

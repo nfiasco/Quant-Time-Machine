@@ -19,8 +19,8 @@ Use Q&A, Ideas, and Announcements as the main entry points. General, Show and te
 
 - Search for an existing thread first. Give a thread one clear topic and a descriptive title.
 - Explain the question or problem, what you tried, and relevant constraints. For technical help include the commit, command or route, and environment. Use the Q&A form's synthetic reproduction field instead of uploading raw datasets.
-- Follow the [Code of Conduct](../CODE_OF_CONDUCT.md). Explain disagreements with evidence, make space for different experience levels, and avoid personal remarks.
-- Never post tokens, `.env` contents, private research, or restricted provider data. Vulnerabilities go through [private reporting](../SECURITY.md); behavioral concerns use the conduct policy's contact.
+- Follow the [Code of Conduct](../../.github/CODE_OF_CONDUCT.md). Explain disagreements with evidence, make space for different experience levels, and avoid personal remarks.
+- Never post tokens, `.env` contents, private research, or restricted provider data. Vulnerabilities go through [private reporting](../../.github/SECURITY.md); behavioral concerns use the conduct policy's contact.
 - When a Q&A reply solves the problem, the author or a maintainer should mark it as the answer. Add a short resolution when the eventual fix differs from earlier replies.
 - When an idea becomes agreed work, open or link the existing story/spike/bug issue and summarize the decision. A poll records preferences; a maintainer records the actual decision and its rationale in the issue or relevant project document.
 

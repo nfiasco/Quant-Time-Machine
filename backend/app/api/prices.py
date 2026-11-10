@@ -1,6 +1,6 @@
 """GET /v1/prices/{ticker}: a security's latest daily bar as known at the knowledge time.
 
-Tiingo's terms allow internal use only (doc/data-sources.md, D2), so every route here
+Tiingo's terms allow internal use only (doc/reference/data-sources.md, D2), so every route here
 answers 403 `prices_restricted` unless the SERVE_RAW_PRICES setting is on. Turn it on
 only on your own machine until display rights are settled.
 """

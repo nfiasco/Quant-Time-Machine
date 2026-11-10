@@ -1,6 +1,6 @@
 #!/bin/sh
 # Uploads the local point-in-time store to the API's Railway volume and swaps it in
-# (S15.1), until ingestion runs on a schedule (S15.5). doc/hosting.md has the details.
+# (S15.1), until ingestion runs on a schedule (S15.5). doc/reference/hosting.md has the details.
 #
 # Needs the Railway CLI signed in as the owner, with an SSH key registered
 # (`railway ssh keys add`), since volume transfers go over SSH, and this repository

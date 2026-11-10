@@ -1,6 +1,6 @@
 # Quant Time Machine: Roadmap and Product Backlog
 
-> **Updated November 8, 2026.** Progress is audited against committed `main` at [`0c32c57`](https://github.com/nfiasco/Quant-Time-Machine/commit/0c32c573b10e802fb1b933eaf7ba4fbd624ce265). Uncommitted, staged, and untracked work is excluded. This remains a planning document for CISC 498 (Fall 2026) and CISC 499 (Spring 2027); future scope and unconfirmed course dates may change.
+> **Updated November 10, 2026.** The November 8 progress audit used committed `main` at [`0c32c57`](https://github.com/nfiasco/Quant-Time-Machine/commit/0c32c573b10e802fb1b933eaf7ba4fbd624ce265). [S9.8](#s98-public-landing-page) was added after that audit using merged PR evidence. Uncommitted, staged, and untracked work is excluded. This remains a planning document for CISC 498 (Fall 2026) and CISC 499 (Spring 2027); future scope and unconfirmed course dates may change.
 >
 > **Team workspace:** [Project](https://github.com/users/nfiasco/projects/2) · [Issues](https://github.com/nfiasco/Quant-Time-Machine/issues) · [Milestones](https://github.com/nfiasco/Quant-Time-Machine/milestones). Issues hold the acceptance criteria, checklists, owners, and discussion. Project views organize those same issues. This roadmap connects the product plan, evidence, and milestone progress; refresh it at each milestone and when scope changes.
 
@@ -10,10 +10,10 @@
 - **CISC 498 (Fall 2026):** point-in-time data layer, deterministic backtester, research API, and web interface. The demo opens the time machine at June 5, 2020, 9:30 AM ET and runs the revenue-growth-plus-momentum backtest from the browser.
 - **CISC 499 (Spring 2027):** MCP tools and an AI research assistant that turns questions into structured experiments, plus look-ahead-bias detection, experiment tracking, strategy comparison, and robustness testing.
 - **Ground rule:** the AI translates; deterministic code calculates. Every number comes from tested code, and every input carries the time it became public.
-- **Size:** 16 epics and 104 stories; 70 are P0 for their semester demo. Sprints are two weeks long; Sprint 1 began Monday, September 28, 2026.
-- **Progress:** 32 Done, 13 In progress (partially delivered), 2 Ready, and 57 Backlog. No implementation is awaiting merge in an open pull request at the audit baseline.
+- **Size:** 16 epics and 105 stories; 70 are P0 for their semester demo. Sprints are two weeks long; Sprint 1 began Monday, September 28, 2026.
+- **Progress:** 33 Done, 11 In progress, 2 In review, 2 Ready, and 57 Backlog. No implementation is awaiting merge in an open pull request at the audit baseline.
 - **Next delivery work:** complete the live Time Machine explorer; build the simulation loop and signals, then portfolio construction, metrics, run records, and the backtest API. Keep the missing account workflow and discovery evidence visible.
-- **Public demo constraint:** raw Tiingo prices remain disabled on the deployed API pending display rights. The landing-page example is static; it is not the live explorer.
+- **Public demo constraint:** raw Tiingo prices remain disabled on the deployed API pending display rights. The [landing-page example](#s98-public-landing-page) is static; it is not the live explorer.
 
 ## Contents
 
@@ -87,7 +87,7 @@ From the team's Problem Exploration:
 | Data | Six macro series with vintages and release times; filing histories and identities; XBRL metrics, quarter derivation/restatements; raw-price ingestion, corporate actions, total returns, and 50-company universe v1 | Combined coverage/delisting handling (S6.7); optional catalog, bulk-data, and universe expansion later |
 | API | `/v1` prices, macro/revisions, filings/latest, fundamentals, snapshot, and catalog routes, with OpenAPI examples and tests | Run submission, background execution, results/audit endpoints (S8.4); generated client/caching (S8.6) |
 | Backtester | Experiment spec v1, JSON Schema, decision/fill schedule, and total-return utilities | Simulation loop, signal calculations, portfolios/costs, performance metrics, run records, audit, and canonical end-to-end run (S7.3–S7.8) |
-| Web | Landing scroll story, app shell, dashboard health check, initial builder form/preset/validation, and sign-in/sign-up UI | Live explorer, catalog-backed builder controls and submission, results, charts, methodology, and real accounts. Most planned routes still render placeholders. |
+| Web | [Public landing page](#s98-public-landing-page), app shell, dashboard health check, initial builder form/preset/validation, and sign-in/sign-up UI | Live explorer, catalog-backed builder controls and submission, results, charts, methodology, and real accounts. Most planned routes still render placeholders. |
 | Accounts | Supabase CLI configuration and auth forms exist | Hosted setup record, migrations, RLS, token verification, real sessions, saved experiments, privacy/account deletion (E16) |
 | Deployment | Railway API and persisted universe-v1 store; Vercel production points to it; upload script and post-deploy smoke workflow are committed | Background-run recovery and resource sizing wait for S8.4; raw-price display remains restricted |
 | Validation | 713 backend tests pass in an isolated export of the audited commit; 52 network/local-data cases are excluded. Committed CI and deployment smoke runs are green. | This does not establish a completed backtester, frontend automated test suite, user research, or account security. |
@@ -230,8 +230,8 @@ Folder names are suggestions. Keep the existing rule that API handlers stay thin
 | Filing history | SEC EDGAR submissions API (`data.sec.gov/submissions/`) | `acceptanceDateTime`, interpreted per company file: preserve true UTC; correct older shifted caches only when supported by the timing checks (S5.3, PR #79) | Free, no key; send a User-Agent with contact details and stay under 10 requests per second | Older filings are paginated; never use `filingDate` or `reportDate` as the availability time |
 | Reported financials | SEC XBRL company facts API (`data.sec.gov/api/xbrl/companyfacts/`) | `filed` date and accession number, joined to the filing's acceptance time | Same as above | XBRL starts in 2009–2011 depending on filer size; tags vary by company and year; the frames API returns last-filed values, so it isn't point-in-time |
 | Bulk backfill (optional) | SEC nightly bulk archives or Financial Statement Data Sets | Acceptance time of each submission | Free downloads | Large files; only needed beyond the starter universe |
-| Daily prices, splits, dividends | Tiingo end-of-day API (D2; see [`doc/data-sources.md`](data-sources.md#daily-prices-decision-d2)). WRDS (CRSP) through UD's Lerner College, for internal validation only | Bar date and session close | Free key: 50 requests per hour, 1,000 per day, 500 symbols per month | Free and Power plans are internal use only, so displaying prices needs permission or a license; delisted coverage is partial (recent delistings yes, few before 2010) |
-| Universe membership | A curated list, `starter_large_caps` (D3; see [`doc/data-sources.md`](data-sources.md#universe-v1-starter_large_caps-decision-d3)), dated by S&P's public announcements | Effective date of each change | Free | Official index membership is proprietary, so we cite announcements for our members only; choosing the members still uses hindsight |
+| Daily prices, splits, dividends | Tiingo end-of-day API (D2; see [`doc/reference/data-sources.md`](reference/data-sources.md#daily-prices-decision-d2)). WRDS (CRSP) through UD's Lerner College, for internal validation only | Bar date and session close | Free key: 50 requests per hour, 1,000 per day, 500 symbols per month | Free and Power plans are internal use only, so displaying prices needs permission or a license; delisted coverage is partial (recent delistings yes, few before 2010) |
+| Universe membership | A curated list, `starter_large_caps` (D3; see [`doc/reference/data-sources.md`](reference/data-sources.md#universe-v1-starter_large_caps-decision-d3)), dated by S&P's public announcements | Effective date of each change | Free | Official index membership is proprietary, so we cite announcements for our members only; choosing the members still uses hindsight |
 | Trading calendar | `exchange_calendars` (or `pandas_market_calendars`) | Not applicable | Open-source library | Early closes and unscheduled closures |
 
 ### 3.4 The experiment spec: where the AI stops and code starts
@@ -263,7 +263,7 @@ Every backtest, whether built in the web form (498) or by the AI assistant (499)
 }
 ```
 
-The model is [`app/backtest/spec.py`](../backend/app/backtest/spec.py), and its JSON Schema is [`experiment-spec-v1.schema.json`](experiment-spec-v1.schema.json) (S7.1). Signals come from a fixed, documented library, not free-form code. When a spec asks for data outside our coverage, for example fundamentals before XBRL existed, the engine rejects it or warns, and says why.
+The model is [`app/backtest/spec.py`](../backend/app/backtest/spec.py), and its JSON Schema is [`experiment-spec-v1.schema.json`](reference/experiment-spec-v1.schema.json) (S7.1). Signals come from a fixed, documented library, not free-form code. When a spec asks for data outside our coverage, for example fundamentals before XBRL existed, the engine rejects it or warns, and says why.
 
 ## 4. Requirements
 
@@ -323,6 +323,7 @@ The model is [`app/backtest/spec.py`](../backend/app/backtest/spec.py), and its 
 | FR-W4 | Backtest builder form with presets, usable without the AI | Must | S9.5 |
 | FR-W5 | Results page with charts, metrics, holdings, assumptions, warnings, and an audit drill-down | Must | S9.6 |
 | FR-W6 | Methodology page explaining timing rules and known limitations | Should | S9.7 |
+| FR-W7 | Public landing page with a static point-in-time example and an entry to the workspace | Should | S9.8 |
 
 #### AI assistant and MCP (FR-AI), CISC 499
 
@@ -388,12 +389,12 @@ The model is [`app/backtest/spec.py`](../backend/app/backtest/spec.py), and its 
 | NFR-4 | Time correctness | Timezone-aware UTC storage, the NYSE calendar, and the bare-date rule applied everywhere | Must | S3.1, S3.5, S4.3, S8.1 |
 | NFR-5 | Performance | Targets to validate: a single as-of API lookup under 300 ms, and the canonical 2010–2025 monthly backtest on the starter universe under 60 s | Should | S3.2, S8.6, S15.2 |
 | NFR-6 | Cost | Runs on free tiers or the course budget; AI spend is capped per session and per day | Must | S1.6, S2.3, S11.1, S11.6, S15.1, S15.6 |
-| NFR-7 | Data terms | Follow SEC fair-access rules, FRED terms, and the price source's terms; never commit raw datasets; don't redistribute restricted data | Must | S1.3, S2.3, S3.4, S6.1 |
+| NFR-7 | Data terms | Follow SEC fair-access rules, FRED terms, and the price source's terms; never commit raw datasets; don't redistribute restricted data | Must | S1.3, S2.3, S3.4, S6.1, S9.8 |
 | NFR-8 | Security | Secrets live only in environment variables, never in the repo or the browser bundle; AI endpoints are protected before public launch | Must | S1.3, S1.5, S11.6, S15.1, S15.6, S15.7 |
 | NFR-9 | Maintainability | CI lint, format, test, and build on every PR; review before merge; docs for each module | Must | S1.1, S1.2, S1.4, S15.5, S15.9 |
 | NFR-10 | Usability | A first-time user runs the canonical example from the UI within 5 minutes, without reading code | Should | S2.1, S2.4, S15.3, S15.8 |
 | NFR-11 | Onboarding | A new teammate can set up and run the tests in under 30 minutes, using the READMEs and fixture data (no API keys needed) | Should | S1.5, S3.6, S15.9 |
-| NFR-12 | Accessibility | Keyboard-usable forms, sufficient contrast, and a layout that works at tablet width | Could | S15.3 |
+| NFR-12 | Accessibility | Keyboard-usable forms, sufficient contrast, and a layout that works at tablet width | Could | S9.8, S15.3 |
 
 ## 5. Roadmap
 
@@ -431,7 +432,7 @@ Targets are retained from the committed plan. A passed target does not close inc
 | --- | --- | --- | --- | --- |
 | [M0](https://github.com/nfiasco/Quant-Time-Machine/milestone/13) | Foundation | Sep 27, 2026 | 0/1 | **In progress.** Scaffold is present; frontend test/format gates remain in S1.1. |
 | [M1](https://github.com/nfiasco/Quant-Time-Machine/milestone/14) | Decisions and discovery | Oct 11, 2026 | 5/10 | **In progress.** Board setup and metadata automation are complete. Planning ownership, license/key follow-up, one-review protection, WRDS/team review, and time-model ratification remain; interviews must also be underway for the exit criterion. |
-| [M2](https://github.com/nfiasco/Quant-Time-Machine/milestone/4) | Walking skeleton | Oct 25, 2026 | 13/17 | **In progress.** Core data/API work is merged; live June 5 page, comparison/evaluation work, and Supabase setup remain. S2.4 needs the S2.1 interview baseline from M3. |
+| [M2](https://github.com/nfiasco/Quant-Time-Machine/milestone/4) | Walking skeleton | Oct 25, 2026 | 14/18 | **In progress.** Core data/API work and the public landing page are merged; live June 5 page, comparison/evaluation work, and Supabase setup remain. S2.4 needs the S2.1 interview baseline from M3. |
 | [M3](https://github.com/nfiasco/Quant-Time-Machine/milestone/5) | Point-in-time data v1 | Nov 8, 2026 | 13/16 | **In progress.** Data v1, golden tests, spec/schedule, snapshot, and catalogs are merged; interviews, live explorer, and account schema remain. |
 | [M4](https://github.com/nfiasco/Quant-Time-Machine/milestone/15) | Backtester v1 | Nov 22, 2026 | 0/11 | **In progress.** Spec/schedule prerequisites are ready; the simulation, signal, portfolio, metric, run/audit, and API delivery chain remains. |
 | [M5](https://github.com/nfiasco/Quant-Time-Machine/milestone/6) | Web UI and CISC 498 demo | Dec 2026, per the course calendar | 1/11 | **In progress.** Railway deployment is complete; builder integration, results, methodology, usability, accounts, and course delivery remain. |
@@ -480,6 +481,8 @@ Stories that span several sprints appear in each one. **Load** is the sum of siz
 | 11 | Apr 5 – Apr 18 | M8 | Bias delta, lint rules, bias UI, export, sweeps | S12.3, S12.4, S12.5, S12.6, S13.4, S14.2 | ~24 h |
 | 12 | Apr 19 – May 2 | M9 | Comparison, sweeps, stress tests, robustness report, security review, second usability test | S14.1, S14.2, S14.3, S14.4, S14.5, S15.7, S15.8 | ~42 h |
 | 13 | May 3 – May 16 | M10 | Docs, release, showcase | S15.9, S15.10 | ~12 h |
+
+[S9.8](#s98-public-landing-page) was outside the original sprint allocations. It shipped in Sprint 3 under M2, the milestone used by its implementation PRs.
 
 Spring break will fall somewhere in Sprints 9–11; shift the dates once the calendar is out.
 
@@ -549,7 +552,7 @@ Never cut point-in-time enforcement (S3.3), the golden tests (S3.6), or determin
 Use the existing [Quant Time Machine project](https://github.com/users/nfiasco/projects/2) for both semesters. Multiple views give the team different perspectives without duplicating work across boards.
 
 - **Epic:** one `epic` issue with its goal, exit criteria, and story roll-up. Each of the 16 epics stays open until all its stories, including optional later work, are complete.
-- **Story or spike:** one issue per stable roadmap ID (`S3.7`, for example), with acceptance criteria, tasks, evidence, a parent epic, and one milestone. All 104 stories are represented.
+- **Story or spike:** one issue per stable roadmap ID (`S3.7`, for example), with acceptance criteria, tasks, evidence, a parent epic, and one milestone. All 105 stories are represented.
 - **Task:** a checklist item inside its story. Split a partly finished task into completed groundwork and the actual remaining work; do not check off the whole feature.
 - **Bug:** a `bug` issue linked to the affected story. Keep it on the same project.
 - **History:** earlier completed or overlapping trackers retain their discussion and point to the canonical issue. The `historical` label and archived project items keep them out of delivery views.
@@ -603,7 +606,7 @@ Issues and Projects are complementary: the issue is the work record; the project
 - Use one focused branch per story, following existing conventions such as `feature/s4-4-macro-as-of`. A PR closes the issue only when it satisfies the whole story; partial PRs say `Refs #<issue>`.
 - Update the task checklist with each merged PR. Move to Done only after the remaining acceptance criteria are verified.
 - Keep Priority and Size current, select the planned finishing iteration, and keep one milestone per story. Epics span milestones and do not duplicate milestone progress.
-- Keep at most two active stories per person. Completed-story assignees follow [verified contributions](contribution-history.md); future assignments need the team's planning decision. A merger is not automatically the implementer.
+- Keep at most two active stories per person. Completed-story assignees follow [verified contributions](project/contribution-history.md); future assignments need the team's planning decision. A merger is not automatically the implementer.
 - Built-in project workflows add repository issues, PRs, and sub-issues, excluding historical trackers. New and reopened items enter Backlog; closed issues move to Done. Set In review when the remaining scope is ready for review. The unconditional PR-linked status workflow is disabled because adding historical links moved completed issues backwards. Move an issue to Done only after its acceptance criteria are met, because the existing auto-close workflow closes issues in Done.
 
 ### 6.6 Definition of Ready and Done
@@ -625,7 +628,7 @@ Issues and Projects are complementary: the issue is the work record; the project
 
 Use the repository's story, spike, and bug templates. Add a stable ID, parent epic, area and priority labels, milestone, project fields, and a concise task checklist. Keep acceptance criteria in the issue and roadmap aligned when scope changes. Preserve completed work and evidence rather than deleting useful history. Assign each PR its primary delivery milestone and retain related-issue links. Keep historical trackers and spanning epics unmilestoned. Use story-only counts for roadmap progress because GitHub milestone totals also include PRs.
 
-The [team workflow](github-workflow.md) defines PR requirements, small-maintenance exceptions, issue forms, and automation. GitHub can enforce metadata before merge; the PR template cannot make fields mandatory before initial creation.
+The [team workflow](project/github-workflow.md) defines PR requirements, small-maintenance exceptions, issue forms, and automation. GitHub can enforce metadata before merge; the PR template cannot make fields mandatory before initial creation.
 
 The November 8 reconciliation retained the repository's existing project and matching issue numbers, created missing stories/epics, and consolidated overlapping trackers. Empty account-level projects with no repository link were outside this repository cleanup.
 
@@ -695,6 +698,7 @@ Every story in one table. Verified contributors are listed for completed stories
 | [S9.5](#s95-backtest-builder) | Backtest builder | E9 | P0 | L | 5 | M5 | In progress | [#33](https://github.com/nfiasco/Quant-Time-Machine/issues/33) | See issue |
 | [S9.6](#s96-backtest-results-page) | Backtest results page | E9 | P0 | L | 5 | M5 | Backlog | [#34](https://github.com/nfiasco/Quant-Time-Machine/issues/34) | See issue |
 | [S9.7](#s97-methodology-page) | Methodology page | E9 | P1 | S | 5 | M5 | Backlog | [#151](https://github.com/nfiasco/Quant-Time-Machine/issues/151) | See issue |
+| [S9.8](#s98-public-landing-page) | Public landing page | E9 | P1 | M | 3 | M2 | ✅ Done | [#203](https://github.com/nfiasco/Quant-Time-Machine/issues/203) | [iguy1](https://github.com/iguy1), [nfiasco](https://github.com/nfiasco) |
 | [S10.1](#s101-spike-mcp-server-setup) | Spike: MCP server setup | E10 | P0 | S | 7 | M6 | Backlog | [#152](https://github.com/nfiasco/Quant-Time-Machine/issues/152) | See issue |
 | [S10.2](#s102-data-tools) | Data tools | E10 | P0 | M | 7–8 | M7 | Backlog | [#153](https://github.com/nfiasco/Quant-Time-Machine/issues/153) | See issue |
 | [S10.3](#s103-time-locked-sessions) | Time-locked sessions | E10 | P1 | M | 8 | M7 | Backlog | [#154](https://github.com/nfiasco/Quant-Time-Machine/issues/154) | See issue |
@@ -754,7 +758,7 @@ Each story starts with a metadata line: priority, size, sprint, milestone, area,
 | [E6. Market prices, corporate actions, and universe](#e6-market-prices-corporate-actions-and-universe) | Honest daily prices and returns for a universe that reflects what existed at the time | 498 + 499 | M1–M4, M6 | 7 | 5 | 5/7 | In progress | [#101](https://github.com/nfiasco/Quant-Time-Machine/issues/101) |
 | [E7. Deterministic backtesting engine v1](#e7-deterministic-backtesting-engine-v1) | Turn a structured experiment into reproducible results using only point-in-time data | 498 | M3–M4 | 8 | 8 | 2/8 | In progress | [#14](https://github.com/nfiasco/Quant-Time-Machine/issues/14) |
 | [E8. Research API](#e8-research-api) | Expose point-in-time data and backtests over HTTP for the web app, and later for the MCP server | 498 | M2–M5 | 6 | 5 | 4/6 | In progress | [#102](https://github.com/nfiasco/Quant-Time-Machine/issues/102) |
-| [E9. Web interface v1](#e9-web-interface-v1) | Make point-in-time research visible and usable without writing code | 498 | M2–M5 | 7 | 4 | 0/7 | In progress | [#15](https://github.com/nfiasco/Quant-Time-Machine/issues/15) |
+| [E9. Web interface v1](#e9-web-interface-v1) | Make point-in-time research visible and usable without writing code | 498 | M2–M5 | 8 | 4 | 1/8 | In progress | [#15](https://github.com/nfiasco/Quant-Time-Machine/issues/15) |
 | [E10. MCP server: point-in-time tools](#e10-mcp-server-point-in-time-tools) | Let AI clients use the data and engine only through safe, time-bounded tools | 499 | M6–M7 | 5 | 4 | 0/5 | Backlog | [#103](https://github.com/nfiasco/Quant-Time-Machine/issues/103) |
 | [E11. AI research assistant](#e11-ai-research-assistant) | Turn research questions into structured, confirmed experiments, while the engine does the math | 499 | M6–M8 | 8 | 7 | 0/8 | Backlog | [#104](https://github.com/nfiasco/Quant-Time-Machine/issues/104) |
 | [E12. Look-ahead-bias detection](#e12-look-ahead-bias-detection) | Prove, rather than promise, that a result didn't see the future, and show how much look-ahead would have changed it | 499 | M8 | 6 | 3 | 0/6 | Backlog | [#16](https://github.com/nfiasco/Quant-Time-Machine/issues/16) |
@@ -811,14 +815,14 @@ Each story starts with a metadata line: priority, size, sprint, milestone, area,
 
 - [x] Align labels and milestones M0–M10 with the roadmap and verify milestone totals
 - [x] Configure the shared Project, planning fields, iteration calendar, and 10 focused views, including Story backlog, Bug tracker, and Pull requests
-- [x] Connect all 16 epics and 104 stories through canonical issues and parent/sub-issue links
+- [x] Connect the 16 epics and 104 stories from the original reconciliation through canonical issues and parent/sub-issue links
 - [x] Reconcile historical PR titles, descriptions, assignees, labels, milestones, and issue/project links without changing merge or closure history
 - [x] Verify all 32 completed-story contributors against authored commits and merged PRs; record the unresolved PR #94 account mapping separately
 - [x] Verify seven native workflows for intake and lifecycle status; disable the unconditional PR-linked transition and restore completed stories to Done
 - [x] Publish the team workflow and contribution-history guide
 - [ ] Record the team's planning outcome: owners for selected open work, carry-over decisions, and agreed iteration assignments
 
-**Progress evidence (2026-11-09):** The cleanup and board configuration are complete in [PR #191](https://github.com/nfiasco/Quant-Time-Machine/pull/191), [PR #192](https://github.com/nfiasco/Quant-Time-Machine/pull/192), [PR #193](https://github.com/nfiasco/Quant-Time-Machine/pull/193), and [PR #194](https://github.com/nfiasco/Quant-Time-Machine/pull/194). The original 57 closed PRs were reconciled, 27 completed-story assignments were corrected, and project statuses and milestone totals were verified. The [team workflow](github-workflow.md) and [contribution audit](contribution-history.md) record the result. Open-work planning has no committed confirmation, so S1.2 remains In progress; setup work does not need to be repeated.
+**Progress evidence (2026-11-09):** The cleanup and board configuration are complete in [PR #191](https://github.com/nfiasco/Quant-Time-Machine/pull/191), [PR #192](https://github.com/nfiasco/Quant-Time-Machine/pull/192), [PR #193](https://github.com/nfiasco/Quant-Time-Machine/pull/193), and [PR #194](https://github.com/nfiasco/Quant-Time-Machine/pull/194). The original 57 closed PRs were reconciled, 27 completed-story assignments were corrected, and project statuses and milestone totals were verified. The [team workflow](project/github-workflow.md) and [contribution audit](project/contribution-history.md) record the result. Open-work planning has no committed confirmation, so S1.2 remains In progress; setup work does not need to be repeated.
 
 **Remaining completion criterion:** Commit the planning decisions and reflect the confirmed owners/iterations on the selected issues. PR #94's account mapping remains a separate historical ownership question; its existing assignment is retained.
 
@@ -900,7 +904,7 @@ Each story starts with a metadata line: priority, size, sprint, milestone, area,
 
 **Progress evidence (2026-11-08):** Typed settings, example environments, shared API configuration, and fixture-only CI are committed. Evidence: [PR #44](https://github.com/nfiasco/Quant-Time-Machine/pull/44), [PR #73](https://github.com/nfiasco/Quant-Time-Machine/pull/73), `backend/app/config.py`, `backend/.env.example`, `frontend/.env.example`, `frontend/lib/api/client.ts`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#112](https://github.com/nfiasco/Quant-Time-Machine/issues/112) · **Parent epic:** [#97](https://github.com/nfiasco/Quant-Time-Machine/issues/97)
 
@@ -921,11 +925,11 @@ Each story starts with a metadata line: priority, size, sprint, milestone, area,
 - [x] Estimate the data size for the starter universe: 65,829 rows in 1.2 MB of Parquet for the M2 set, and well under 1 GB for 100 securities with XBRL facts
 - [x] Deploy the `/health` app to the top candidate: the original Fly.io trial was measured; the committed Railway follow-up supersedes it (PR #95, D4)
 - [x] Check how long-running backtests would work there: minutes at full speed and over an hour on a throttled shared CPU, so they run in the background (S8.4) with batched reads
-- [x] Record the decision and next steps for S15.1, in [`doc/hosting.md`](hosting.md)
+- [x] Record the decision and next steps for S15.1, in [`doc/reference/hosting.md`](reference/hosting.md)
 
-**Progress evidence (2026-11-08):** The hosting comparison and D4 are committed. Railway replaced the historical Fly.io trial; deployment is tracked separately in S15.1. Evidence: [PR #71](https://github.com/nfiasco/Quant-Time-Machine/pull/71), [PR #95](https://github.com/nfiasco/Quant-Time-Machine/pull/95), `backend/spikes/hosting.py`, `backend/spikes/host_compare/run.py`, `doc/hosting.md`.
+**Progress evidence (2026-11-08):** The hosting comparison and D4 are committed. Railway replaced the historical Fly.io trial; deployment is tracked separately in S15.1. Evidence: [PR #71](https://github.com/nfiasco/Quant-Time-Machine/pull/71), [PR #95](https://github.com/nfiasco/Quant-Time-Machine/pull/95), `backend/spikes/hosting.py`, `backend/spikes/host_compare/run.py`, `doc/reference/hosting.md`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#113](https://github.com/nfiasco/Quant-Time-Machine/issues/113) · **Parent epic:** [#97](https://github.com/nfiasco/Quant-Time-Machine/issues/97)
 
@@ -994,18 +998,18 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Acceptance criteria**
 
-- `doc/data-sources.md` covers each source: coverage, point-in-time fields, rate limits, cost, and terms (can we display it, redistribute it, or use it in a public app?).
+- `doc/reference/data-sources.md` covers each source: coverage, point-in-time fields, rate limits, cost, and terms (can we display it, redistribute it, or use it in a public app?).
 - It flags known gaps: delisted companies, historical index membership, and fundamentals before XBRL.
 - We've asked whether the university provides WRDS (CRSP) access for student projects, and recorded the answer and any license limits.
 
 **Tasks**
 
-- [x] Combine the findings from spikes S4.1, S5.1, and S6.1 in [`doc/data-sources.md`](data-sources.md)
+- [x] Combine the findings from spikes S4.1, S5.1, and S6.1 in [`doc/reference/data-sources.md`](reference/data-sources.md)
 - [x] Read and summarize each source's terms of use
 - [ ] Ask the library or business school about WRDS access. What UD publishes is recorded: WRDS through the Lerner College, including CRSP. The questions to ask are listed in the memo.
 - [ ] Review the memo as a team
 
-**Progress evidence (2026-11-08):** Source coverage, terms, limitations, and published UD WRDS information are documented. A direct university response and the team review are not recorded as completed. Evidence: [PR #44](https://github.com/nfiasco/Quant-Time-Machine/pull/44), `doc/data-sources.md`.
+**Progress evidence (2026-11-08):** Source coverage, terms, limitations, and published UD WRDS information are documented. A direct university response and the team review are not recorded as completed. Evidence: [PR #44](https://github.com/nfiasco/Quant-Time-Machine/pull/44), `doc/reference/data-sources.md`.
 
 **GitHub:** [#116](https://github.com/nfiasco/Quant-Time-Machine/issues/116) · **Parent epic:** [#98](https://github.com/nfiasco/Quant-Time-Machine/issues/98)
 
@@ -1068,18 +1072,18 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Acceptance criteria**
 
-- The conventions in [§2.2](#22-conventions) are reviewed by the whole team, adjusted, and saved as `doc/time-model.md`.
+- The conventions in [§2.2](#22-conventions) are reviewed by the whole team, adjusted, and saved as `doc/reference/time-model.md`.
 - Each rule has a worked example; the June 5, 2020 table in [§2.3](#23-example-june-5-2020-at-930-am-et) is one.
 - Default decision and fill timing chosen (D5).
 
 **Tasks**
 
-- [ ] Walk through [§2.2](#22-conventions) as a team and settle open questions. The open questions are listed at the end of [`doc/time-model.md`](time-model.md).
-- [x] Write `doc/time-model.md` with an example for each source
+- [ ] Walk through [§2.2](#22-conventions) as a team and settle open questions. The open questions are listed at the end of [`doc/reference/time-model.md`](reference/time-model.md).
+- [x] Write `doc/reference/time-model.md` with an example for each source
 - [x] Turn each rule into a named test case for S3.6
 - [x] Choose the default decision and fill timing: 09:30 ET decision, same-day close fill (D5)
 
-**Progress evidence (2026-11-08):** The time model, examples, decisions, and named tests are committed. Whole-team ratification is still marked pending in the committed decision log. Evidence: [PR #44](https://github.com/nfiasco/Quant-Time-Machine/pull/44), [PR #53](https://github.com/nfiasco/Quant-Time-Machine/pull/53), [PR #79](https://github.com/nfiasco/Quant-Time-Machine/pull/79), `doc/time-model.md`.
+**Progress evidence (2026-11-08):** The time model, examples, decisions, and named tests are committed. Whole-team ratification is still marked pending in the committed decision log. Evidence: [PR #44](https://github.com/nfiasco/Quant-Time-Machine/pull/44), [PR #53](https://github.com/nfiasco/Quant-Time-Machine/pull/53), [PR #79](https://github.com/nfiasco/Quant-Time-Machine/pull/79), `doc/reference/time-model.md`.
 
 **GitHub:** [#119](https://github.com/nfiasco/Quant-Time-Machine/issues/119) · **Parent epic:** [#13](https://github.com/nfiasco/Quant-Time-Machine/issues/13)
 
@@ -1099,11 +1103,11 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 - [x] Generate synthetic data
 - [x] Write and time the as-of query in each candidate ([`backend/spikes/storage_benchmark.py`](../backend/spikes/storage_benchmark.py))
-- [x] Record the decision with a short example for the team ([`doc/storage.md`](storage.md))
+- [x] Record the decision with a short example for the team ([`doc/reference/storage.md`](reference/storage.md))
 
-**Progress evidence (2026-11-08):** The million-row comparison, as-of queries, measurements, and Parquet/DuckDB decision are committed. Evidence: [PR #44](https://github.com/nfiasco/Quant-Time-Machine/pull/44), `backend/spikes/storage_benchmark.py`, `doc/storage.md`.
+**Progress evidence (2026-11-08):** The million-row comparison, as-of queries, measurements, and Parquet/DuckDB decision are committed. Evidence: [PR #44](https://github.com/nfiasco/Quant-Time-Machine/pull/44), `backend/spikes/storage_benchmark.py`, `doc/reference/storage.md`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#20](https://github.com/nfiasco/Quant-Time-Machine/issues/20) · **Parent epic:** [#13](https://github.com/nfiasco/Quant-Time-Machine/issues/13)
 
@@ -1130,7 +1134,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** Typed reads enforce knowledge time, reject look-ahead, record access, and exclude canary rows; fixture tests cover the contract. Evidence: [PR #57](https://github.com/nfiasco/Quant-Time-Machine/pull/57), `backend/app/data/view.py`, `backend/tests/test_view.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#27](https://github.com/nfiasco/Quant-Time-Machine/issues/27) · **Parent epic:** [#13](https://github.com/nfiasco/Quant-Time-Machine/issues/13)
 
@@ -1156,7 +1160,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** The append-only writer, provenance, rate-limited client, raw response cache, ingestion CLI, tests, and usage docs are committed. Evidence: [PR #56](https://github.com/nfiasco/Quant-Time-Machine/pull/56), [PR #58](https://github.com/nfiasco/Quant-Time-Machine/pull/58), `backend/app/data/http.py`, `backend/app/data/raw_cache.py`, `backend/app/data/store.py`, `backend/app/data/ingest.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#120](https://github.com/nfiasco/Quant-Time-Machine/issues/120) · **Parent epic:** [#13](https://github.com/nfiasco/Quant-Time-Machine/issues/13)
 
@@ -1179,7 +1183,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** The NYSE wrapper and holiday, Sandy-closure, and early-close tests are committed and used by ingestion and scheduling. Evidence: [PR #55](https://github.com/nfiasco/Quant-Time-Machine/pull/55), `backend/app/data/calendar.py`, `backend/tests/test_calendar.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#121](https://github.com/nfiasco/Quant-Time-Machine/issues/121) · **Parent epic:** [#13](https://github.com/nfiasco/Quant-Time-Machine/issues/13)
 
@@ -1203,7 +1207,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** Fixture loading, sourced golden values, June 5 snapshot cases, restatements, future-row canaries, and network/local-data exclusions are committed. The isolated committed snapshot passes 713 tests; 52 network/local-data cases are deselected. Evidence: [PR #57](https://github.com/nfiasco/Quant-Time-Machine/pull/57), [PR #82](https://github.com/nfiasco/Quant-Time-Machine/pull/82), [PR #91](https://github.com/nfiasco/Quant-Time-Machine/pull/91), `backend/tests/fixture_loader.py`, `backend/tests/fixtures/README.md`, `backend/tests/test_macro.py`, `backend/tests/test_api_snapshot.py`, `backend/pyproject.toml`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#21](https://github.com/nfiasco/Quant-Time-Machine/issues/21) · **Parent epic:** [#13](https://github.com/nfiasco/Quant-Time-Machine/issues/13)
 
@@ -1227,7 +1231,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** Manifests, pinned reads, file-integrity checks, API version echoes, and pinning tests are merged. Evidence: [PR #76](https://github.com/nfiasco/Quant-Time-Machine/pull/76), `backend/app/data/versions.py`, `backend/tests/test_versions.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#122](https://github.com/nfiasco/Quant-Time-Machine/issues/122) · **Parent epic:** [#13](https://github.com/nfiasco/Quant-Time-Machine/issues/13)
 
@@ -1258,9 +1262,9 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 - [x] Write up the findings for the data-sources memo (S2.3)
 - [x] Fix the research notebook's "vintage" query, which passed a parameter FRED ignores and returned revised data
 
-**Progress evidence (2026-11-08):** The vintage spike and first-print/revised UNRATE findings are committed. Evidence: [PR #44](https://github.com/nfiasco/Quant-Time-Machine/pull/44), `backend/spikes/alfred.py`, `doc/data-sources.md`.
+**Progress evidence (2026-11-08):** The vintage spike and first-print/revised UNRATE findings are committed. Evidence: [PR #44](https://github.com/nfiasco/Quant-Time-Machine/pull/44), `backend/spikes/alfred.py`, `doc/reference/data-sources.md`.
 
-**Verified contributors (2026-11-09):** [ElijahJeu](https://github.com/ElijahJeu), [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [ElijahJeu](https://github.com/ElijahJeu), [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#18](https://github.com/nfiasco/Quant-Time-Machine/issues/18) · **Parent epic:** [#99](https://github.com/nfiasco/Quant-Time-Machine/issues/99)
 
@@ -1286,7 +1290,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** All six starter series, vintage normalization, metadata, missing-value handling, and idempotency tests are committed. Evidence: [PR #60](https://github.com/nfiasco/Quant-Time-Machine/pull/60), `backend/app/data/sources/alfred.py`, `backend/app/data/sources/alfred_series.toml`, `backend/tests/test_alfred.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#123](https://github.com/nfiasco/Quant-Time-Machine/issues/123) · **Parent epic:** [#99](https://github.com/nfiasco/Quant-Time-Machine/issues/99)
 
@@ -1312,7 +1316,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** Release mappings, scheduled times, conservative defaults, and pre/post-release tests are committed. Evidence: [PR #61](https://github.com/nfiasco/Quant-Time-Machine/pull/61), `backend/app/data/sources/alfred_series.toml`, `backend/tests/test_alfred.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#124](https://github.com/nfiasco/Quant-Time-Machine/issues/124) · **Parent epic:** [#99](https://github.com/nfiasco/Quant-Time-Machine/issues/99)
 
@@ -1336,7 +1340,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** Both macro as-of methods and first-release/revision golden tests are merged. Evidence: [PR #62](https://github.com/nfiasco/Quant-Time-Machine/pull/62), `backend/app/data/view.py`, `backend/tests/test_macro.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#125](https://github.com/nfiasco/Quant-Time-Machine/issues/125) · **Parent epic:** [#99](https://github.com/nfiasco/Quant-Time-Machine/issues/99)
 
@@ -1358,7 +1362,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** Revision-history queries and the HTTP route are merged and tested. Evidence: [PR #89](https://github.com/nfiasco/Quant-Time-Machine/pull/89), `backend/app/data/view.py`, `backend/app/api/macro.py`, `backend/tests/test_api_macro.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#126](https://github.com/nfiasco/Quant-Time-Machine/issues/126) · **Parent epic:** [#99](https://github.com/nfiasco/Quant-Time-Machine/issues/99)
 
@@ -1409,9 +1413,9 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 - [x] Check one filing's acceptance time against its EDGAR index page. Three were checked, plus every Apple filing against the 5:30 PM filing-date rule. Finding: the JSON's `acceptanceDateTime` runs ahead of the true time by the Eastern UTC offset, so ingestion must correct it.
 - [x] Write up the findings for S2.3
 
-**Progress evidence (2026-11-08):** The EDGAR spike and timing investigation are committed. Later corrections preserve true-UTC files and handle older shifted caches (S5.3). Evidence: [PR #44](https://github.com/nfiasco/Quant-Time-Machine/pull/44), `backend/spikes/edgar.py`, `doc/data-sources.md`.
+**Progress evidence (2026-11-08):** The EDGAR spike and timing investigation are committed. Later corrections preserve true-UTC files and handle older shifted caches (S5.3). Evidence: [PR #44](https://github.com/nfiasco/Quant-Time-Machine/pull/44), `backend/spikes/edgar.py`, `doc/reference/data-sources.md`.
 
-**Verified contributors (2026-11-09):** [ElijahJeu](https://github.com/ElijahJeu), [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [ElijahJeu](https://github.com/ElijahJeu), [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#19](https://github.com/nfiasco/Quant-Time-Machine/issues/19) · **Parent epic:** [#100](https://github.com/nfiasco/Quant-Time-Machine/issues/100)
 
@@ -1436,7 +1440,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** SEC ticker snapshots, curated historical identities, share classes, and the time-aware resolver are merged. Evidence: [PR #63](https://github.com/nfiasco/Quant-Time-Machine/pull/63), `backend/app/data/sources/securities.py`, `backend/app/data/sources/securities.toml`, `backend/tests/test_securities.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#128](https://github.com/nfiasco/Quant-Time-Machine/issues/128) · **Parent epic:** [#100](https://github.com/nfiasco/Quant-Time-Machine/issues/100)
 
@@ -1462,7 +1466,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** Filing normalization, pagination, amendments, idempotency, and per-file timestamp interpretation are merged. Evidence: [PR #68](https://github.com/nfiasco/Quant-Time-Machine/pull/68), [PR #79](https://github.com/nfiasco/Quant-Time-Machine/pull/79), `backend/app/data/sources/edgar.py`, `backend/tests/test_edgar.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#129](https://github.com/nfiasco/Quant-Time-Machine/issues/129) · **Parent epic:** [#100](https://github.com/nfiasco/Quant-Time-Machine/issues/100)
 
@@ -1486,7 +1490,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** Latest/list filing reads, form-family filters, amendment behavior, and golden cases are merged. Evidence: [PR #69](https://github.com/nfiasco/Quant-Time-Machine/pull/69), `backend/app/data/view.py`, `backend/tests/test_filings.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#130](https://github.com/nfiasco/Quant-Time-Machine/issues/130) · **Parent epic:** [#100](https://github.com/nfiasco/Quant-Time-Machine/issues/100)
 
@@ -1510,7 +1514,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** Company-facts ingestion keeps distinct versions, joins acceptance times, uses a flagged conservative fallback, and has fixture tests. Evidence: [PR #80](https://github.com/nfiasco/Quant-Time-Machine/pull/80), [PR #84](https://github.com/nfiasco/Quant-Time-Machine/pull/84), `backend/app/data/sources/xbrl.py`, `backend/tests/test_xbrl.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#131](https://github.com/nfiasco/Quant-Time-Machine/issues/131) · **Parent epic:** [#100](https://github.com/nfiasco/Quant-Time-Machine/issues/100)
 
@@ -1531,11 +1535,11 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 - [x] Write the mapping config: [`sources/metrics.toml`](../backend/app/data/sources/metrics.toml), six metrics, with JPMorgan's revenue override
 - [x] Implement the resolution logic: [`app/data/fundamentals.py`](../backend/app/data/fundamentals.py); for each period, the first concept with a value, which comes with it
 - [x] Test companies whose tags changed around the 2018 revenue-recognition switch (ASC 606): Microsoft's quarter ended March 31, 2018, and JPMorgan's recast 2014
-- [x] Generate the coverage report: `uv run python -m app.data.coverage`, with the first full load's results in [`doc/data-sources.md`](data-sources.md#sec-xbrl-reported-financials-company-facts)
+- [x] Generate the coverage report: `uv run python -m app.data.coverage`, with the first full load's results in [`doc/reference/data-sources.md`](reference/data-sources.md#sec-xbrl-reported-financials-company-facts)
 
 **Progress evidence (2026-11-08):** Six standard metrics, company overrides, concept resolution, ASC 606 cases, and fundamentals coverage are merged. Evidence: [PR #81](https://github.com/nfiasco/Quant-Time-Machine/pull/81), [PR #84](https://github.com/nfiasco/Quant-Time-Machine/pull/84), `backend/app/data/sources/metrics.toml`, `backend/app/data/fundamentals.py`, `backend/app/data/coverage.py`, `backend/tests/test_coverage.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#132](https://github.com/nfiasco/Quant-Time-Machine/issues/132) · **Parent epic:** [#100](https://github.com/nfiasco/Quant-Time-Machine/issues/100)
 
@@ -1561,7 +1565,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** Quarter classification, Q2/Q3/Q4 derivation, filing-time restatements, provenance, and fiscal-year edge cases are merged. Evidence: [PR #82](https://github.com/nfiasco/Quant-Time-Machine/pull/82), `backend/app/data/fundamentals.py`, `backend/tests/test_fundamentals.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#133](https://github.com/nfiasco/Quant-Time-Machine/issues/133) · **Parent epic:** [#100](https://github.com/nfiasco/Quant-Time-Machine/issues/100)
 
@@ -1612,9 +1616,9 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 - [x] Review each candidate's terms of use
 - [x] Record the decision: Tiingo (D2). The test pull confirmed raw prices, splits, and dividends; delisted coverage is partial (Twitter yes, Lehman no).
 
-**Progress evidence (2026-11-08):** Price candidates, test pulls, terms, and the Tiingo decision are documented. Production raw-price display remains disabled pending rights; choosing the source does not resolve that restriction. Evidence: [PR #44](https://github.com/nfiasco/Quant-Time-Machine/pull/44), `backend/spikes/prices.py`, `doc/data-sources.md`.
+**Progress evidence (2026-11-08):** Price candidates, test pulls, terms, and the Tiingo decision are documented. Production raw-price display remains disabled pending rights; choosing the source does not resolve that restriction. Evidence: [PR #44](https://github.com/nfiasco/Quant-Time-Machine/pull/44), `backend/spikes/prices.py`, `doc/reference/data-sources.md`.
 
-**Verified contributors (2026-11-09):** [ElijahJeu](https://github.com/ElijahJeu), [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [ElijahJeu](https://github.com/ElijahJeu), [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#17](https://github.com/nfiasco/Quant-Time-Machine/issues/17) · **Parent epic:** [#101](https://github.com/nfiasco/Quant-Time-Machine/issues/101)
 
@@ -1640,7 +1644,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** Raw bars, separate corporate actions, calendar alignment, SPY, missing-session warnings, and incremental ingestion are merged. Evidence: [PR #66](https://github.com/nfiasco/Quant-Time-Machine/pull/66), `backend/app/data/sources/tiingo.py`, `backend/app/data/sources/prices.py`, `backend/tests/test_prices_ingest.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#135](https://github.com/nfiasco/Quant-Time-Machine/issues/135) · **Parent epic:** [#101](https://github.com/nfiasco/Quant-Time-Machine/issues/101)
 
@@ -1663,7 +1667,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** Price and history reads, holiday/early-close behavior, and future-row protection are merged. Evidence: [PR #67](https://github.com/nfiasco/Quant-Time-Machine/pull/67), `backend/app/data/view.py`, `backend/tests/test_prices.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#136](https://github.com/nfiasco/Quant-Time-Machine/issues/136) · **Parent epic:** [#101](https://github.com/nfiasco/Quant-Time-Machine/issues/101)
 
@@ -1683,11 +1687,11 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 - [x] Write the return calculator: [`app/backtest/returns.py`](../backend/app/backtest/returns.py), daily and monthly, with split factors such as 7.000007 rounded to the ratio they stand for
 - [x] Write the reconciliation test: [`tests/test_returns_vs_tiingo.py`](../backend/tests/test_returns_vs_tiingo.py) checks the 43 curated securities that trade today against Tiingo's adjusted closes, locally (`-m local_data`), within 10⁻⁶; CI checks made-up bars ([`tests/test_returns.py`](../backend/tests/test_returns.py))
-- [x] Explain the approach briefly in `doc/time-model.md`: [rule 4](time-model.md#4-a-daily-price-bar-is-known-at-its-sessions-close)
+- [x] Explain the approach briefly in `doc/reference/time-model.md`: [rule 4](reference/time-model.md#4-a-daily-price-bar-is-known-at-its-sessions-close)
 
 **Progress evidence (2026-11-08):** Daily/monthly raw-price total returns, hand-checkable fixtures, and the local vendor reconciliation test are merged. The vendor reconciliation is not run by offline CI. Evidence: [PR #85](https://github.com/nfiasco/Quant-Time-Machine/pull/85), `backend/app/backtest/returns.py`, `backend/tests/test_returns.py`, `backend/tests/test_returns_vs_tiingo.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#137](https://github.com/nfiasco/Quant-Time-Machine/issues/137) · **Parent epic:** [#101](https://github.com/nfiasco/Quant-Time-Machine/issues/101)
 
@@ -1700,19 +1704,19 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 **Acceptance criteria**
 
 - Universe membership is stored as (security, added, removed, source).
-- v1 is small and documented (D3: [`starter_large_caps`](data-sources.md#universe-v1-starter_large_caps-decision-d3), built 2026-10-31 with 50 members, which ingestion loads with SPY): a curated set of 50–100 large companies with membership history, deliberately including companies that later left or were delisted.
+- v1 is small and documented (D3: [`starter_large_caps`](reference/data-sources.md#universe-v1-starter_large_caps-decision-d3), built 2026-10-31 with 50 members, which ingestion loads with SPY): a curated set of 50–100 large companies with membership history, deliberately including companies that later left or were delisted.
 - `universe_as_of(name, knowledge_time)` returns the members at that time.
 - Tests: a company removed in year X is a member before X and not after.
 
 **Tasks**
 
-- [x] Choose and document v1 (D3): `starter_large_caps`, 50 to 100 large US companies, each a member while it was in the S&P 500, dated and cited from S&P's announcements; see [`doc/data-sources.md`](data-sources.md#universe-v1-starter_large_caps-decision-d3)
+- [x] Choose and document v1 (D3): `starter_large_caps`, 50 to 100 large US companies, each a member while it was in the S&P 500, dated and cited from S&P's announcements; see [`doc/reference/data-sources.md`](reference/data-sources.md#universe-v1-starter_large_caps-decision-d3)
 - [x] Build the membership history with sources: 50 members in [`universes.toml`](../backend/app/data/sources/universes.toml), dated from S&P's announcements, with their identities in `securities.toml`
 - [x] Write the query and tests: `universe_as_of`, `test_universe_change_applies_from_effective_date`
 
 **Progress evidence (2026-11-08):** The sourced 50-company universe, membership queries, and effective-date tests are merged. Evidence: [PR #77](https://github.com/nfiasco/Quant-Time-Machine/pull/77), `backend/app/data/sources/universes.toml`, `backend/tests/test_universes.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#138](https://github.com/nfiasco/Quant-Time-Machine/issues/138) · **Parent epic:** [#101](https://github.com/nfiasco/Quant-Time-Machine/issues/101)
 
@@ -1786,12 +1790,12 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 **Tasks**
 
 - [x] Write the model and validators: [`app/backtest/spec.py`](../backend/app/backtest/spec.py), which matches the frontend's `ExperimentSpec` type field for field. Each error names its field: "schedule.fill must be 'same_day_close' or 'next_day_open'."
-- [x] Export the JSON Schema: [`experiment-spec-v1.schema.json`](experiment-spec-v1.schema.json), from `uv run python -m app.backtest.spec`, which a test keeps current
+- [x] Export the JSON Schema: [`experiment-spec-v1.schema.json`](reference/experiment-spec-v1.schema.json), from `uv run python -m app.backtest.spec`, which a test keeps current
 - [x] Add example specs and invalid-spec tests: §3.4's example is [`tests/fixtures/specs/canonical.json`](../backend/tests/fixtures/specs/canonical.json), and [`tests/test_spec.py`](../backend/tests/test_spec.py) checks valid variants and 30 invalid ones
 
-**Progress evidence (2026-11-08):** The validated v1 spec, schema export, canonical fixture, and invalid-input tests are merged. A signal schema is not an implemented signal calculator. Evidence: [PR #86](https://github.com/nfiasco/Quant-Time-Machine/pull/86), `backend/app/backtest/spec.py`, `doc/experiment-spec-v1.schema.json`, `backend/tests/test_spec.py`.
+**Progress evidence (2026-11-08):** The validated v1 spec, schema export, canonical fixture, and invalid-input tests are merged. A signal schema is not an implemented signal calculator. Evidence: [PR #86](https://github.com/nfiasco/Quant-Time-Machine/pull/86), `backend/app/backtest/spec.py`, `doc/reference/experiment-spec-v1.schema.json`, `backend/tests/test_spec.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#141](https://github.com/nfiasco/Quant-Time-Machine/issues/141) · **Parent epic:** [#14](https://github.com/nfiasco/Quant-Time-Machine/issues/14)
 
@@ -1814,7 +1818,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** Rebalance decisions and strictly later fills are merged, including holiday and early-close tests. Evidence: [PR #87](https://github.com/nfiasco/Quant-Time-Machine/pull/87), `backend/app/backtest/schedule.py`, `backend/tests/test_schedule.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#142](https://github.com/nfiasco/Quant-Time-Machine/issues/142) · **Parent epic:** [#14](https://github.com/nfiasco/Quant-Time-Machine/issues/14)
 
@@ -1858,10 +1862,10 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 **Tasks**
 
 - [ ] Implement the signals
-- [ ] Write `doc/signals.md` with the formulas
+- [ ] Write `doc/reference/signals.md` with the formulas
 - [ ] Write the tests, including poisoned-future rows
 
-**Progress evidence (2026-11-08):** Signal schemas and catalog descriptions exist, but momentum, revenue-growth, and macro-condition calculators and doc/signals.md do not. The existing issue owner is retained. Evidence: `backend/app/backtest/spec.py`, `backend/app/api/catalog.py`.
+**Progress evidence (2026-11-08):** Signal schemas and catalog descriptions exist, but momentum, revenue-growth, and macro-condition calculators and doc/reference/signals.md do not. The existing issue owner is retained. Evidence: `backend/app/backtest/spec.py`, `backend/app/api/catalog.py`.
 
 **GitHub:** [#31](https://github.com/nfiasco/Quant-Time-Machine/issues/31) · **Parent epic:** [#14](https://github.com/nfiasco/Quant-Time-Machine/issues/14)
 
@@ -1975,7 +1979,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 - `as_of` accepts a date or an ISO timestamp (a bare date means 09:30 ET, and a time without an offset is New York time; D12), and every response echoes `knowledge_time` and `data_version`.
 - Errors: 404 for an unknown ticker or series, 422 for invalid input (including a local time that never happened or happened twice), and 200 with `data: null` plus a reason when nothing was known yet.
 - CORS allows the frontend origins (local and Vercel).
-- The response and error formats follow the contract in [`doc/api-v1.md`](api-v1.md), written for S9.1's demo page and reviewed by the frontend.
+- The response and error formats follow the contract in [`doc/reference/api-v1.md`](reference/api-v1.md), written for S9.1's demo page and reviewed by the frontend.
 
 **Tasks**
 
@@ -1986,7 +1990,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** Versioned routing, knowledge-time parsing, envelopes, errors, CORS, documentation, and tests are merged. Evidence: [PR #53](https://github.com/nfiasco/Quant-Time-Machine/pull/53), [PR #54](https://github.com/nfiasco/Quant-Time-Machine/pull/54), [PR #70](https://github.com/nfiasco/Quant-Time-Machine/pull/70), `backend/app/api/knowledge_time.py`, `backend/app/api/conventions.py`, `backend/app/api/errors.py`, `backend/tests/test_api_v1.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#23](https://github.com/nfiasco/Quant-Time-Machine/issues/23) · **Parent epic:** [#102](https://github.com/nfiasco/Quant-Time-Machine/issues/102)
 
@@ -2008,9 +2012,9 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 - [x] Write the tests
 - [x] Add OpenAPI examples
 
-**Progress evidence (2026-11-08):** Prices, macro/revisions, filings/latest, and fundamentals routes are merged, with test-client coverage and OpenAPI examples. Evidence: [PR #70](https://github.com/nfiasco/Quant-Time-Machine/pull/70), [PR #83](https://github.com/nfiasco/Quant-Time-Machine/pull/83), [PR #89](https://github.com/nfiasco/Quant-Time-Machine/pull/89), `backend/app/api/v1.py`, `doc/api-v1.md`.
+**Progress evidence (2026-11-08):** Prices, macro/revisions, filings/latest, and fundamentals routes are merged, with test-client coverage and OpenAPI examples. Evidence: [PR #70](https://github.com/nfiasco/Quant-Time-Machine/pull/70), [PR #83](https://github.com/nfiasco/Quant-Time-Machine/pull/83), [PR #89](https://github.com/nfiasco/Quant-Time-Machine/pull/89), `backend/app/api/v1.py`, `doc/reference/api-v1.md`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#24](https://github.com/nfiasco/Quant-Time-Machine/issues/24) · **Parent epic:** [#102](https://github.com/nfiasco/Quant-Time-Machine/issues/102)
 
@@ -2030,11 +2034,11 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 - [x] Write the snapshot service: [`app/api/snapshot.py`](../backend/app/api/snapshot.py), whose known part reads the request's `PointInTimeView`. Each company also gets its latest revenue quarter and its universes, so every row of the June 5 table is covered.
 - [x] Write the separate, teaching-only look-ahead query: [`app/data/look_ahead.py`](../backend/app/data/look_ahead.py). It reads through a view bound to the moment the data version was cut, so the fixtures' 2099 canaries never show. [`tests/test_look_ahead.py`](../backend/tests/test_look_ahead.py) fails if anything in `app/backtest/` imports it, directly or through another module, or if anything but the snapshot route does.
-- [x] Add the endpoint and golden test: [`tests/test_api_snapshot.py`](../backend/tests/test_api_snapshot.py) checks every row of the June 5 table in [`time-model.md`](time-model.md#june-5-2020-at-0930-et-1330z), which it reads from the doc
+- [x] Add the endpoint and golden test: [`tests/test_api_snapshot.py`](../backend/tests/test_api_snapshot.py) checks every row of the June 5 table in [`time-model.md`](reference/time-model.md#june-5-2020-at-0930-et-1330z), which it reads from the doc
 
 **Progress evidence (2026-11-08):** The snapshot, isolated teaching-only look-ahead path, import guard, and complete June 5 golden table are merged. Evidence: [PR #91](https://github.com/nfiasco/Quant-Time-Machine/pull/91), `backend/app/api/snapshot.py`, `backend/app/data/look_ahead.py`, `backend/tests/test_api_snapshot.py`, `backend/tests/test_look_ahead.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#145](https://github.com/nfiasco/Quant-Time-Machine/issues/145) · **Parent epic:** [#102](https://github.com/nfiasco/Quant-Time-Machine/issues/102)
 
@@ -2078,7 +2082,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** Series, companies, coverage dates, and signal schemas are served by merged and tested catalog endpoints. Evidence: [PR #90](https://github.com/nfiasco/Quant-Time-Machine/pull/90), `backend/app/api/catalog.py`, `backend/tests/test_api_catalog.py`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#146](https://github.com/nfiasco/Quant-Time-Machine/issues/146) · **Parent epic:** [#102](https://github.com/nfiasco/Quant-Time-Machine/issues/102)
 
@@ -2104,7 +2108,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 ### E9. Web interface v1
 
-**Status:** In progress · **Stories complete:** 0/7 · **GitHub:** [#15](https://github.com/nfiasco/Quant-Time-Machine/issues/15)
+**Status:** In progress · **Stories complete:** 1/8 · **GitHub:** [#15](https://github.com/nfiasco/Quant-Time-Machine/issues/15)
 
 - **Goal:** make point-in-time research visible and usable without writing code.
 - **Done when:** the Time Machine explorer, backtest builder, and results pages are deployed and working against the deployed API.
@@ -2269,12 +2273,35 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 
 **Tasks**
 
-- [ ] Write the content, reusing `doc/time-model.md`
+- [ ] Write the content, reusing `doc/reference/time-model.md`
 - [ ] Build the page and add links
 
 **Progress evidence (2026-11-08):** No implementation or completion evidence for these acceptance criteria is present in the audited commit. This remains planned work.
 
 **GitHub:** [#151](https://github.com/nfiasco/Quant-Time-Machine/issues/151) · **Parent epic:** [#15](https://github.com/nfiasco/Quant-Time-Machine/issues/15)
+
+#### S9.8 Public landing page
+
+**Priority:** P1 · **Size:** M · **Sprint:** 3 (delivered) · **Milestone:** M2 · **Area:** web · **Depends on:** S9.1 (dashboard), S8.3 (example fixture) · **Reqs:** FR-W7, NFR-7, NFR-12 · **Status:** Done
+
+**Story:** As a first-time visitor, I want a public landing page that explains what information a backtest could have known at a past moment, so I can understand Quant Time Machine before entering the workspace.
+
+**Acceptance criteria**
+
+- The homepage at `/` explains the project without requiring an account or a running API. **Enter workspace** leads to `/dashboard`.
+- The static June 5, 2020, 9:30 a.m. ET example shows what was known and what came later. It omits raw prices and identifies the decorative ticker values as random.
+- Keyboard visitors can skip the story. The content is readable with reduced motion, and the animated ticker can be paused.
+- The features and API sections show what is available and a sample response. The page notes that accounts are not yet live next to the sign-up link.
+
+**Tasks**
+
+- [x] Add the homepage route and workspace entry.
+- [x] Build the timeline from the snapshot test fixtures, with optional scroll animation and a static fallback.
+- [x] Add the features and API sections, account entry, and frontend documentation.
+
+**Completion evidence (2026-11-05):** [PR #88](https://github.com/nfiasco/Quant-Time-Machine/pull/88) shipped the initial homepage; [PR #92](https://github.com/nfiasco/Quant-Time-Machine/pull/92) shipped the scroll story and its reduced-motion fallback. See the [frontend implementation](../frontend/features/landing/) and [landing page guide](../frontend/README.md#landing-page). This story covers the static introduction. The live explorer remains separate in [S9.2](#s92-time-machine-explorer).
+
+**GitHub:** [#203](https://github.com/nfiasco/Quant-Time-Machine/issues/203) · **Parent epic:** [#15](https://github.com/nfiasco/Quant-Time-Machine/issues/15)
 
 ### E10. MCP server: point-in-time tools
 
@@ -2941,11 +2968,11 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 - [x] Provision and configure the host: Railway project `quant-time-machine`, service `api` in US East, built from `backend/` on merges to `main` after CI, at <https://quant-time-machine-api.up.railway.app>
 - [x] Upload the data and set environment variables: the universe v1 store (data version `20261101T202624Z`) on a volume at `/data`, uploaded by [`backend/scripts/upload_store.sh`](../backend/scripts/upload_store.sh); `CORS_ORIGINS` for the Vercel site, and no secrets on the host
 - [x] Write the smoke-test script: [`backend/scripts/smoke_test.py`](../backend/scripts/smoke_test.py), run after each deploy by [`smoke.yml`](../.github/workflows/smoke.yml) and tested against the fixtures by [`tests/test_smoke_test.py`](../backend/tests/test_smoke_test.py)
-- [x] Document the deploy steps: [`doc/hosting.md`](hosting.md#the-deployment-on-railway)
+- [x] Document the deploy steps: [`doc/reference/hosting.md`](reference/hosting.md#the-deployment-on-railway)
 
-**Progress evidence (2026-11-08):** The committed deployment record documents Railway, the persisted store, production frontend configuration, upload script, and post-deploy smoke checks. Background backtests and CPU/memory sizing belong to S8.4, which is still open. Evidence: [PR #96](https://github.com/nfiasco/Quant-Time-Machine/pull/96), `backend/Dockerfile`, `backend/scripts/smoke_test.py`, `.github/workflows/smoke.yml`, `doc/hosting.md`.
+**Progress evidence (2026-11-08):** The committed deployment record documents Railway, the persisted store, production frontend configuration, upload script, and post-deploy smoke checks. Background backtests and CPU/memory sizing belong to S8.4, which is still open. Evidence: [PR #96](https://github.com/nfiasco/Quant-Time-Machine/pull/96), `backend/Dockerfile`, `backend/scripts/smoke_test.py`, `.github/workflows/smoke.yml`, `doc/reference/hosting.md`.
 
-**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](contribution-history.md).
+**Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#40](https://github.com/nfiasco/Quant-Time-Machine/issues/40) · **Parent epic:** [#107](https://github.com/nfiasco/Quant-Time-Machine/issues/107)
 
@@ -2965,7 +2992,7 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 - [ ] Write a timing harness
 - [ ] Profile and file issues
 
-**Progress evidence (2026-11-08):** Hosting spikes benchmark synthetic backtest-shaped workloads and lookups. They do not establish the canonical backtest baseline, because the engine is not implemented. Evidence: [PR #71](https://github.com/nfiasco/Quant-Time-Machine/pull/71), [PR #95](https://github.com/nfiasco/Quant-Time-Machine/pull/95), `backend/spikes/hosting.py`, `doc/hosting.md`.
+**Progress evidence (2026-11-08):** Hosting spikes benchmark synthetic backtest-shaped workloads and lookups. They do not establish the canonical backtest baseline, because the engine is not implemented. Evidence: [PR #71](https://github.com/nfiasco/Quant-Time-Machine/pull/71), [PR #95](https://github.com/nfiasco/Quant-Time-Machine/pull/95), `backend/spikes/hosting.py`, `doc/reference/hosting.md`.
 
 **GitHub:** [#179](https://github.com/nfiasco/Quant-Time-Machine/issues/179) · **Parent epic:** [#107](https://github.com/nfiasco/Quant-Time-Machine/issues/107)
 
@@ -3112,7 +3139,7 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 - [ ] Update the docs and fill gaps
 - [ ] Run the outside-reader setup test
 
-**Progress evidence (2026-11-08):** Current setup, data, API, and hosting docs exist. A final user guide, final feature review, and outside-reader setup test are still pending. Evidence: [PR #72](https://github.com/nfiasco/Quant-Time-Machine/pull/72), [PR #84](https://github.com/nfiasco/Quant-Time-Machine/pull/84), [PR #96](https://github.com/nfiasco/Quant-Time-Machine/pull/96), `README.md`, `backend/README.md`, `doc/api-v1.md`.
+**Progress evidence (2026-11-08):** Current setup, data, API, and hosting docs exist. A final user guide, final feature review, and outside-reader setup test are still pending. Evidence: [PR #72](https://github.com/nfiasco/Quant-Time-Machine/pull/72), [PR #84](https://github.com/nfiasco/Quant-Time-Machine/pull/84), [PR #96](https://github.com/nfiasco/Quant-Time-Machine/pull/96), `README.md`, `backend/README.md`, `doc/reference/api-v1.md`.
 
 **GitHub:** [#41](https://github.com/nfiasco/Quant-Time-Machine/issues/41) · **Parent epic:** [#107](https://github.com/nfiasco/Quant-Time-Machine/issues/107)
 
@@ -3148,7 +3175,7 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
   - the backend knows who is calling;
   - saved experiments and runs live in Supabase behind tested row-level security;
   - a privacy page is published;
-  - no market data is stored in Supabase ([`doc/storage.md`](storage.md#two-stores-point-in-time-data-and-accounts)).
+  - no market data is stored in Supabase ([`doc/reference/storage.md`](reference/storage.md#two-stores-point-in-time-data-and-accounts)).
 - **Semester:** CISC 498; the full run registry (S13.1) builds on it in CISC 499 · **Milestones:** M2–M5
 - **Owner:** the database lead, the teammate who set up Supabase. They own the Supabase project, the schema, sign-in, and the security rules. Teammates pair on the web pages (S16.3, S16.5) and the API hook (S16.4).
 
@@ -3200,7 +3227,7 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 - [ ] Test the policies with two test users against the local Supabase
 - [ ] Document the tables in `supabase/README.md`
 
-**Progress evidence (2026-11-08):** The market-data schema is already implemented under E3–E6. This issue now tracks the remaining user-data schema: there are no committed account migrations or row-level security tests. Evidence: `supabase/config.toml`, `doc/storage.md`.
+**Progress evidence (2026-11-08):** The market-data schema is already implemented under E3–E6. This issue now tracks the remaining user-data schema: there are no committed account migrations or row-level security tests. Evidence: `supabase/config.toml`, `doc/reference/storage.md`.
 
 **GitHub:** [#22](https://github.com/nfiasco/Quant-Time-Machine/issues/22) · **Parent epic:** [#108](https://github.com/nfiasco/Quant-Time-Machine/issues/108)
 
@@ -3303,13 +3330,13 @@ Review this table at every milestone.
 | R1 | Free price data leaves out delisted companies, creating survivorship bias | High | High | Test delisted coverage (S6.1); ask about WRDS (S2.3); report coverage gaps in every run (S6.7); state the limitation on the methodology page. *Oct 12:* Yahoo has none (LEH, LEHMQ, and TWTR return nothing). Tiingo covers recent delistings (Twitter) but few before 2010 (no Lehman), so check each universe member's coverage. UD's WRDS includes CRSP, but for internal use only. | S6.1, S6.7 |
 | R2 | Historical index membership is proprietary or incomplete | High | Medium | Start with a small, documented universe (S6.5); add a rules-based universe later (S6.6) | S6.5, S6.6 |
 | R3 | XBRL fundamentals start in 2009–2011, and tags vary by company and year | High | Medium | Tag mapping with a coverage report (S5.6); coverage-aware specs and assistant (S11.2); expect thin data in 2010–2011 | S5.6, S7.8 |
-| R4 | Timestamps are ambiguous: the timezone of acceptance times, ALFRED's date-only vintages, and missing early vintages | Medium | High | Verify against source pages (S5.1); use conservative defaults (S4.3); lock behavior in with golden tests (S3.6). *Oct 11:* confirmed. EDGAR's JSON acceptance times run ahead by the Eastern UTC offset, and FRED's real-time parameters default to today. Both are now rules in [`doc/time-model.md`](time-model.md) with named tests. | S3.6, S4.3, S5.1 |
+| R4 | Timestamps are ambiguous: the timezone of acceptance times, ALFRED's date-only vintages, and missing early vintages | Medium | High | Verify against source pages (S5.1); use conservative defaults (S4.3); lock behavior in with golden tests (S3.6). *Oct 11:* confirmed. EDGAR's JSON acceptance times run ahead by the Eastern UTC offset, and FRED's real-time parameters default to today. Both are now rules in [`doc/reference/time-model.md`](reference/time-model.md) with named tests. | S3.6, S4.3, S5.1 |
 | R5 | API rate limits or outages slow ingestion | Medium | Medium | Raw cache and idempotent ingestion (S3.4); bulk files (S5.8); ingest once and reuse | S3.4, S5.8 |
 | R6 | A source's terms don't allow display in a public app | Medium | High | Review terms before choosing sources (S2.3); keep data out of git; show only what the terms allow. *Oct 11:* this has happened for prices. Tiingo's free and Power plans are internal use only, so settle display rights before M5 (D2), and show FRED's required notice. | S2.3, S6.1 |
 | R7 | The assistant mistranslates questions or states wrong numbers | High | High | Schema-validated specs, user confirmation, numbers only from the engine, and an eval suite | S11.2, S11.3, S11.4, S11.7 |
 | R8 | The model's training data leaks hindsight into experiments | Medium | Medium | The AI translates rather than picks; time-locked tools; variant logging; research memo | S2.5, S10.3, S11.8 |
 | R9 | The scope is too big for two semesters | High | High | The live walking-skeleton page is still open after the October 25 target; a P0-only demo path; the cut order in [§5.5](#55-if-we-fall-behind); re-plan at every milestone | All epics |
-| R10 | Hosting limits (timeouts, bundle or disk size) block long backtests | Medium | Medium | Hosting spike in Sprint 2 (S1.6); background runs (S8.4); performance baseline (S15.2). *Nov 8:* hosting benchmarks and Railway deployment are committed. The simulation is not built yet; batched reads, background execution, interruption recovery, and final CPU/memory sizing remain in S7.3/S8.4. The production volume holds the 8.6 MB universe-v1 store ([`doc/hosting.md`](hosting.md)). | S1.6, S8.4, S15.2 |
+| R10 | Hosting limits (timeouts, bundle or disk size) block long backtests | Medium | Medium | Hosting spike in Sprint 2 (S1.6); background runs (S8.4); performance baseline (S15.2). *Nov 8:* hosting benchmarks and Railway deployment are committed. The simulation is not built yet; batched reads, background execution, interruption recovery, and final CPU/memory sizing remain in S7.3/S8.4. The production volume holds the 8.6 MB universe-v1 store ([`doc/reference/hosting.md`](reference/hosting.md)). | S1.6, S8.4, S15.2 |
 | R11 | AI costs grow with public use | Medium | Medium | Access control, rate limits, spend caps, and prompt caching | S11.6, S15.6 |
 | R12 | Team capacity dips around midterms, Thanksgiving, and finals | High | Medium | Lighter sprints where expected, small pull requests, pairing on critical stories, and a current board | S1.2 |
 | R13 | Knowledge silos: one person is the only one who understands XBRL or the engine | Medium | Medium | Rotate reviewers, write module docs, and pair on L-sized stories | S1.4 |
@@ -3322,18 +3349,18 @@ Open decisions, each owned by a story. When one is made, record the outcome and 
 
 | ID | Decision | Options | Current leaning | Decide by | Story | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| D1 | Point-in-time storage | DuckDB + Parquet, PostgreSQL, SQLite | **Parquet files queried with DuckDB, in-process.** On 1M rows it was about 10× faster than PostgreSQL for snapshots and about 18× for backtest-style as-of joins, with no server to run. Accounts and user data are a separate store in Supabase (PostgreSQL and Auth; D9, D10). See [`doc/storage.md`](storage.md). | Sprint 1 | S3.2 | Decided 2026-10-11 (pending team review) |
-| D2 | Daily price source | Tiingo, Stooq, yfinance, Alpha Vantage, WRDS/CRSP | **Tiingo end-of-day API**: raw closes plus split and dividend fields on every bar (confirmed: AAPL's raw $702.10 close on 2012-09-19). Delisted coverage is partial. Yahoo returns split-adjusted closes and no delisted tickers; Stooq blocks scripts; Alpha Vantage's free tier has no history. CRSP through UD is for internal validation only. Display rights need settling before M5. See [`doc/data-sources.md`](data-sources.md#daily-prices-decision-d2). | Sprint 1 | S6.1 | Decided 2026-10-11; the test pull on 2026-10-12 confirmed it (pending team review) |
-| D3 | Universe v1 | Curated list with history, Dow 30 history, reconstructed S&P 500, top N by market cap | **A curated list, `starter_large_caps`:** 50 to 100 large US companies (v1 aims for 50). Each is a member from the effective date it joined the S&P 500 until the date it left, cited from S&P's public announcements, from 2010-01-01 on. It deliberately includes at least 10 companies that left and 10 that joined, Tesla among them for rule 8's test. Every member files 10-Ks and 10-Qs and has Tiingo prices for its whole membership; gaps are listed, not dropped. *Built 2026-10-31 (S6.5):* 50 members, 13 that joined after 2010 and 13 that left; ingestion loads them with SPY. See [`doc/data-sources.md`](data-sources.md#universe-v1-starter_large_caps-decision-d3). | Sprint 3 (moved from early Sprint 2; the M2 set unblocks ingestion) | S6.5 | Decided 2026-10-29 (pending team review) |
-| D4 | Backend and data hosting | Vercel, Render, Railway, Fly.io, AWS Lambda, ECS on Fargate, AWS Batch, Step Functions, Google Cloud Run, Cloudflare, object storage for data | **Railway's Hobby plan:** the same container, built from GitHub on each merge to `main` and always on, for $5 a month with $5 of usage included (the API should use about $2–3). It has no cold starts, unthrottled CPU, and no time limit on background work, so S8.4 runs backtests in a thread. Railway reopened sign-ups on 2026-11-02, but its 2026-10-21 security incident still has no final report, so the host keeps few secrets. Google Cloud Run's free tier is the way out if paying stops being worth it. DuckDB stays. *History:* Fly.io was decided on 2026-10-23 and ran on its free trial until 2026-10-31, and AWS Lambda led from 2026-10-31. See [`doc/hosting.md`](hosting.md). | Sprint 2 | S1.6 | Decided 2026-11-06 (pending team review), replacing Fly.io (2026-10-23). Deployed 2026-11-07 (S15.1) |
-| D5 | Default decision and fill timing | 09:30 ET decision with same-day close fill, or next-day open fill | **09:30 ET decision, same-day close fill**, configurable per spec; next-day open is a robustness check (S14.3). See [`doc/time-model.md`](time-model.md#10-fills-strictly-after-the-decision-by-default-the-decision-days-close-d5). | Sprint 1 | S3.1 | Decided 2026-10-11 (pending team review) |
+| D1 | Point-in-time storage | DuckDB + Parquet, PostgreSQL, SQLite | **Parquet files queried with DuckDB, in-process.** On 1M rows it was about 10× faster than PostgreSQL for snapshots and about 18× for backtest-style as-of joins, with no server to run. Accounts and user data are a separate store in Supabase (PostgreSQL and Auth; D9, D10). See [`doc/reference/storage.md`](reference/storage.md). | Sprint 1 | S3.2 | Decided 2026-10-11 (pending team review) |
+| D2 | Daily price source | Tiingo, Stooq, yfinance, Alpha Vantage, WRDS/CRSP | **Tiingo end-of-day API**: raw closes plus split and dividend fields on every bar (confirmed: AAPL's raw $702.10 close on 2012-09-19). Delisted coverage is partial. Yahoo returns split-adjusted closes and no delisted tickers; Stooq blocks scripts; Alpha Vantage's free tier has no history. CRSP through UD is for internal validation only. Display rights need settling before M5. See [`doc/reference/data-sources.md`](reference/data-sources.md#daily-prices-decision-d2). | Sprint 1 | S6.1 | Decided 2026-10-11; the test pull on 2026-10-12 confirmed it (pending team review) |
+| D3 | Universe v1 | Curated list with history, Dow 30 history, reconstructed S&P 500, top N by market cap | **A curated list, `starter_large_caps`:** 50 to 100 large US companies (v1 aims for 50). Each is a member from the effective date it joined the S&P 500 until the date it left, cited from S&P's public announcements, from 2010-01-01 on. It deliberately includes at least 10 companies that left and 10 that joined, Tesla among them for rule 8's test. Every member files 10-Ks and 10-Qs and has Tiingo prices for its whole membership; gaps are listed, not dropped. *Built 2026-10-31 (S6.5):* 50 members, 13 that joined after 2010 and 13 that left; ingestion loads them with SPY. See [`doc/reference/data-sources.md`](reference/data-sources.md#universe-v1-starter_large_caps-decision-d3). | Sprint 3 (moved from early Sprint 2; the M2 set unblocks ingestion) | S6.5 | Decided 2026-10-29 (pending team review) |
+| D4 | Backend and data hosting | Vercel, Render, Railway, Fly.io, AWS Lambda, ECS on Fargate, AWS Batch, Step Functions, Google Cloud Run, Cloudflare, object storage for data | **Railway's Hobby plan:** the same container, built from GitHub on each merge to `main` and always on, for $5 a month with $5 of usage included (the API should use about $2–3). It has no cold starts, unthrottled CPU, and no time limit on background work, so S8.4 runs backtests in a thread. Railway reopened sign-ups on 2026-11-02, but its 2026-10-21 security incident still has no final report, so the host keeps few secrets. Google Cloud Run's free tier is the way out if paying stops being worth it. DuckDB stays. *History:* Fly.io was decided on 2026-10-23 and ran on its free trial until 2026-10-31, and AWS Lambda led from 2026-10-31. See [`doc/reference/hosting.md`](reference/hosting.md). | Sprint 2 | S1.6 | Decided 2026-11-06 (pending team review), replacing Fly.io (2026-10-23). Deployed 2026-11-07 (S15.1) |
+| D5 | Default decision and fill timing | 09:30 ET decision with same-day close fill, or next-day open fill | **09:30 ET decision, same-day close fill**, configurable per spec; next-day open is a robustness check (S14.3). See [`doc/reference/time-model.md`](reference/time-model.md#10-fills-strictly-after-the-decision-by-default-the-decision-days-close-d5). | Sprint 1 | S3.1 | Decided 2026-10-11 (pending team review) |
 | D6 | Model, API, and where the agent loop runs | Claude through the Anthropic API (default candidate) or alternatives; backend or frontend | Claude through the Anthropic API, with the loop in the Python backend | Sprint 7 | S11.1 | Open |
 | D7 | How the assistant reaches the tools | Same-process calls, MCP over Streamable HTTP, or both | The same functions behind both; decide in the spike | Sprint 7 | S10.1 | Open |
 | D8 | Charting library | Recharts, Chart.js, lightweight-charts, others | One library for every chart | Sprint 4 | S9.3, S9.6 | Open |
 | D9 | Access control and sign-in | Access code, GitHub sign-in, Supabase Auth accounts, none | Supabase Auth accounts (E16): the team plans sign-in so each user's data stays with their account, which also caps AI cost (S15.6). S16.1 picks the sign-in methods. | Sprint 2 (original target passed) | S16.1 | Open |
-| D10 | Run registry storage | Files, SQLite, PostgreSQL | Supabase PostgreSQL with row-level security, alongside accounts (D9), in the tables from S16.2; files until accounts exist. Runs point to market data by `data_version` and never copy it ([`doc/storage.md`](storage.md#two-stores-point-in-time-data-and-accounts)). | Sprint 3 (not yet implemented) | S16.2 | Open |
+| D10 | Run registry storage | Files, SQLite, PostgreSQL | Supabase PostgreSQL with row-level security, alongside accounts (D9), in the tables from S16.2; files until accounts exist. Runs point to market data by `data_version` and never copy it ([`doc/reference/storage.md`](reference/storage.md#two-stores-point-in-time-data-and-accounts)). | Sprint 3 (not yet implemented) | S16.2 | Open |
 | D11 | License | MIT, Apache-2.0, other | **MIT** ([`LICENSE`](../LICENSE)); still confirm it fits the course's code-ownership expectations | Sprint 1 | S1.3 | Decided 2026-10-11 |
-| D12 | Knowledge-time input and timestamps in API responses | Reject a time without an offset, or read it as New York time; echo times in UTC or in New York time | **A time without an offset is New York time**, which is the market clock and what the web app already sends. A local time that never happened or happened twice (the daylight-saving hours) gets a 422. Responses write every timestamp in New York time with its offset. See [time-model rule 3](time-model.md#3-a-bare-date-means-0930-et-and-a-time-without-an-offset-is-new-york-time) and [`doc/api-v1.md`](api-v1.md). | Sprint 2 | S8.1 | Decided 2026-10-19 (pending team review) |
+| D12 | Knowledge-time input and timestamps in API responses | Reject a time without an offset, or read it as New York time; echo times in UTC or in New York time | **A time without an offset is New York time**, which is the market clock and what the web app already sends. A local time that never happened or happened twice (the daylight-saving hours) gets a 422. Responses write every timestamp in New York time with its offset. See [time-model rule 3](reference/time-model.md#3-a-bare-date-means-0930-et-and-a-time-without-an-offset-is-new-york-time) and [`doc/reference/api-v1.md`](reference/api-v1.md). | Sprint 2 | S8.1 | Decided 2026-10-19 (pending team review) |
 
 ## 11. Glossary
 
@@ -3366,7 +3393,7 @@ Open decisions, each owned by a story. When one is made, record the outcome and 
 ## 12. References
 
 - The team's Problem Exploration (CISC 498 course deliverable, Fall 2026).
-- Sprint 1 write-ups: [time model](time-model.md), [data sources and terms](data-sources.md), and [storage decision](storage.md); the evidence is in [`backend/spikes/`](../backend/spikes/).
+- Sprint 1 write-ups: [time model](reference/time-model.md), [data sources and terms](reference/data-sources.md), and [storage decision](reference/storage.md); the evidence is in [`backend/spikes/`](../backend/spikes/).
 - ALFRED API documentation: <https://fred.stlouisfed.org/docs/api/fred/alfred.html>
 - FRED API Terms of Use: <https://fred.stlouisfed.org/docs/api/terms_of_use.html>
 - SEC, accessing EDGAR data (fair access and User-Agent): <https://www.sec.gov/search-filings/edgar-search-assistance/accessing-edgar-data>

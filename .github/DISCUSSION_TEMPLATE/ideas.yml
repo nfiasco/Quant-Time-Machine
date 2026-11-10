@@ -4,7 +4,7 @@ body:
     attributes:
       value: |
         Use this form to explore a proposal before creating a delivery issue.
-        Follow our [Code of Conduct](https://github.com/nfiasco/Quant-Time-Machine/blob/main/CODE_OF_CONDUCT.md) and use synthetic examples.
+        Follow our [Code of Conduct](https://github.com/nfiasco/Quant-Time-Machine/blob/main/.github/CODE_OF_CONDUCT.md) and use synthetic examples.
   - type: textarea
     id: problem
     attributes:

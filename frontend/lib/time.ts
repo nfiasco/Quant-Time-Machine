@@ -77,7 +77,7 @@ export function parseIsoDate(value: string): EtDate | null {
 /**
  * The New York wall-clock time of an API timestamp, such as `2020-06-05T08:30:00-04:00`.
  * The API writes every timestamp in New York time with its offset, so the first 16
- * characters are the ET wall-clock time (doc/api-v1.md, "Conventions").
+ * characters are the ET wall-clock time (doc/reference/api-v1.md, "Conventions").
  */
 export function etDateTimeOf(timestamp: string): EtDateTime | null {
   return parseAsOf(timestamp.slice(0, 16));

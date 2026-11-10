@@ -4,7 +4,7 @@ Pure functions over `xbrl_facts` rows that a PointInTimeView has already read, s
 row they see was known at the knowledge time:
 
 - `latest_by_period`: for each concept and period, the value its latest filing
-  reported (doc/time-model.md, rule 6);
+  reported (doc/reference/time-model.md, rule 6);
 - `resolve`: for each period, the first concept in a metric's order that has a value;
 - `quarterly_values`: a metric's quarters, reported or derived from year-to-date
   totals, with the concept and filings each came from;

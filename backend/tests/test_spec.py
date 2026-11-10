@@ -12,7 +12,7 @@ from app.backtest.spec import ExperimentSpec, SpecError, json_schema, parse_spec
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 CANONICAL = Path(__file__).parent / "fixtures" / "specs" / "canonical.json"
-SCHEMA_FILE = REPOSITORY / "doc" / "experiment-spec-v1.schema.json"
+SCHEMA_FILE = REPOSITORY / "doc" / "reference" / "experiment-spec-v1.schema.json"
 FRONTEND_TYPES = REPOSITORY / "frontend" / "features" / "backtests" / "types.ts"
 
 DELETE = object()
@@ -292,8 +292,8 @@ def test_the_committed_schema_is_current() -> None:
     assert SCHEMA_FILE.read_text(encoding="utf-8") == (
         json.dumps(json_schema(), indent=2) + "\n"
     ), (
-        "doc/experiment-spec-v1.schema.json is out of date. From backend/, run "
-        "uv run python -m app.backtest.spec > ../doc/experiment-spec-v1.schema.json"
+        "doc/reference/experiment-spec-v1.schema.json is out of date. From backend/, run "
+        "uv run python -m app.backtest.spec > ../doc/reference/experiment-spec-v1.schema.json"
     )
 
 

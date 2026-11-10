@@ -10,9 +10,9 @@ export const siteConfig = {
   roadmapUrl:
     "https://github.com/nfiasco/Quant-Time-Machine/blob/main/doc/roadmap.md",
   timeModelUrl:
-    "https://github.com/nfiasco/Quant-Time-Machine/blob/main/doc/time-model.md",
+    "https://github.com/nfiasco/Quant-Time-Machine/blob/main/doc/reference/time-model.md",
   apiDocUrl:
-    "https://github.com/nfiasco/Quant-Time-Machine/blob/main/doc/api-v1.md",
+    "https://github.com/nfiasco/Quant-Time-Machine/blob/main/doc/reference/api-v1.md",
   disclaimer: "For research and education. Not investment advice.",
   // Required by the FRED API terms of use wherever FRED data appears.
   fredNotice:

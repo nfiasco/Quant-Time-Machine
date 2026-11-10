@@ -21,4 +21,4 @@ Do not create an issue solely to satisfy this template. -->
 - [ ] For UI changes, record relevant keyboard, screen-reader, contrast, and reduced-motion checks from the accessibility guide.
 - [ ] Review dependency/security findings and confirm that examples, logs, and fixtures contain no credentials or restricted data.
 
-The PR metadata check enforces the description, issue reference or reason, assignee, labels, and milestone before merge. Unambiguous metadata is inherited from linked issues. The project adds the PR automatically. See [the team workflow](https://github.com/nfiasco/Quant-Time-Machine/blob/main/doc/github-workflow.md).
+The PR metadata check enforces the description, issue reference or reason, assignee, labels, and milestone before merge. Unambiguous metadata is inherited from linked issues. The project adds the PR automatically. See [the team workflow](https://github.com/nfiasco/Quant-Time-Machine/blob/main/doc/project/github-workflow.md).

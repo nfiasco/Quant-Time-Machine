@@ -108,7 +108,7 @@ class SignalType(BaseModel):
     parameters: dict[str, Any] = Field(
         description=(
             "The JSON Schema of the signal's object in a spec's signals, type included: "
-            "the schema doc/experiment-spec-v1.schema.json lists under $defs."
+            "the schema doc/reference/experiment-spec-v1.schema.json lists under $defs."
         )
     )
 

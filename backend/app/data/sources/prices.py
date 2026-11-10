@@ -10,7 +10,7 @@ CRSP-based source would only implement the fetch:
   had settled by `now`, so each bar is fetched once, after the vendor's corrections. A
   security delisted before the range would start isn't asked about again.
 - **When a bar became known:** its session's close from the NYSE calendar, 16:00 ET or
-  13:00 ET on early-close days (doc/time-model.md, rule 4). A bar dated on a day with
+  13:00 ET on early-close days (doc/reference/time-model.md, rule 4). A bar dated on a day with
   no session is dropped and logged.
 - **Raw prices only.** Bars keep the prices they traded at. Splits and cash dividends
   go to `corporate_actions` by ex-date, exactly as the vendor reports them, so returns
@@ -36,7 +36,7 @@ from app.data.timeutil import ET, market_time, to_utc
 logger = logging.getLogger(__name__)
 
 HISTORY_START = date(2005, 1, 1)
-"""Where a security's first download starts (doc/data-sources.md: daily history back
+"""Where a security's first download starts (doc/reference/data-sources.md: daily history back
 to 2005)."""
 
 

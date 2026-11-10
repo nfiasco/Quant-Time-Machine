@@ -1,5 +1,5 @@
 """Point-in-time data layer: every record carries when it became public, and every read
-is "as of" a knowledge time, so nothing can see the future (doc/time-model.md).
+is "as of" a knowledge time, so nothing can see the future (doc/reference/time-model.md).
 
 - `timeutil`: the market clock and the knowledge-time (`as_of`) parser
 - `calendar`: the NYSE trading calendar

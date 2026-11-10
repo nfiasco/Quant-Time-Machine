@@ -20,7 +20,7 @@ jobs:
       - run: python3 -m unittest discover -s .github/scripts -p "test_*.py"
 
   frontend:
-    # This name is a required status check on main (doc/github-workflow.md). Rename the job
+    # This name is a required status check on main (doc/project/github-workflow.md). Rename the job
     # only together with the "Protect main" ruleset, or pull requests wait for a check that
     # never reports.
     name: Frontend (lint + test + build)

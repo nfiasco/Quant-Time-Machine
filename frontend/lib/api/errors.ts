@@ -19,7 +19,7 @@ export type ApiFailure =
 /** The outcome of an API call that never throws for the API's own failures. */
 export type Settled<T> = { ok: true; value: T } | { ok: false; failure: ApiFailure };
 
-/** True when an ApiError's body has the v1 error shape (doc/api-v1.md, "Errors"). */
+/** True when an ApiError's body has the v1 error shape (doc/reference/api-v1.md, "Errors"). */
 export function isV1Error(body: unknown): body is V1Error {
   if (typeof body !== "object" || body === null || !("error" in body)) return false;
   const { error } = body as { error: unknown };

@@ -12,7 +12,7 @@ export const demoMoment: EtDateTime = {
 
 /**
  * What was and wasn't public at the demo moment, in time order. Every time matches the
- * snapshot API's golden test (backend/tests/test_api_snapshot.py and doc/api-v1.md).
+ * snapshot API's golden test (backend/tests/test_api_snapshot.py and doc/reference/api-v1.md).
  * A static illustration for the dashboard; the Time Machine page (S9.2) shows the live
  * snapshot for any moment.
  */

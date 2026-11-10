@@ -8,7 +8,7 @@ import type { ApiFailure } from "@/lib/api/errors";
 import type { SnapshotParams } from "@/lib/api/snapshot";
 import { DEFAULT_DECISION_TIME, parseAsOf, toAsOfParam, type EtDateTime } from "@/lib/time";
 
-/** The most companies, and the most series, one snapshot can list (doc/api-v1.md). */
+/** The most companies, and the most series, one snapshot can list (doc/reference/api-v1.md). */
 export const MAX_ENTRIES = 10;
 
 /** Letters and digits, with "." or "-" for a share class (BRK.B, BF-B). */

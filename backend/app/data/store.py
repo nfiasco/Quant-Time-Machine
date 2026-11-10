@@ -1,12 +1,12 @@
 """The point-in-time store: append-only Parquet tables under DATA_DIR/store/<table>/.
 
-Decision D1 (doc/storage.md). Each table is a folder of immutable Parquet files, and
+Decision D1 (doc/reference/storage.md). Each table is a folder of immutable Parquet files, and
 every row carries what it describes (the table's key and values) plus provenance:
 
 - `source`: where it came from, such as "alfred", "edgar", or "tiingo" (the names
-  doc/api-v1.md shows)
+  doc/reference/api-v1.md shows)
 - `source_ref`: the exact reference, such as a URL, an accession number, or a vintage
-- `available_at`: when the world could first know it (doc/time-model.md)
+- `available_at`: when the world could first know it (doc/reference/time-model.md)
 - `ingested_at`: when this store saved it, set by `write_rows`
 - `time_assumed`: whether `available_at` was assumed rather than published (rule 11)
 
@@ -329,7 +329,7 @@ def _validated(
         elif kind == "TIMESTAMPTZ" and _is_naive(value):
             raise StoreError(
                 f"{where}: {column} is a naive datetime; timestamps must be "
-                "timezone-aware (doc/time-model.md, rule 1)"
+                "timezone-aware (doc/reference/time-model.md, rule 1)"
             )
         elif not _fits(value, kind):
             raise StoreError(f"{where}: {column}={value!r} isn't a valid {kind}")

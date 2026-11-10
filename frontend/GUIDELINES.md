@@ -123,7 +123,7 @@ Every view that loads data designs all of these:
 
 Target WCAG 2.2 AA; NFR-12 asks for keyboard-usable forms, sufficient contrast, and a layout that works at tablet width.
 
-See the project [accessibility policy](../ACCESSIBILITY.md) for the full target, manual review checklist, and reporting process. This target is not a claim of audited conformance.
+See the project [accessibility policy](../.github/ACCESSIBILITY.md) for the full target, manual review checklist, and reporting process. This target is not a claim of audited conformance.
 
 - Use semantic HTML first: one `h1`, ordered headings, landmarks (`header`, `nav`, `main`, `footer`), lists for lists, `<button>` for actions and `<a>`/`Link` for navigation.
 - Every input has a visible label. Icon-only buttons have an `aria-label` or `sr-only` text.
@@ -178,7 +178,7 @@ lib/            Framework-agnostic helpers: api/, time, format, theme, utils
 
 - Call the backend only through `lib/api/` (`apiFetch` plus one typed function per endpoint). The backend accepts browser (CORS) requests only from the origins in its `CORS_ORIGINS` setting (S8.1), which defaults to `http://localhost:3000`. Before fetching from the browser on a deployed site, add that site's origin there.
 - Call the API from Server Components. Wrap a call in `settle` (`lib/api/errors.ts`) to render its failure in place: a 4xx comes back with the API's sentence and field names, so it can sit next to the right field.
-- Hand-written API types live in `lib/api/types.ts`, copied from `doc/api-v1.md`; they're temporary until S8.6 generates them from the OpenAPI schema.
+- Hand-written API types live in `lib/api/types.ts`, copied from `doc/reference/api-v1.md`; they're temporary until S8.6 generates them from the OpenAPI schema.
 - Shareable state lives in the URL, using the API's parameter names: `as_of`, `tickers`, `series`, `preset`. Parse and validate on read (see `parseAsOf` and `features/time-machine/params.ts`). Lists are one comma-separated value, and links keep commas and colons readable.
 
 ### Styling

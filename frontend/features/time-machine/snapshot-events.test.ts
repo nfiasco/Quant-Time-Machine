@@ -28,7 +28,7 @@ function shownTime(item: MomentEvent): string {
   return `${formatEtShortDate(item.at)}${item.timeNote ? ` · ${item.timeNote}` : `, ${formatEtTime(item.at)}`}`;
 }
 
-describe("buildSnapshotView on the §2.3 example (doc/time-model.md, June 5, 2020)", () => {
+describe("buildSnapshotView on the §2.3 example (doc/reference/time-model.md, June 5, 2020)", () => {
   const view = buildSnapshotView(snapshot());
   const aapl = entity(view.companies, "AAPL");
   const tsla = entity(view.companies, "TSLA");
