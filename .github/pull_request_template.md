@@ -18,7 +18,6 @@ Do not create an issue solely to satisfy this template. -->
 - [ ] Select an appropriate peer reviewer when the change requires review.
 - [ ] Verify linked issue criteria and task checklists; partial work must not close a whole story.
 - [ ] Check CI, documentation, and relevant tests, including future-data exclusion for point-in-time reads.
-- [ ] For UI changes, record relevant keyboard, screen-reader, contrast, and reduced-motion checks from the accessibility guide.
 - [ ] Review dependency/security findings and confirm that examples, logs, and fixtures contain no credentials or restricted data.
 
 The PR metadata check enforces the description, issue reference or reason, assignee, labels, and milestone before merge. Unambiguous metadata is inherited from linked issues. The project adds the PR automatically. See [the team workflow](https://github.com/nfiasco/Quant-Time-Machine/blob/main/doc/project/github-workflow.md).
