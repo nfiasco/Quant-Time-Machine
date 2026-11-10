@@ -229,6 +229,16 @@ A decision at 09:30 ET on Monday, June 1, 2020 sees prices through Friday, May 2
 - **A same-day close fill must come after its decision.** A spec with a 16:00 decision and that fill is invalid. One with a 13:30 decision fails on the early-close days it covers, such as July 3 in 2006, 2017, and 2023, and the error names each one.
 - **A next-day open fill** is at the next session's open. After Friday, October 26, 2012, that was Wednesday, October 31's, because Hurricane Sandy closed the market for two days.
 
+**In code (S7.3).** [`app/backtest/simulation.py`](../../backend/app/backtest/simulation.py) steps through the decisions with two views each.
+
+- **The decision's view** is bound to the decision's time. It's the only view the decision reads: the universe's members, and each signal's values for them.
+- **The fill's view** is bound to the close of the fill's session, when that session's bar became known (rule 4). Through it the engine values the holdings from the last fill to this one, and trades. So a next-day open is read after that day's close, never at the decision.
+- **A holding's return** runs from one fill's price to the next's ([`app/backtest/returns.py`](../../backend/app/backtest/returns.py)), compounding the daily total returns between them:
+  - **bought at an open,** it starts with that day's close over its open, which is already ex-split and ex-dividend;
+  - **sold at an open,** it ends with k × (open + div) / the previous close, because whoever held at the close before an ex-date gets its dividend;
+  - **if its bars end early,** as when a company stops trading, it's valued at its last close that traded and sold at the next fill, with a warning.
+- **Only a session that traded has prices.** A bar with no volume, which Tiingo fills with the last close, isn't one. Nor is a vendor's bar from the day a security's curated history ends its ticker, which a filing dates ([`securities.toml`](../../backend/app/data/sources/securities.toml)): Nasdaq halted Xilinx before the open on February 14, 2022, though Tiingo has 353 shares that day.
+
 ### 11. Missing or unclear timestamps: use the later plausible time, and flag it
 
 When a time is missing or ambiguous, choose the latest time it could plausibly have been, so the system errs toward knowing *less*, and flag the row so results can show the assumption. Examples:
@@ -314,6 +324,8 @@ Each rule becomes at least one golden test, built on small committed fixtures (n
 | `test_a_1600_decision_cannot_fill_at_that_close` | 10 | Decision 2020-06-01 16:00 ET | No same-day close fill; the next-day open fill is at 2020-06-02 09:30 ET |
 | `test_an_early_close_day_fills_at_1300` | 2, 10 | July 2023's decision, 2023-07-03 09:30 ET | Fill at 13:00 ET (17:00Z); a 13:00 decision that day can't fill at the close |
 | `test_november_2012_after_hurricane_sandy` | 2, 9, 10 | October and November 2012 | Decisions on October 1 and November 1; a next-day open fill after October 26 is at October 31's open |
+| `test_each_decision_sees_only_what_was_known_then` | 4, 10 | The simulation loop on a toy market, January to April 2021 (S7.3) | Each decision reads through a view bound to its time, whose newest bar is the previous session's |
+| `test_next_day_open_fills` | 4, 10 | A toy holding bought and sold at next-day opens, with a dividend and a split on the mornings it's sold (S7.3) | Each fill is valued through a view bound to its session's close; the holder at the close before an ex-date gets its dividend |
 | `test_june_5_2020_table` | All | `GET /v1/snapshot` for AAPL, TSLA, UNRATE, and FEDFUNDS at 09:30 ET on 2020-06-05 | Each row of the June 5 table is in `known` or `not_yet_known`, as marked, with its exact timestamp (S8.3) |
 | `test_poisoned_future_row_never_returned` | All | Add a row with `available_at` in 2099 | It never appears in any query result (S3.3) |
 | `test_pinned_data_version_ignores_later_rows` | Two clocks | Pin a data version, then ingest more rows | The pinned query's result doesn't change (S3.7) |

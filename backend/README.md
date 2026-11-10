@@ -5,7 +5,7 @@ The Quant Time Machine API, built with [FastAPI](https://fastapi.tiangolo.com). 
 - the point-in-time data layer: the store and its writer, `PointInTimeView`, and the NYSE calendar;
 - the ingestion client and CLI;
 - the `/v1` as-of endpoints for macro series and their revisions, prices, filings, and fundamentals, with their conventions, plus the catalogs and the knowledge snapshot;
-- the start of the [backtest engine](#backtest-engine): total returns from raw prices, splits, and dividends, the experiment spec, and the rebalance schedule.
+- the start of the [backtest engine](#backtest-engine): total returns from raw prices, splits, and dividends, the experiment spec, the rebalance schedule, and the simulation loop, which waits for the signal library (S7.4) to run a real spec.
 
 Three sources are in, each ingested and readable as of any moment:
 
@@ -189,10 +189,11 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | `get_revision_history(series_id, period)` | Every version of one observation published by then, oldest first: January 1990's UNRATE is 5.3% from February 2, 1990, and also 5.4% from March 8, 1996 (S4.5) |
 | `series_coverage()` | Every series in the catalog, with its first and last observations and vintages published by then (S8.5) |
 | `resolve_ticker(ticker)` | The `Security` that used the ticker then: FB in 2020 is Facebook, and WB is Wachovia in 2005 but Weibo in 2020 (S5.2) |
+| `get_security(security_id)` | A curated `Security` by its ID, as identified then: `meta` is FB in 2020 and META in 2023. It still finds one that had stopped trading, whose ticker is then `None`: Twitter's from October 28, 2022 (S7.3) |
 | `get_price_as_of(ticker, session=None)` | A `PriceBar`: the latest raw daily bar whose session had closed by then, so at 09:30 ET a bar from the day before; or one session's bar, raising `LookAheadError` if that session hadn't closed yet (S6.3) |
 | `get_price_history_as_of(ticker, lookback)` | The last `lookback` bars known then, oldest first, for signals (S6.3) |
-| `get_price_series_as_of(ticker, start=None, end=None)` | The bars known then from `start` through `end`, oldest first, for total returns (S6.4) |
-| `get_corporate_actions_as_of(ticker, start=None, end=None)` | The `CorporateAction`s known then: splits and cash dividends by ex-date, each known at that session's close. Split factors are as the vendor gave them, such as 7.000007 (S6.4) |
+| `get_price_series_as_of(security, start=None, end=None)` | The bars known then from `start` through `end`, oldest first, for total returns (S6.4). `security` is a ticker, or a `Security` from `get_security` or `resolve_ticker`, read by its ID: the engine reads its holdings this way, so a ticker change or a delisting doesn't lose them (S7.3) |
+| `get_corporate_actions_as_of(security, start=None, end=None)` | The `CorporateAction`s known then: splits and cash dividends by ex-date, each known at that session's close. Split factors are as the vendor gave them, such as 7.000007 (S6.4). `security` is a ticker or a `Security`, as for the bars |
 | `get_latest_filing_as_of(ticker, form="10-Q", include_amendments=False)` | A `Filing`: the latest of a form family EDGAR had accepted by then, counted from its acceptance time, never its filing date (S5.4) |
 | `list_filings_as_of(ticker, forms=("10-K", "10-Q", "8-K"), include_amendments=False, limit=100)` | The filings accepted by then, newest first, across every CIK the security had (S5.4) |
 | `get_fundamentals_as_of(ticker, metric, quarters=8)` | The last `quarters` quarters of a metric in [`metrics.toml`](app/data/sources/metrics.toml), such as `revenue`, oldest first, as `Fundamental`s. Each is the latest value filed by then, with its concept and accession numbers. A quarter no filing reported, such as most fourth quarters, is derived from two year-to-date totals filed by then (S5.7) |
@@ -243,9 +244,12 @@ The engine in [`app/backtest/`](app/backtest/) reads data only through `PointInT
 
 | Module | What it does |
 | --- | --- |
-| [`returns.py`](app/backtest/returns.py) | Daily and monthly total returns from raw prices, splits, and dividends, as known at a time (S6.4). Split factors are rounded to the ratio they stand for, such as 7 for Tiingo's 7.000007. The returns match Tiingo's adjusted closes to within 10⁻⁶ |
+| [`returns.py`](app/backtest/returns.py) | Daily and monthly total returns from raw prices, splits, and dividends, as known at a time (S6.4). Split factors are rounded to the ratio they stand for, such as 7 for Tiingo's 7.000007. The returns match Tiingo's adjusted closes to within 10⁻⁶. `holding_return` runs from one fill's price to the next's, each a session's open or close, and values a holding whose bars end early at its last close that traded (S7.3) |
 | [`spec.py`](app/backtest/spec.py) | The experiment spec, version 1: Pydantic models that match the frontend's `ExperimentSpec` type field for field (S7.1). `parse_spec` raises `SpecError`, whose problems each name a field: "schedule.fill must be 'same_day_close' or 'next_day_open'." `signal_types()` lists the kinds of signal, with their JSON Schemas, for `/v1/catalog/signals` (S8.5) |
 | [`schedule.py`](app/backtest/schedule.py) | A spec's decisions, on the first trading day of each month, and their fills (S7.2). A fill is at the same day's close (13:00 ET on an early close) or the next session's open, always strictly after its decision; `ScheduleError` names any day it can't be |
+| [`signals.py`](app/backtest/signals.py) | What the loop asks of a signal: each member's `SignalValue` at a decision, or the reason it has none. `SIGNALS` lists the kinds the engine can evaluate, and is empty until the signal library (S7.4) |
+| [`portfolio.py`](app/backtest/portfolio.py) | The filters, equal weights, and the trades that reach them. Costs are `bps_per_trade` of the value traded, which is the sum of each weight's change, and come out of the portfolio (S7.3). Value weights, long-short, and ranking are S7.5's |
+| [`simulation.py`](app/backtest/simulation.py) | The loop (S7.3). `simulate(spec, views)` steps through a spec's decisions, each with a view bound to its time, then values the holdings and trades at a view bound to the fill session's close. It returns each holding period's holdings, trades, costs, and returns, the benchmark's, and warnings for the data it did without |
 
 ```python
 from datetime import date
@@ -260,6 +264,31 @@ with PointInTimeView(parse_knowledge_time("2020-09-01")) as view:
 ```
 
 Price levels stay raw: only returns account for splits and dividends. The formula, the rounding, and how it was checked are in [`doc/reference/time-model.md`](../doc/reference/time-model.md), rule 4.
+
+**The simulation loop.** The engine never sees the store: `simulate` gets a view factory, which opens a `PointInTimeView` bound to a time, and a test checks that nothing in `app/backtest/` imports the store or reads a view's private members.
+
+```python
+from functools import partial
+from pathlib import Path
+
+from app.backtest.simulation import simulate
+from app.backtest.spec import parse_spec
+from app.data.view import PointInTimeView
+
+spec = parse_spec(Path("tests/fixtures/specs/canonical.json").read_text())
+views = partial(PointInTimeView, data_version="20261101T202624Z")  # pinned, as runs are
+result = simulate(spec, views)  # SpecError until S7.4 adds the spec's signals
+result.periods[0].holdings  # the first decision's holdings, weights, and returns
+result.warnings  # each gap in the data, and what the run assumed instead
+```
+
+- **Each decision** reads only through a view bound to its time, 09:30 ET by default: the universe's members then, and each signal's value for them. The members that pass every filter get equal weights.
+- **Each fill** is valued and traded through a view bound to the close of the fill's session, when its bar became known. A next-day open is read after that day's close, never at the decision.
+- **The portfolio** starts at 1, in cash, and cash earns nothing. A rebalance trades the change in each weight and pays `bps_per_trade` on it. Each holding period records its holdings, trades, turnover, cost, gross and net returns, value, and the benchmark's return between the same prices.
+- **Missing data** doesn't stop a run. A member that stopped trading or has no signal value is left out, a security without a price at its fill isn't bought, and a holding whose bars end early, such as a company bought out between fills, is valued at its last close and sold at the next fill. Each becomes a warning that says what was assumed.
+- **Only sessions that traded have prices.** Tiingo has bars for some sessions in which a security didn't trade: one with no volume that repeats the last close, as for Twitter, Pioneer Natural Resources, and Marathon Oil on the days their trading was suspended, and a leftover with a few shares after a delisting, as for Xilinx on February 14, 2022. The engine can't trade at such a bar, or value a holding at it, and it ignores a delisted security's bars from the day its curated history ends its ticker.
+- **Results hold no prices,** only weights, returns, and dates, because Tiingo's prices are for internal use only (D2).
+- **Not yet:** value weights and long-short portfolios (S7.5) are rejected with a `SpecError` that names the field, and so is a signal the engine doesn't have.
 
 The spec's JSON Schema, for the API and the assistant, is [`doc/reference/experiment-spec-v1.schema.json`](../doc/reference/experiment-spec-v1.schema.json). After changing the models, regenerate it, or a test fails: `uv run python -m app.backtest.spec > ../doc/reference/experiment-spec-v1.schema.json`. A test also checks the models against the frontend's [`types.ts`](../frontend/features/backtests/types.ts), so change both together.
 
