@@ -68,6 +68,9 @@ def test_a_change_counts_from_the_jobs_report(fixture_store: Path) -> None:
     assert change(fixture_store, et(JUNE_5, 8)).value == pytest.approx(10.3)
     # The release counts from 08:30 itself.
     assert change(fixture_store, et(JUNE_5, 8, 30)).value == pytest.approx(-1.4)
+    # Over two releases, May's against March's.
+    two = change(fixture_store, et(JUNE_5, 9, 30), releases=2)
+    assert two.value == pytest.approx(13.3 - 4.4)
 
 
 def test_each_value_is_its_latest_revision_known_then(fixture_store: Path) -> None:
