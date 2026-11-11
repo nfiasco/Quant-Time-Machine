@@ -162,8 +162,8 @@ def list_companies(view: View) -> CompanyCatalogResponse:
 @router.get("/signals", responses=examples.CATALOG_SIGNALS)
 def list_signals() -> SignalCatalogResponse:
     """The kinds of signal an experiment spec can use, each with the JSON Schema of its
-    object in a spec. They don't depend on time or data, so there's no as_of. The
-    library grows in Sprint 4 (S7.4)."""
+    object in a spec. They don't depend on time or data, so there's no as_of. What each
+    one computes is in doc/reference/signals.md (S7.4)."""
     return SignalCatalogResponse(
         spec_version=1,
         data=[

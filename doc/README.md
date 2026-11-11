@@ -9,6 +9,7 @@ Start with the [project README](../README.md#getting-started) to run the app, or
 - [Storage](reference/storage.md): how Parquet, DuckDB, and Supabase fit together.
 - [API v1 contract](reference/api-v1.md): request conventions, errors, and example responses.
 - [Experiment spec v1 schema](reference/experiment-spec-v1.schema.json): the generated JSON Schema for backtest inputs.
+- [Signal library](reference/signals.md): each backtest signal's formula, data, minimum history, and the reasons it can have no value.
 - [Hosting](reference/hosting.md): deployment steps and the evidence behind the hosting decision.
 
 ## Project workflow

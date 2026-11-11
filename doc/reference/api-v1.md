@@ -530,49 +530,63 @@ The members of each universe at the knowledge time, under the tickers and names 
 
 ### `GET /v1/catalog/signals`
 
-The kinds of signal an experiment spec can use, each with the JSON Schema of its object in a spec's `signals` (S8.5). They depend on neither time nor data, so there's no `as_of`, and the response has no `knowledge_time` or `data_version`. `GET /v1/catalog/signals`, with one schema shortened:
+The kinds of signal an experiment spec can use, each with the JSON Schema of its object in a spec's `signals` (S8.5). They depend on neither time nor data, so there's no `as_of`, and the response has no `knowledge_time` or `data_version`. `GET /v1/catalog/signals`, with three schemas shortened:
 
 ```json
 {
   "spec_version": 1,
   "data": [
     {
-      "type": "revenue_growth_acceleration",
-      "description": "This quarter's year-over-year revenue growth minus last quarter's.",
-      "parameters": { "title": "RevenueGrowthAccelerationSignal", "type": "object" }
-    },
-    {
       "type": "momentum",
-      "description": "The total return over a lookback, leaving out the most recent months.",
+      "description": "The total return over a lookback, leaving out the most recent months: 12-1 by\ndefault.",
       "parameters": {
         "additionalProperties": false,
-        "description": "The total return over a lookback, leaving out the most recent months.",
+        "description": "The total return over a lookback, leaving out the most recent months: 12-1 by\ndefault.",
         "properties": {
           "type": { "const": "momentum", "title": "Type", "type": "string" },
           "lookback_months": {
-            "description": "How many months back the return starts: 12 for 12-1 momentum.",
+            "default": 12,
+            "description": "How many months back the return starts: 12, the default, for 12-1 momentum. At\nmost 120.",
+            "maximum": 120,
             "minimum": 1,
             "title": "Lookback Months",
             "type": "integer"
           },
           "skip_months": {
-            "description": "How many of the latest months to leave out: 1 for 12-1 momentum. Fewer than\n`lookback_months`.",
+            "default": 1,
+            "description": "How many of the latest months to leave out: 1, the default, for 12-1 momentum.\nFewer than `lookback_months`.",
             "minimum": 0,
             "title": "Skip Months",
             "type": "integer"
           }
         },
-        "required": ["type", "lookback_months", "skip_months"],
+        "required": ["type"],
         "title": "MomentumSignal",
         "type": "object"
       }
+    },
+    {
+      "type": "revenue_growth",
+      "description": "The latest quarter's revenue growth over the same quarter a year earlier.",
+      "parameters": { "title": "RevenueGrowthSignal", "type": "object" }
+    },
+    {
+      "type": "revenue_growth_acceleration",
+      "description": "This quarter's year-over-year revenue growth minus last quarter's.",
+      "parameters": { "title": "RevenueGrowthAccelerationSignal", "type": "object" }
+    },
+    {
+      "type": "macro_change",
+      "description": "A macro series' change over its latest releases, as published by the decision.\nIt's the same for every security, so a filter on it holds securities only while the\neconomy meets a condition, such as unemployment falling.",
+      "parameters": { "title": "MacroChangeSignal", "type": "object" }
     }
   ]
 }
 ```
 
 - **`parameters`** is the schema that [`experiment-spec-v1.schema.json`](experiment-spec-v1.schema.json) lists under `$defs`, `type` included, so a form can build its fields from it. A test keeps the two equal.
-- **The library grows in Sprint 4.** Each signal S7.4 adds to the spec shows up here with no other change.
+- **Defaults are in the schema.** A parameter with a `default`, such as momentum's `lookback_months`, can be left out of a spec.
+- **What each signal computes,** the data it reads, and the reasons it can have no value are in [signals.md](signals.md) (S7.4). A signal added to the spec shows up here with no other change.
 
 ### `GET /v1/snapshot`
 
