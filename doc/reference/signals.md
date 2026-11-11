@@ -35,6 +35,16 @@ r_t      = k_t × (close_t + div_t) / close_(t−1) − 1
 
 - **The terms.** r_t is the session's total return ([time model, rule 4](time-model.md#4-a-daily-price-bar-is-known-at-its-sessions-close)): k_t is the split factor with ex-date *t*, or 1, and div_t the cash dividend per share, or 0. Prices stay as traded.
 - **Whole calendar months.** At the June 1, 2020 decision, 12-1 momentum runs from the close on May 31, 2019 to the close on April 30, 2020: the 11 months from June 2019 through April 2020, leaving out May. The window ends before the decision's month begins, so all of it was known at the decision, whatever its time of day, and a later decision in the same month gets the same value.
+- **The calendar decides each end.** Both are the last session before a month begins, from the NYSE calendar:
+
+  | Decision | Lookback-skip | `start` | `end` | Why it's a useful case |
+  | --- | --- | --- | --- | --- |
+  | 2020-06-01 | 12-1 | 2019-05-31 | 2020-04-30 | An ordinary month |
+  | 2021-01-04 | 12-1 | 2019-12-31 | 2020-11-30 | January 1 is a holiday |
+  | 2020-01-02 | 12-1 | 2018-12-31 | 2019-11-29 | It ends on an early close, the day after Thanksgiving |
+  | 2012-11-01 | 1-0 | 2012-09-28 | 2012-10-31 | Markets reopened on October 31, after Hurricane Sandy |
+  | 2024-05-01 | 1-0 | 2024-03-28 | 2024-04-30 | It starts before Good Friday, March 29 |
+
 - **Data.** The stock's daily bars, and its splits and dividends, from `start` through `end`, read by its security ID. [`app/backtest/signals/momentum.py`](../../backend/app/backtest/signals/momentum.py) compounds them with `daily_total_returns`, the function the engine values holdings with.
 - **Minimum history.** A close on `start` and on `end`: for 12-1 momentum, about 13 months of prices before the decision.
 
@@ -57,6 +67,7 @@ g(q) = R(q) / R(q − 4) − 1
 - **The latest quarter, q.** The quarter with the latest end among those known at the decision. R(q) is its revenue: the latest value filed by then in a 10-Q or a 10-K, or, for a quarter no filing reported, such as a fourth quarter, the difference between two year-to-date totals ([time model, rule 6](time-model.md#6-an-xbrl-fact-is-known-when-the-filing-that-reported-it-was-accepted)). A restatement counts from its own filing's acceptance.
 - **A year earlier, q − 4.** The quarter that ended 350 to 380 days before q did, so 52- and 53-week years count: Apple's first quarter of fiscal 2023, 14 weeks long, ended 371 days after its first quarter of fiscal 2022.
 - **An example.** At the June 1, 2020 decision, Apple's latest quarter is its fiscal second quarter of 2020, which ended March 28, 2020: $58,313 million, from the 10-Q accepted at 18:03 ET on April 30. The same quarter of 2019 had $58,015 million, so g = 58,313 / 58,015 − 1 = 0.0051, or 0.51%.
+- **A derived quarter.** At the November 1, 2021 decision, Apple's latest quarter is its fiscal fourth quarter of 2021, which no filing reported: its 10-K's year minus its first nine months, $83,360 million. That's 28.8% more than a year earlier.
 - **Data.** The standard metric `revenue` ([`metrics.toml`](../../backend/app/data/sources/metrics.toml)), read with `PointInTimeView.get_fundamentals_as_of`: up to the last 8 quarters known.
 - **Minimum history.** q and q − 4, each with a positive revenue.
 - **Recent enough.** q must have ended at most 200 days before the decision. A company that files on time is never that far behind: its slowest report, the 10-K, is due 60 to 90 days after its year ends, or 105 with an extension, so at a monthly decision its latest quarter is at most about 186 days old. An older one means later filings, or their revenue tags, are missing.
@@ -78,9 +89,9 @@ g(q) = R(q) / R(q − 4) − 1
 a(q) = g(q) − g(q − 1)
 ```
 
-- **The quarter before, q − 1.** The quarter that ended 80 to 100 days before q did. Its growth, g(q − 1), compares it with q − 5.
+- **The quarter before, q − 1.** The quarter that ended 80 to 119 days before q did, so PepsiCo's 16-week fourth quarters count. Its growth, g(q − 1), compares it with q − 5.
 - **Units.** A difference of fractions: 0.02 is 2 percentage points.
-- **An example.** At the June 1, 2020 decision, Apple's g(q) is 0.51%. Its fiscal first quarter of 2020, which ended December 28, 2019, had $91,819 million against $84,310 million a year earlier, 8.91%. So a = 0.0051 − 0.0891 = −0.0839: growth slowed by 8.39 points, and the canonical spec's filter, `rev_accel > 0`, leaves Apple out that month.
+- **An example.** At the June 1, 2020 decision, Apple's g(q) is 0.51%. Its fiscal first quarter of 2020, which ended December 28, 2019, had $91,819 million against $84,310 million a year earlier, 8.91%. So a = 0.0051 − 0.0891 = −0.0839: growth slowed by 8.39 points, and the canonical spec's filter, `rev_accel > 0`, leaves Apple out that month. At the November 1, 2021 decision, its derived fourth quarter grew 28.8%, after 36.4% in its third quarter, an acceleration of −7.6 points.
 - **Data, and recent enough.** As for revenue growth.
 - **Minimum history.** q, q − 1, q − 4, and q − 5, each with a positive revenue.
 
@@ -149,10 +160,12 @@ This holds the stocks whose revenue growth is speeding up and whose 12-1 momentu
 
 1. **Momentum counts whole calendar months.** The days of the decision's own month never count, even for a decision late in the month, and a missing bar on the window's first or last session gives no value rather than a nearby close.
 2. **Revenue is dated by the 10-Q or 10-K,** not the earnings release that comes first ([time model, limitation 1](time-model.md#known-limitations-and-open-questions)), so the revenue signals see a quarter a little later than the market did.
-3. **Quarters are recognized by their length** ([`fundamentals.py`](../../backend/app/data/fundamentals.py)): 80 to 100 days, and year-to-date totals of 175 to 196, 266 to 287, and 350 to 380. PepsiCo's year is three 12-week quarters and a 16-week fourth, so its fourth quarter is never recognized: its acceleration has no value at the decisions after a first quarter, and its third quarter goes stale each March.
+3. **Quarters are recognized by their length** ([time model, rule 6](time-model.md#6-an-xbrl-fact-is-known-when-the-filing-that-reported-it-was-accepted)): 80 to 119 days, and year-to-date totals of 161 to 196, 245 to 287, and 350 to 380 days. That covers 13- and 14-week quarters and PepsiCo's 12- and 16-week ones, but a period of another length, such as a transition period after a company changes its fiscal year, is never a quarter.
 4. **A derived fourth quarter can mix bases** for a while after a recast ([time model, limitation 4](time-model.md#known-limitations-and-open-questions)).
-5. **Coverage.** A company whose filings use a revenue concept the metric doesn't list has no revenue signals until an override in [`metrics.toml`](../../backend/app/data/sources/metrics.toml) adds it: Discover Financial (DFS) had none from 2020 to 2022. A few others miss a single fourth quarter, such as Alphabet's for 2021: its 10-K tagged the year `Revenues`, while its 10-Qs tagged the nine months `RevenueFromContractWithCustomerExcludingAssessedTax`, so the quarter can't be derived until the next 10-K repeats the year. Expect more gaps in 2010 and 2011, while XBRL was phasing in.
-6. **A missing macro observation blocks every change that ends on it.** BLS never published October 2025's unemployment rate, after the government shutdown, so UNRATE's change has no value while October 2025 is x(t) or x(t − k).
+5. **Coverage.** A company whose filings use a revenue concept the metric doesn't list has no revenue signals until an override in [`metrics.toml`](../../backend/app/data/sources/metrics.toml) adds it. An override can also add concepts up: Discover's income statement has no revenue total, so its revenue is net interest income plus noninterest income. Some gaps remain, listed in [data sources](data-sources.md#sec-xbrl-reported-financials-company-facts): ExxonMobil before 2017 and Pioneer before 2014 have no listed revenue concept, and Goldman Sachs's quarters before 2014 are known only from its 2014 filings on. A few others miss a single fourth quarter, such as Alphabet's for 2021: its 10-K tagged the year `Revenues`, while its 10-Qs tagged the nine months `RevenueFromContractWithCustomerExcludingAssessedTax`, so the quarter can't be derived until the next 10-K repeats the year. Expect more gaps in 2010 and 2011, while XBRL was phasing in.
+6. **A 53-week year's 14-week quarter isn't adjusted.** It has a week more than the quarter it's compared with, so its growth runs high, and the next year's growth runs low. Apple's first quarter of fiscal 2023, 14 weeks long, had $117,154 million, 5.5% less than the 13-week quarter a year before, but about 12% less per day. A year later, its 13-week first quarter grew 2.1% on it, about 10% per day. So acceleration swings twice, and PepsiCo's 17-week fourth quarters do the same.
+7. **Reads cost time.** Each signal reads each member's data through the view, and the two revenue signals each read every revenue fact a company filed by then. The canonical spec runs 2020 to 2022, 36 decisions, in about 30 seconds, and each decision's access log holds about 18,000 rows.
+8. **A missing macro observation blocks every change that ends on it.** BLS never published October 2025's unemployment rate, after the government shutdown, so UNRATE's change has no value while October 2025 is x(t) or x(t − k).
 
 ## Named tests
 
@@ -164,7 +177,7 @@ This holds the stocks whose revenue growth is speeding up and whose 12-1 momentu
 | `test_growth_is_the_latest_quarter_over_the_same_quarter_a_year_earlier` | `revenue_growth` | Made-up 10-Qs | 120 / 100 − 1 |
 | `test_acceleration_is_this_quarters_growth_minus_last_quarters` | `revenue_growth_acceleration` | The same | 20% − 10% |
 | `test_a_53_week_year_still_matches_its_quarters` | both | A fiscal calendar like Apple's, with a 14-week quarter | Its quarters match a year and a quarter apart |
-| `test_a_16_week_quarter_isnt_a_quarter` | both | A fiscal calendar like PepsiCo's | Growth for its first quarter, but no quarter before it |
+| `test_a_16_week_quarter_counts` | both | A fiscal calendar like PepsiCo's, with a 16-week fourth quarter | Growth and acceleration across it |
 | `test_a_fourth_quarter_derived_from_the_year_counts` | `revenue_growth` | A 10-K's year and a 10-Q's nine months | Their difference, known from the 10-K's acceptance |
 | `test_a_restatement_counts_from_its_own_filing` | `revenue_growth` | A 10-Q/A for the quarter a year earlier | The old value until its acceptance, the restated one after |
 | `test_a_future_filing_never_reaches_revenue_signals` | both | The next 10-Q, and a restatement accepted in 2099 | The 10-Q counts from its acceptance, inclusive; the restatement never does |
@@ -173,5 +186,5 @@ This holds the stocks whose revenue growth is speeding up and whose 12-1 momentu
 | `test_a_release_counts_from_its_time_of_day` | `macro_change` | FEDFUNDS's 16:15 ET release | Unseen at 09:30 that day, seen at 16:15 |
 | `test_a_future_release_never_reaches_macro_change` | `macro_change` | A revision and June's first print, published after the decision | −1.4 points; `test_the_same_release_counts_once_it_is_published` shows they matter |
 | `test_no_members_means_no_reads` | all | No members | No values, and nothing in the access log |
-| `test_apples_revenue_signals_on_june_1_2020` (local only) | both | The local store, at the June 1, 2020 decision | Apple's growth and acceleration from its 10-Qs: 0.51% and −8.39 points |
+| `test_apples_revenue_signals_in_the_local_store` (local only) | both | The local store, at the June 1, 2020 and November 1, 2021 decisions | Apple's growth and acceleration from its filings: 0.51% and −8.39 points, then 28.8% and −7.6 points from a derived fourth quarter |
 | `test_the_canonical_specs_signals_run_in_the_loop` | `momentum`, `revenue_growth_acceleration` | The canonical spec's signals and filters on a made-up market, January to April 2021 | Hand-checked holdings, values, and `missing_signal` warnings |

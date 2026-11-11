@@ -159,8 +159,11 @@ Here the value never changed. If a later filing had restated it, the restated nu
 | --- | --- | --- | --- | --- |
 | Apple, fiscal Q4 2021 (June 27 to September 25, 2021) | $365,817 million (10-K 0000320193-21-000105) | $282,457 million (10-Q 0000320193-21-000065) | $83,360 million | 2021-10-28 18:04:28 ET, the 10-K's acceptance |
 | Microsoft, fiscal Q4 2021 (April to June 2021) | $168,088 million (10-K 0001564590-21-039151) | $121,936 million (10-Q 0001564590-21-020891) | $46,152 million | 2021-07-29 16:21:55 ET |
+| PepsiCo, Q4 2021 (16 weeks, September 5 to December 25, 2021) | $79,474 million (10-K 0000077476-22-000010) | $54,226 million for 36 weeks (10-Q 0000077476-21-000050) | $25,248 million | 2022-02-09 18:03:39 ET |
 
-Periods are sorted by length, so Apple's 14-week first quarters and 53-week years count. Microsoft's quarters follow its fiscal year, which ends in June.
+**Revenue added up from parts (S5.6).** Discover's income statement has no revenue total, so its revenue is net interest income plus noninterest income. Each part is its latest value filed by *T*, and the sum is known when the last of them was: $2,398 million plus $490 million for the first quarter of 2020, both from the 10-Q accepted at 16:19:10 ET on April 30, 2020.
+
+Periods are sorted by length: a quarter is 80 to 119 days, six months 161 to 196, nine months 245 to 287, and a year 350 to 380. So Apple's 14-week first quarters and 53-week years count, and so does PepsiCo's year of three 12-week quarters and a 16-week fourth (17 weeks in a 53-week year). Microsoft's quarters follow its fiscal year, which ends in June. *Changed in Sprint 4: quarters were 80 to 100 days, six months 175 to 196, and nine months 266 to 287, so PepsiCo's fourth quarters were never derived. Widening them changed no other company's quarters in the local store (S7.4).*
 
 ### 7. A macro observation is known at its vintage date plus its release time
 

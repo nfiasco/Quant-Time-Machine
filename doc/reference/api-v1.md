@@ -364,6 +364,7 @@ A company's last quarters of a standard metric, as filed by the knowledge time, 
   ```
 
 - **`concept`** is the XBRL concept the value came from. A metric tries its concepts in order for each quarter, so a company whose tag changed keeps one series. Many changed with the 2018 revenue rules (ASC 606).
+- **A sum of concepts.** Discover's income statement has no revenue total, so its revenue's `concept` is `us-gaap:InterestIncomeExpenseNet + us-gaap:NoninterestIncome`: the two added up. `accession_numbers` cites every filing they came from, and `source_ref` joins each one's with " plus " where they differ.
 - **`fiscal_year` and `fiscal_period`** come from the filing that reported the period as its own. For example, Microsoft's quarter from April to June 2021 is fiscal 2021 `Q4`. Both are `null` when no filing in our data reported the period as its own.
 - **A quarter without a value is skipped, not filled**, so match quarters by `period_end`, not by position.
 - **Instants.** For `total_assets` and `shares_outstanding`, `period_start` is `null`, and the last `quarters` dates come back. Shares outstanding is the count on each filing's cover page, dated shortly before the filing.

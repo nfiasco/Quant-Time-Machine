@@ -307,7 +307,7 @@ with PointInTimeView(parse_knowledge_time("2020-06-01")) as view:
     revenue_growth_acceleration(view, apple, params)
 ```
 
-The formulas, the data each signal reads, its minimum history, and every reason it can give are in [`doc/reference/signals.md`](../doc/reference/signals.md). On the local store, the canonical spec runs 2020 to 2022, 36 decisions, in about 32 seconds.
+The formulas, the data each signal reads, its minimum history, and every reason it can give are in [`doc/reference/signals.md`](../doc/reference/signals.md). On the local store, the canonical spec runs 2020 to 2022, 36 decisions, in about 30 seconds.
 
 The spec's JSON Schema, for the API and the assistant, is [`doc/reference/experiment-spec-v1.schema.json`](../doc/reference/experiment-spec-v1.schema.json). After changing the models, regenerate it, or a test fails: `uv run python -m app.backtest.spec > ../doc/reference/experiment-spec-v1.schema.json`. A test also checks the models against the frontend's [`types.ts`](../frontend/features/backtests/types.ts), so change both together.
 
