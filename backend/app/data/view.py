@@ -778,13 +778,14 @@ class PointInTimeView:
         if not ciks:
             return []
         concepts = standard.concepts_for(security.security_id)
+        names = standard.parts_for(security.security_id)
         rows = self._select(
             "xbrl_facts",
             where=(
                 f"cik IN ({', '.join('?' * len(ciks))}) AND unit = ? "
-                f"AND concept IN ({', '.join('?' * len(concepts))})"
+                f"AND concept IN ({', '.join('?' * len(names))})"
             ),
-            params=[*ciks, standard.unit, *concepts],
+            params=[*ciks, standard.unit, *names],
         )
         found = fundamentals.quarterly_values(rows, standard, concepts)
         return [_fundamental(security, standard, q) for q in found[-quarters:]]
@@ -819,6 +820,7 @@ class PointInTimeView:
             latest_per_key=True,
         )
         concepts = standard.concepts_for(security_id)
+        names = standard.parts_for(security_id)
         ciks = self._ciks(security_id)
         found = fundamentals.Coverage(0, (), (), ())
         if ciks:
@@ -840,9 +842,9 @@ class PointInTimeView:
                 "xbrl_facts",
                 where=(
                     f"{in_ciks} AND unit = ? "
-                    f"AND concept IN ({', '.join('?' * len(concepts))})"
+                    f"AND concept IN ({', '.join('?' * len(names))})"
                 ),
-                params=[*ciks, standard.unit, *concepts],
+                params=[*ciks, standard.unit, *names],
             )
             found = fundamentals.coverage(
                 filings,
@@ -1016,7 +1018,7 @@ def _fundamental(
         available_at=quarter.available_at,
         time_assumed=quarter.time_assumed,
         source="edgar",
-        source_ref=" minus ".join(quarter.accession_numbers),
+        source_ref=quarter.source_ref,
     )
 
 

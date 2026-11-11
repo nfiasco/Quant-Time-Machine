@@ -11,9 +11,9 @@ the latest quarter known and R(q) its revenue:
     revenue_growth_acceleration  a(q) = g(q) − g(q − 1)
 
 q − 4 is the same quarter a year earlier: the one that ended 350 to 380 days before q
-did, so 52- and 53-week years count. q − 1 is the quarter before q: it ended 80 to 100
-days before. Both values are fractions: a growth of 0.05 is 5%, and an acceleration of
-0.02 is 2 percentage points.
+did, so 52- and 53-week years count. q − 1 is the quarter before q: it ended 80 to 119
+days before, as PepsiCo's 16-week fourth quarter does. Both values are fractions: a
+growth of 0.05 is 5%, and an acceleration of 0.02 is 2 percentage points.
 
 Minimum history: q and q − 4 for growth, and q, q − 1, q − 4, and q − 5 for
 acceleration, each with a positive revenue. q must also be recent: one that ended more
@@ -34,9 +34,8 @@ MAX_QUARTER_AGE_DAYS = 200
 company that files on time reports a later quarter first. Its slowest report, the 10-K,
 is due 60 to 90 days after its year ends, or 105 with an extension, so at a monthly
 decision its latest quarter is at most about 186 days old. An older one means a later
-quarter is missing from what we read: its filing, its revenue tag, or, for a quarter
-longer than 100 days, such as PepsiCo's 16-week fourth, its recognition as a quarter
-(app/data/fundamentals.py)."""
+quarter is missing from what we read: its filing, or a revenue tag the metric doesn't
+list (app/data/sources/metrics.toml)."""
 
 QUARTERS_READ = 8
 """How many of the latest quarters known to read: q − 5 is among them even when a

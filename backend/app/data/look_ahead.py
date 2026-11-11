@@ -169,13 +169,14 @@ class LookAhead:
         if not ciks:
             return []
         concepts = standard.concepts_for(security.security_id)
+        names = standard.parts_for(security.security_id)
         rows = self._view._select(
             "xbrl_facts",
             where=(
                 f"cik IN ({', '.join('?' * len(ciks))}) AND unit = ? "
-                f"AND concept IN ({', '.join('?' * len(concepts))})"
+                f"AND concept IN ({', '.join('?' * len(names))})"
             ),
-            params=[*ciks, standard.unit, *concepts],
+            params=[*ciks, standard.unit, *names],
         )
         later = {
             row["available_at"]

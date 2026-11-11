@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 
+from app.config import get_settings
 from app.data.errors import NotFoundError
 from app.data.fundamentals import (
     Period,
@@ -18,9 +19,10 @@ from app.data.fundamentals import (
 from app.data.records import ConceptUse, Fundamental
 from app.data.sources import securities, universes
 from app.data.sources.metrics import METRICS
-from app.data.store import write_rows
+from app.data.store import store_dir, write_rows
 from app.data.tables import FILINGS, SECURITIES, UNIVERSE_MEMBERS, XBRL_FACTS
 from app.data.timeutil import parse_knowledge_time
+from app.data.versions import latest_data_version
 from app.data.view import PointInTimeView
 
 REVENUE = METRICS["revenue"]
@@ -365,10 +367,15 @@ def test_fundamentals_coverage_reads_every_member_by_the_knowledge_time(
         (98, 1),  # 14 weeks: Apple's first quarter in a 53-week year
         (90, 1),
         (92, 1),
+        (84, 1),  # 12 weeks: PepsiCo's first three quarters
+        (112, 1),  # 16 weeks: PepsiCo's fourth
+        (119, 1),  # 17 weeks: its fourth in a 53-week year
         (182, 2),
         (189, 2),
+        (168, 2),  # PepsiCo's first 24 weeks
         (273, 3),
         (280, 3),
+        (252, 3),  # PepsiCo's first 36 weeks
         (364, 4),
         (371, 4),  # 53 weeks
         (365, 4),
@@ -416,6 +423,134 @@ def test_a_quarter_is_derived_from_two_year_to_date_totals() -> None:
     ]
     q4 = found[-1]
     assert (q4.accession_numbers, q4.available_at) == (("FY", "Q3"), utc(2023, 11, 2))
+
+
+def test_pepsicos_16_week_fourth_quarter_is_derived() -> None:
+    # PepsiCo's 10-K for 2021 reported its year, $79,474 million, and the 10-Q before it
+    # its first 36 weeks, $54,226 million: the fourth quarter, 16 weeks from September 5
+    # to December 25, is the rest, known from the 10-K's acceptance.
+    concept = "us-gaap:Revenues"
+    start = date(2020, 12, 27)
+    rows = [
+        fact(
+            concept,
+            (start, date(2021, 9, 4)),
+            54_226e6,
+            "0000077476-21-000050",
+            utc(2021, 10, 4, 21, 41, 11),
+            cik=77476,
+        ),
+        fact(
+            concept,
+            (start, date(2021, 12, 25)),
+            79_474e6,
+            "0000077476-22-000010",
+            utc(2022, 2, 9, 23, 3, 39),
+            form="10-K",
+            cik=77476,
+        ),
+    ]
+
+    found = quarterly_values(rows, REVENUE, REVENUE.concepts)
+
+    assert values(found) == [(date(2021, 9, 5), date(2021, 12, 25), 25_248e6, True)]
+    assert found[0].available_at == utc(2022, 2, 9, 23, 3, 39)
+
+
+NET_INTEREST, OTHER_INCOME = (
+    "us-gaap:InterestIncomeExpenseNet",
+    "us-gaap:NoninterestIncome",
+)
+NET_REVENUE = f"{NET_INTEREST} + {OTHER_INCOME}"
+"""Discover's revenue: its income statement has no total (app/data/sources/metrics.toml)."""
+
+DISCOVER_Q1 = (date(2020, 1, 1), date(2020, 3, 31))
+YEAR_END = date(2020, 12, 31)
+DISCOVER_10Q = "0001393612-20-000021"
+DISCOVER_FILED = utc(2020, 4, 30, 20, 19, 10)
+"""Discover's 10-Q for the first quarter of 2020, accepted at 16:19:10 ET."""
+
+
+def discover(
+    concept: str,
+    period: Period,
+    value: float,
+    accession: str = DISCOVER_10Q,
+    filed: datetime = DISCOVER_FILED,
+    form: str = "10-Q",
+) -> dict[str, Any]:
+    return fact(concept, period, value, accession, filed, form=form, cik=1393612)
+
+
+def test_a_sum_adds_up_its_concepts_for_each_quarter() -> None:
+    # The 10-Q's net interest income and other income. A made-up second quarter has
+    # only net interest income, so it has no sum.
+    q2 = (date(2020, 4, 1), date(2020, 6, 30))
+    rows = [
+        discover(NET_INTEREST, DISCOVER_Q1, 2_398e6),
+        discover(OTHER_INCOME, DISCOVER_Q1, 490e6),
+        discover(NET_INTEREST, q2, 2_100e6, "made up", utc(2020, 7, 30)),
+    ]
+
+    (quarter,) = quarterly_values(rows, REVENUE, (NET_REVENUE,))
+
+    assert values([quarter]) == [(*DISCOVER_Q1, 2_888e6, False)]
+    assert quarter.concept == NET_REVENUE
+    assert (quarter.accession_numbers, quarter.source_ref) == (
+        (DISCOVER_10Q,),
+        DISCOVER_10Q,
+    )
+    assert [part.concept for part in quarter.parts] == [NET_INTEREST, OTHER_INCOME]
+
+
+def test_a_sum_is_known_when_its_last_concept_was() -> None:
+    # A made-up 10-Q/A restates other income: the sum cites both filings from then.
+    amended = utc(2020, 6, 1, 20)
+    rows = [
+        discover(NET_INTEREST, DISCOVER_Q1, 2_398e6),
+        discover(OTHER_INCOME, DISCOVER_Q1, 490e6),
+        discover(OTHER_INCOME, DISCOVER_Q1, 480e6, "made up", amended, "10-Q/A"),
+    ]
+
+    (quarter,) = quarterly_values(rows, REVENUE, (NET_REVENUE,))
+
+    assert (quarter.value, quarter.available_at) == (2_878e6, amended)
+    assert quarter.source_ref == f"{DISCOVER_10Q} plus made up"
+
+
+def test_a_sum_derives_each_concepts_fourth_quarter() -> None:
+    # Made-up totals: each concept's year minus its nine months, added up.
+    nine, year = (date(2020, 1, 1), date(2020, 9, 30)), (date(2020, 1, 1), YEAR_END)
+    rows = [
+        discover(NET_INTEREST, nine, 7_000e6, "q3", utc(2020, 10, 29)),
+        discover(OTHER_INCOME, nine, 1_500e6, "q3", utc(2020, 10, 29)),
+        discover(NET_INTEREST, year, 9_400e6, "fy", utc(2021, 2, 24), "10-K"),
+        discover(OTHER_INCOME, year, 2_000e6, "fy", utc(2021, 2, 24), "10-K"),
+    ]
+
+    (quarter,) = quarterly_values(rows, REVENUE, (NET_REVENUE,))
+
+    assert values([quarter]) == [(date(2020, 10, 1), YEAR_END, 2_900e6, True)]
+    assert quarter.source_ref == "fy minus q3"
+
+
+def test_a_filing_covers_a_sum_only_with_every_concept() -> None:
+    filings = [
+        made_up_filing(DISCOVER_10Q, "10-Q", DISCOVER_Q1[1], DISCOVER_FILED),
+        made_up_filing("made up", "10-Q", date(2020, 6, 30), utc(2020, 7, 30)),
+    ]
+    facts = [
+        discover(NET_INTEREST, DISCOVER_Q1, 2_398e6),
+        discover(OTHER_INCOME, DISCOVER_Q1, 490e6),
+        discover(NET_INTEREST, (date(2020, 4, 1), date(2020, 6, 30)), 2e9, "made up"),
+    ]
+
+    found = coverage(filings, facts, REVENUE, (NET_REVENUE,), since=DISCOVER_FILED)
+
+    assert found.concepts_used == (
+        ConceptUse(NET_REVENUE, 1, DISCOVER_Q1[1], DISCOVER_Q1[1]),
+    )
+    assert found.missing == (date(2020, 6, 30),)
 
 
 def test_no_quarter_is_derived_without_both_totals() -> None:
@@ -725,3 +860,49 @@ def test_reads_are_in_the_access_log(fixture_store: Path) -> None:
         "0000320193-20-000010",
         "0000320193-20-000052",
     }
+
+
+def test_discovers_revenue_is_its_net_interest_and_other_income(
+    store_dir: Path,
+) -> None:
+    write_rows(store_dir, SECURITIES, securities.curated_rows(securities.CURATED))
+    write_rows(
+        store_dir,
+        XBRL_FACTS,
+        [
+            discover(NET_INTEREST, DISCOVER_Q1, 2_398e6),
+            discover(OTHER_INCOME, DISCOVER_Q1, 490e6),
+        ],
+    )
+
+    with view_at(store_dir, "2020-06-01") as view:
+        (revenue,) = view.get_fundamentals_as_of("DFS", "revenue")
+
+    assert (revenue.concept, revenue.value, revenue.source_ref) == (
+        NET_REVENUE,
+        2_888e6,
+        DISCOVER_10Q,
+    )
+
+
+@pytest.mark.local_data
+def test_discovers_revenue_in_the_local_store() -> None:
+    # SEC's numbers are public: the 10-Q's $2,398 million plus $490 million.
+    store = store_dir(get_settings().data_dir)
+    version = latest_data_version(store)
+    if version is None:
+        pytest.skip("no local store: run `uv run python -m app.data.ingest sec`")
+    at = parse_knowledge_time("2020-06-01")
+    with PointInTimeView(at, data_version=version, store=store) as view:
+        quarters = view.get_fundamentals_as_of("DFS", "revenue")
+
+    assert quarters, (
+        "no revenue for Discover: run `uv run python -m app.data.ingest sec` to keep "
+        "the concepts its revenue adds up"
+    )
+    latest = quarters[-1]
+    assert (latest.period_end, latest.value, latest.concept) == (
+        date(2020, 3, 31),
+        2_888e6,
+        NET_REVENUE,
+    )

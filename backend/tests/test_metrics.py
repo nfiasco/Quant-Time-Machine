@@ -3,7 +3,13 @@ from pathlib import Path
 import pytest
 
 from app.data.sources import xbrl
-from app.data.sources.metrics import METRICS, all_concepts, load_metrics, metric
+from app.data.sources.metrics import (
+    METRICS,
+    all_concepts,
+    load_metrics,
+    metric,
+    parts,
+)
 
 REVENUE = METRICS["revenue"]
 
@@ -37,9 +43,29 @@ def test_jpmorgan_has_its_own_revenue_concepts() -> None:
     assert REVENUE.overrides["jpmorgan"].source.startswith("https://www.sec.gov/")
 
 
+def test_discover_adds_up_its_revenue() -> None:
+    # Its income statement has no total: net interest income plus other income.
+    assert REVENUE.concepts_for("discover-financial") == (
+        "us-gaap:InterestIncomeExpenseNet + us-gaap:NoninterestIncome",
+    )
+    assert REVENUE.parts_for("discover-financial") == (
+        "us-gaap:InterestIncomeExpenseNet",
+        "us-gaap:NoninterestIncome",
+    )
+    assert REVENUE.parts_for("apple") == REVENUE.concepts
+    assert parts("us-gaap:Revenues") == ("us-gaap:Revenues",)
+    # Wells Fargo's filings before 2017 tag only the parts, so they come last.
+    assert REVENUE.concepts_for("wells-fargo")[-1] == (
+        "us-gaap:InterestIncomeExpenseNet + us-gaap:NoninterestIncome"
+    )
+
+
 def test_ingestion_keeps_every_concept_a_metric_lists() -> None:
     assert xbrl.CONCEPTS == all_concepts()
     assert "us-gaap:RevenuesNetOfInterestExpense" in xbrl.CONCEPTS
+    # Each concept a sum adds up, never the sum itself.
+    assert "us-gaap:NoninterestIncome" in xbrl.CONCEPTS
+    assert not any(" + " in concept for concept in xbrl.CONCEPTS)
 
 
 def test_an_unknown_metric_is_refused() -> None:
@@ -68,6 +94,29 @@ concepts = ["us-gaap:Revenues"]
         (VALID.replace('"duration"', '"flow"'), "period must be duration or instant"),
         (VALID.replace('["us-gaap:Revenues"]', "[]"), "at least one concept"),
         (VALID.replace("us-gaap:Revenues", "Revenues"), "isn't a concept like"),
+        (
+            VALID.replace(
+                '"us-gaap:Revenues"',
+                '"us-gaap:InterestIncomeExpenseNet + us-gaap:NoninterestIncome"',
+            ),
+            None,
+        ),
+        (
+            VALID.replace('"us-gaap:Revenues"', '"us-gaap:Revenues+us-gaap:Other"'),
+            "isn't a concept like",
+        ),
+        (
+            VALID.replace(
+                '"us-gaap:Revenues"', '"us-gaap:Revenues + us-gaap:Revenues"'
+            ),
+            "adds a concept to itself",
+        ),
+        (
+            VALID.replace('"duration"', '"instant"')
+            .replace("true", "false")
+            .replace('"us-gaap:Revenues"', '"us-gaap:Assets + us-gaap:Goodwill"'),
+            "can't add concepts up",
+        ),
         (
             VALID.replace(
                 '["us-gaap:Revenues"]', '["us-gaap:Revenues", "us-gaap:Revenues"]'

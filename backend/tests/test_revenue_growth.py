@@ -141,13 +141,13 @@ def test_a_fourth_quarter_derived_from_the_year_counts(store_dir: Path) -> None:
     }
 
 
-def test_a_16_week_quarter_isnt_a_quarter(store_dir: Path) -> None:
-    # PepsiCo's year is three 12-week quarters and a 16-week fourth, 112 days, longer
-    # than any quarter reads recognize (app/data/fundamentals.py). Its first quarter has
-    # growth, but no quarter before it.
-    add_security(store_dir, "pepsi", "PPP", cik=CIK)
-    add_member(store_dir, "pepsi")
+def test_a_16_week_quarter_counts(store_dir: Path) -> None:
+    # PepsiCo's year is three 12-week quarters and a 16-week fourth, which ended 112
+    # days after the third and 84 before the next first quarter.
+    add_security(store_dir, "alpha", "AAA", cik=CIK)
+    add_member(store_dir, "alpha")
     quarters = [
+        (date(2018, 9, 9), date(2018, 12, 29), 140.0),
         (date(2018, 12, 30), date(2019, 3, 23), 100.0),
         (date(2019, 9, 8), date(2019, 12, 28), 150.0),
         (date(2019, 12, 29), date(2020, 3, 21), 105.0),
@@ -155,16 +155,15 @@ def test_a_16_week_quarter_isnt_a_quarter(store_dir: Path) -> None:
     for start, end, revenue in quarters:
         accepted = market_time(end + timedelta(days=40), time(16))
         add_fact(store_dir, CIK, start, end, revenue, accepted=accepted)
-    at = market_time(date(2020, 5, 1), time(9, 30))
+    first = market_time(date(2020, 5, 1), time(9, 30))
+    fourth = market_time(date(2020, 4, 1), time(9, 30))
 
-    assert evaluate(store_dir, revenue_growth, at)["pepsi"].value == pytest.approx(0.05)
-    assert evaluate(store_dir, revenue_growth_acceleration, at) == {
-        "pepsi": SignalValue(
-            None,
-            "Revenue for the quarter before the one that ended on 2020-03-21 wasn't "
-            "known.",
-        )
-    }
+    # Its first quarter grew 5%, after 150 / 140 - 1 in its fourth.
+    assert value(store_dir, revenue_growth_acceleration, first) == pytest.approx(
+        0.05 - (150 / 140 - 1)
+    )
+    # Before the first quarter's 10-Q, its fourth quarter is the latest, and recent.
+    assert value(store_dir, revenue_growth, fourth) == pytest.approx(150 / 140 - 1)
 
 
 def test_a_restatement_counts_from_its_own_filing(store: Path) -> None:
@@ -300,23 +299,29 @@ def test_every_member_gets_a_value_or_a_reason(store: Path) -> None:
 
 
 @pytest.mark.local_data
-def test_apples_revenue_signals_on_june_1_2020() -> None:
-    # SEC's numbers are public, so this checks the local store against Apple's 10-Qs:
-    # $58,313 million for its fiscal second quarter of 2020 against $58,015 million a
-    # year earlier, and $91,819 million for its first quarter against $84,310 million.
+@pytest.mark.parametrize(
+    ("day", "growth", "acceleration"),
+    [
+        # Its 10-Qs: $58,313 million for its fiscal second quarter of 2020 against
+        # $58,015 million a year earlier, after $91,819 million against $84,310 million.
+        (date(2020, 6, 1), 58_313 / 58_015 - 1, (58_313 / 58_015) - (91_819 / 84_310)),
+        # Its fiscal fourth quarter of 2021, the 10-K's year minus nine months: $83,360
+        # million against $64,698 million, after $81,434 million against $59,685 million.
+        (date(2021, 11, 1), 83_360 / 64_698 - 1, (83_360 / 64_698) - (81_434 / 59_685)),
+    ],
+)
+def test_apples_revenue_signals_in_the_local_store(
+    day: date, growth: float, acceleration: float
+) -> None:
+    # SEC's numbers are public, so this checks the local store against Apple's filings.
     store = store_dir(get_settings().data_dir)
     version = latest_data_version(store)
     if version is None:
         pytest.skip("no local store: run `uv run python -m app.data.ingest sec`")
-    at = market_time(date(2020, 6, 1), time(9, 30))
+    at = market_time(day, time(9, 30))
     with PointInTimeView(at, data_version=version, store=store) as view:
         apple = [m for m in view.universe_as_of(UNIVERSE) if m.ticker == "AAPL"]
-        growth = revenue_growth(view, apple, PARAMS[revenue_growth])["apple"]
-        acceleration = revenue_growth_acceleration(
-            view, apple, PARAMS[revenue_growth_acceleration]
-        )["apple"]
+        found = {kind: kind(view, apple, PARAMS[kind])["apple"] for kind in PARAMS}
 
-    assert growth.value == pytest.approx(58_313 / 58_015 - 1)  # 0.51%
-    assert acceleration.value == pytest.approx(
-        (58_313 / 58_015 - 1) - (91_819 / 84_310 - 1)  # -8.39 points
-    )
+    assert found[revenue_growth].value == pytest.approx(growth)
+    assert found[revenue_growth_acceleration].value == pytest.approx(acceleration)

@@ -15,6 +15,9 @@
 #   for per-share amounts, which don't add up across quarters.
 # - overrides: a security whose filings need another list, with the reason and an https
 #   source that shows it.
+# - A concept can be a sum, "us-gaap:A + us-gaap:B", for a company whose filings have no
+#   total of their own: each quarter adds the concepts' values for the same period, each
+#   the latest filed, and is known when the last of them was (app/data/fundamentals.py).
 #
 # `ingest sec` keeps every concept listed here (sources/xbrl.py), so adding one means
 # running it again; it answers from the raw cache.
@@ -46,13 +49,29 @@ source = "https://www.sec.gov/Archives/edgar/data/19617/000001961715000318/corpq
 
 [[metrics.overrides]]
 security = "wells-fargo"
-concepts = ["us-gaap:RevenuesNetOfInterestExpense", "us-gaap:Revenues"]
+concepts = [
+    "us-gaap:RevenuesNetOfInterestExpense",
+    "us-gaap:Revenues",
+    "us-gaap:InterestIncomeExpenseNet + us-gaap:NoninterestIncome",
+]
 reason = """\
 Wells Fargo reports total revenue: net interest income plus noninterest income. Its \
 filings moved it from Revenues to RevenuesNetOfInterestExpense, recast years \
 included: 2019 was $85,063 million as Revenues in its 2019 10-K and $86,832 million \
-as recast in its 2021 10-K."""
+as recast in its 2021 10-K. Before 2017 its filings tag only the two parts, so they \
+add up to it: $11,037 million and $10,252 million for the second quarter of 2012, in \
+its 10-Q 0001193125-12-339392."""
 source = "https://www.sec.gov/Archives/edgar/data/72971/000007297122000096/wfc-20211231.htm"
+
+[[metrics.overrides]]
+security = "discover-financial"
+concepts = ["us-gaap:InterestIncomeExpenseNet + us-gaap:NoninterestIncome"]
+reason = """\
+Discover's income statement has no revenue total: it reports net interest income, and \
+total other income, which it tags NoninterestIncome. Their sum is its net revenue, as \
+RevenuesNetOfInterestExpense is JPMorgan's and Wells Fargo's: $2,398 million plus \
+$490 million, or $2,888 million, for the first quarter of 2020."""
+source = "https://www.sec.gov/Archives/edgar/data/1393612/000139361220000021/dfs331202010q.htm"
 
 [[metrics.overrides]]
 security = "mastercard"

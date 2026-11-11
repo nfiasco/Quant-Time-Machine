@@ -5,6 +5,10 @@ most preferred first, and overrides for securities whose filings need another li
 `ingest sec` keeps every concept listed (sources/xbrl.py). app/data/fundamentals.py
 resolves them: for every period, the first concept with a value supplies it, and the
 value carries its concept.
+
+An entry can also add concepts up, as "us-gaap:InterestIncomeExpenseNet +
+us-gaap:NoninterestIncome" does for Discover, whose income statement has no revenue
+total. `parts` splits an entry into the concepts it reads.
 """
 
 import re
@@ -25,6 +29,16 @@ Period = Literal["duration", "instant"]
 
 _NAME = re.compile(r"[a-z][a-z0-9_]*", re.ASCII)
 _CONCEPT = re.compile(r"(us-gaap|dei):[A-Z][A-Za-z0-9]*", re.ASCII)
+
+SUM = " + "
+"""How an entry adds concepts up: "us-gaap:InterestIncomeExpenseNet +
+us-gaap:NoninterestIncome"."""
+
+
+def parts(entry: str) -> tuple[str, ...]:
+    """The XBRL concepts an entry reads: the concept itself, such as
+    ("us-gaap:Revenues",), or each one a sum adds up."""
+    return tuple(entry.split(SUM))
 
 
 @dataclass(frozen=True)
@@ -50,7 +64,8 @@ class Metric:
     derive: bool
     """Whether a quarter can be computed from year-to-date totals (S5.7)."""
     concepts: tuple[str, ...]
-    """Most preferred first, each with its taxonomy, such as "us-gaap:Revenues"."""
+    """Most preferred first, each with its taxonomy, such as "us-gaap:Revenues", or a
+    sum of such concepts."""
     overrides: Mapping[str, Override]
     """By security ID."""
 
@@ -59,6 +74,17 @@ class Metric:
         override = self.overrides.get(security_id)
         return self.concepts if override is None else override.concepts
 
+    def parts_for(self, security_id: str) -> tuple[str, ...]:
+        """The XBRL concepts to read for a security: each concept it tries, and each one
+        a sum among them adds up."""
+        return tuple(
+            dict.fromkeys(
+                part
+                for entry in self.concepts_for(security_id)
+                for part in parts(entry)
+            )
+        )
+
 
 def load_metrics(
     path: Path = METRICS_FILE, curated: Curated = CURATED
@@ -66,9 +92,10 @@ def load_metrics(
     """Read and check the curated metrics, by name.
 
     Raises ValueError for a name used twice, an unknown unit or period, a concept that
-    isn't written like "us-gaap:Revenues", an empty or repeated concept, an instant
-    metric with more than one concept or set to derive quarters, or an override for a
-    security that isn't in securities.toml, or without a reason or https source.
+    isn't written like "us-gaap:Revenues", an empty or repeated concept, a sum that adds
+    a concept to itself, an instant metric with more than one concept, a sum, or set to
+    derive quarters, or an override for a security that isn't in securities.toml, or
+    without a reason or https source.
     """
     with path.open("rb") as file:
         config = tomllib.load(file)
@@ -130,10 +157,21 @@ def _metric(entry: Mapping[str, Any], file: str, curated: Curated) -> Metric:
 def _concepts(items: Any, period: str, where: str) -> tuple[str, ...]:
     if not isinstance(items, list) or not items:
         raise ValueError(f"{where}: concepts must be a list of at least one concept")
-    for concept in items:
-        if not isinstance(concept, str) or not _CONCEPT.fullmatch(concept):
+    for entry in items:
+        names = parts(entry) if isinstance(entry, str) else (entry,)
+        if not all(
+            isinstance(name, str) and _CONCEPT.fullmatch(name) for name in names
+        ):
             raise ValueError(
-                f"{where}: {concept!r} isn't a concept like us-gaap:Revenues"
+                f"{where}: {entry!r} isn't a concept like us-gaap:Revenues, or "
+                f"concepts joined by {SUM!r}"
+            )
+        if len(set(names)) < len(names):
+            raise ValueError(f"{where}: {entry!r} adds a concept to itself")
+        if len(names) > 1 and period == "instant":
+            raise ValueError(
+                f"{where}: an instant metric can't add concepts up, because they can "
+                "be measured on different dates"
             )
     if len(set(items)) < len(items):
         raise ValueError(f"{where} lists a concept twice")
@@ -150,15 +188,17 @@ METRICS = load_metrics()
 
 
 def all_concepts(metrics: Mapping[str, Metric] = METRICS) -> frozenset[str]:
-    """Every concept a metric or override lists: the ones ingestion keeps."""
+    """Every concept a metric or override lists, or adds up: the ones ingestion
+    keeps."""
     return frozenset(
-        concept
+        part
         for metric in metrics.values()
         for concepts in (
             metric.concepts,
             *(o.concepts for o in metric.overrides.values()),
         )
-        for concept in concepts
+        for entry in concepts
+        for part in parts(entry)
     )
 
 
