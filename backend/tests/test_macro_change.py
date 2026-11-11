@@ -68,9 +68,11 @@ def test_a_change_counts_from_the_jobs_report(fixture_store: Path) -> None:
     assert change(fixture_store, et(JUNE_5, 8)).value == pytest.approx(10.3)
     # The release counts from 08:30 itself.
     assert change(fixture_store, et(JUNE_5, 8, 30)).value == pytest.approx(-1.4)
-    # Over two releases, May's against March's.
+    # Over two releases, May's against March's, and May's relative to April's.
     two = change(fixture_store, et(JUNE_5, 9, 30), releases=2)
     assert two.value == pytest.approx(13.3 - 4.4)
+    relative = change(fixture_store, et(JUNE_5, 9, 30), kind="relative")
+    assert relative.value == pytest.approx(13.3 / 14.7 - 1)
 
 
 def test_each_value_is_its_latest_revision_known_then(fixture_store: Path) -> None:
@@ -197,15 +199,26 @@ def jobs(store_dir: Path) -> Path:
     return store_dir
 
 
+FUTURE_RELEASES = {
+    "the next release": (date(2020, 6, 1), 99.9),
+    "a revision alone": (date(2020, 4, 1), 20.0),
+}
+"""Rows published after the decision, each on its own: June's first print, which would
+become the latest observation, and a revision of April, which would change the one a
+release before May's."""
+
+
+@pytest.mark.parametrize("row", FUTURE_RELEASES)
 @pytest.mark.parametrize(
     "vintage",
-    [date(2020, 6, 8), date(2099, 1, 1)],
-    ids=["the next Monday", "in 2099"],
+    [date(2020, 7, 2), date(2099, 1, 1)],
+    ids=["the next jobs report", "in 2099"],
 )
-def test_a_future_release_never_reaches_macro_change(jobs: Path, vintage: date) -> None:
-    # A revision of April, and June's first print, published after the decision.
-    add_release(jobs, "UNRATE", date(2020, 4, 1), 20.0, vintage)
-    add_release(jobs, "UNRATE", date(2020, 6, 1), 99.9, max(vintage, date(2020, 7, 2)))
+def test_a_future_release_never_reaches_macro_change(
+    jobs: Path, row: str, vintage: date
+) -> None:
+    period, value = FUTURE_RELEASES[row]
+    add_release(jobs, "UNRATE", period, value, vintage)
 
     assert change(jobs, et(JUNE_5, 9, 30)).value == pytest.approx(-1.4)
 
