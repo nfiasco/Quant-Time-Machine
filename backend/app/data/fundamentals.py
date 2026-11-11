@@ -7,7 +7,8 @@ row they see was known at the knowledge time:
   reported (doc/reference/time-model.md, rule 6);
 - `resolve`: for each period, the first concept in a metric's order that has a value;
 - `quarterly_values`: a metric's quarters, reported or derived from year-to-date
-  totals, with the concept and filings each came from;
+  totals, or added up from the concepts a sum names, with the concepts and filings
+  each came from;
 - `coverage`: which of a company's 10-Qs and 10-Ks reported none of a metric's
   concepts for their own period.
 
@@ -25,7 +26,7 @@ from typing import Any
 
 from app.data.records import ConceptUse
 from app.data.sources.edgar import form_family
-from app.data.sources.metrics import Metric
+from app.data.sources.metrics import Metric, parts
 
 type Period = tuple[date | None, date]
 """A period's start and end. The start is None for an instant."""
@@ -120,11 +121,15 @@ def resolve(
 
 
 _SPANS = (
-    (range(80, 101), 1),  # a quarter: 13 or 14 weeks, or 90 to 92 days
-    (range(175, 197), 2),  # six months: 26 or 27 weeks, or 181 to 184 days
-    (range(266, 288), 3),  # nine months: 39 or 40 weeks, or 273 to 275 days
+    (range(80, 120), 1),  # a quarter: 12 to 17 weeks, or 90 to 92 days
+    (range(161, 197), 2),  # six months: 24 to 28 weeks, or 181 to 184 days
+    (range(245, 288), 3),  # nine months: 36 to 41 weeks, or 273 to 275 days
     (range(350, 381), 4),  # a year: 52 or 53 weeks, or 365 or 366 days
 )
+"""Most companies' quarters are 13 or 14 weeks, or calendar quarters. PepsiCo's year is
+three 12-week quarters and a 16-week fourth, 17 weeks in a 53-week year, so its first
+36 weeks are its nine months, and its fourth quarter, the year minus those, is 112 or
+119 days."""
 
 
 def quarters_spanned(duration_days: int) -> int | None:
@@ -153,6 +158,17 @@ class Quarter:
     fiscal_year: int | None = None
     fiscal_period: str | None = None
     """"Q1" to "Q4"."""
+    parts: tuple[Quarter, ...] = ()
+    """For a sum of concepts, the quarter of each one it adds up."""
+
+    @property
+    def source_ref(self) -> str:
+        """Where it came from, as a record cites it: its filing's accession number, or
+        "<longer total's> minus <shorter total's>" for a derived quarter. A sum cites
+        its parts', joined by " plus " where they differ."""
+        if self.parts:
+            return " plus ".join(dict.fromkeys(part.source_ref for part in self.parts))
+        return " minus ".join(self.accession_numbers)
 
 
 def quarterly_values(
@@ -160,14 +176,18 @@ def quarterly_values(
 ) -> list[Quarter]:
     """Every quarter of a metric that `rows` give, oldest first.
 
-    Periods are sorted by length (`quarters_spanned`), so 13- and 14-week quarters and
-    52- and 53-week years count. For each quarter, keyed by its end date, the concepts
-    are tried in order. A concept has the quarter if a filing reported it, or, for a
-    metric that can be derived, if two of its year-to-date totals with the same start
-    give it: Q2 is six months minus Q1, Q3 nine months minus six, and Q4 the year
-    minus nine months. Every value is the latest one filed (`latest_by_period`), and a
-    reported quarter beats a derived one. An instant metric has a value per date
-    instead.
+    Periods are sorted by length (`quarters_spanned`), so 13- and 14-week quarters,
+    PepsiCo's 12- and 16-week ones, and 52- and 53-week years count. For each quarter,
+    keyed by its end date, the concepts are tried in order. A concept has the quarter
+    if a filing reported it, or, for a metric that can be derived, if two of its
+    year-to-date totals with the same start give it: Q2 is six months minus Q1, Q3
+    nine months minus six, and Q4 the year minus nine months. Every value is the latest
+    one filed (`latest_by_period`), and a reported quarter beats a derived one. An
+    instant metric has a value per date instead.
+
+    A sum of concepts, such as Discover's net interest income plus its other income,
+    has a quarter where every concept it adds up has one, with the same start: their
+    values added up, citing every filing, and known when the last of them was.
 
     Each value gets the fiscal year and quarter of the 10-Q or 10-K that reported its
     period as its own (`_labels`).
@@ -180,8 +200,8 @@ def quarterly_values(
             if start is None:
                 found[end] = _reported(version)
     else:
-        for concept in concepts:
-            for end, quarter in _quarters(versions, concept, metric.derive).items():
+        for entry in concepts:
+            for end, quarter in _entry_quarters(versions, entry, metric.derive).items():
                 found.setdefault(end, quarter)
     labels = _labels(rows)
     return [
@@ -190,6 +210,40 @@ def quarterly_values(
         else found[end]
         for end in sorted(found)
     ]
+
+
+def _entry_quarters(
+    versions: Mapping[ConceptPeriod, Version], entry: str, derive: bool
+) -> dict[date, Quarter]:
+    """An entry's quarters by end date: a concept's own, or, for a sum, those every
+    concept it adds up has for the same period."""
+    names = parts(entry)
+    if len(names) == 1:
+        return _quarters(versions, entry, derive)
+    each = [_quarters(versions, name, derive) for name in names]
+    summed: dict[date, Quarter] = {}
+    for end in set(each[0]).intersection(*each[1:]):
+        quarters = tuple(by_end[end] for by_end in each)
+        if len({quarter.period_start for quarter in quarters}) > 1:
+            continue  # the concepts report different periods
+        summed[end] = Quarter(
+            concept=entry,
+            period_start=quarters[0].period_start,
+            period_end=end,
+            value=sum(quarter.value for quarter in quarters),
+            derived=any(quarter.derived for quarter in quarters),
+            accession_numbers=tuple(
+                dict.fromkeys(
+                    number
+                    for quarter in quarters
+                    for number in quarter.accession_numbers
+                )
+            ),
+            available_at=max(quarter.available_at for quarter in quarters),
+            time_assumed=any(quarter.time_assumed for quarter in quarters),
+            parts=quarters,
+        )
+    return summed
 
 
 def _quarters(
@@ -308,13 +362,15 @@ def coverage(
     Original 10-Qs and 10-Ks accepted from `since` on are checked: the time of the
     company's first XBRL fact, since tagging began in 2009 to 2011. A filing covers the
     metric if it reported one of the concepts, in the metric's unit, for a period ending
-    on its period of report; a cover-page concept (dei) needs only a value from it. It's
-    ambiguous if it reported two values for the same period of the concept it used.
+    on its period of report, or, for a sum, every concept it adds up; a cover-page
+    concept (dei) needs only a value from it. It's ambiguous if it reported two values
+    for the same period of a concept it used.
     """
     rank = {concept: n for n, concept in enumerate(concepts)}
+    read = {name for entry in concepts for name in parts(entry)}
     by_filing: defaultdict[str, list[Mapping[str, Any]]] = defaultdict(list)
     for fact in facts:
-        if fact["concept"] in rank and fact["unit"] == metric.unit:
+        if fact["concept"] in read and fact["unit"] == metric.unit:
             by_filing[fact["accession_number"]].append(fact)
     checked = sorted(
         (
@@ -339,15 +395,17 @@ def coverage(
             for fact in by_filing[filing["accession_number"]]
             if fact["concept"].startswith("dei:") or fact["period_end"] == period
         ]
-        if not own:
+        reported = {fact["concept"] for fact in own}
+        entry = next((e for e in concepts if set(parts(e)) <= reported), None)
+        if entry is None:
             missing.append(period)
             continue
-        concept = min({fact["concept"] for fact in own}, key=rank.__getitem__)
-        used[concept].append(period)
-        values: defaultdict[Period, set[float]] = defaultdict(set)
+        used[entry].append(period)
+        values: defaultdict[ConceptPeriod, set[float]] = defaultdict(set)
         for fact in own:
-            if fact["concept"] == concept:
-                values[(fact["period_start"], fact["period_end"])].add(fact["value"])
+            if fact["concept"] in parts(entry):
+                key = (fact["concept"], fact["period_start"], fact["period_end"])
+                values[key].add(fact["value"])
         if any(len(found) > 1 for found in values.values()):
             ambiguous.append(period)
 

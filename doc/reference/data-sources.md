@@ -225,7 +225,8 @@ Retrieved 2026-10-11: Apple's revenue for the quarter ended March 28, 2020 (`Rev
 - **Overrides.** A security whose filings need another list gets one, with the reason and a source.
   - JPMorgan's revenue is total net revenue: `RevenuesNetOfInterestExpense` first, then `Revenues`.
   - Its filings switched to that tag in 2015 and recast earlier quarters under it. The default order tries `Revenues` first, so it would miss the recasts: the first quarter of 2014 was $22,993 million as first reported and $23,215 million as recast.
-- **An instant metric lists one concept**, because two concepts can be measured on different dates. Shares outstanding is the cover page's count, dated shortly before each filing.
+- **A concept can be a sum**, such as `us-gaap:InterestIncomeExpenseNet + us-gaap:NoninterestIncome`, for a company whose filings have no total. Each quarter adds the concepts' latest values for the same period, cites every filing, and is known when the last of them was. Discover's revenue is that sum, and so is Wells Fargo's before 2017, as its last choice (added 2026-11-10, S7.4).
+- **An instant metric lists one concept**, because two concepts can be measured on different dates, and adds none up. Shares outstanding is the cover page's count, dated shortly before each filing.
 - **Only 10-K, 10-Q, and 8-K filings and their amendments are read.** Facts from other forms, such as proxy statements, repeat the reports' numbers. They're stored but never read, so a repeat never stands in for the report.
 - **Coverage.** `uv run python -m app.data.coverage` prints, for each metric and each company that was ever in the universe:
   - how many of its 10-Qs and 10-Ks, from its first XBRL fact on, reported one of the concepts for their own period;
@@ -255,11 +256,16 @@ Coverage, from `uv run python -m app.data.coverage` on data version `20261101T20
   - Pfizer takes `Revenues` first, because its 2023 10-K recast 2021's contract revenue to leave out revenue that its total revenues include.
   - Coca-Cola, Johnson & Johnson, and AMD add `SalesRevenueGoodsNet`, which held their revenue until 2018 (2012 for AMD).
 - **Gaps that stay.**
-  - Wells Fargo before 2017 and Discover never tagged a revenue total. Their 10-Qs tag net interest income and noninterest income separately: Wells Fargo's second quarter of 2012 was $11,037 million and $10,252 million. A list of concepts can't add them up.
+  - Wells Fargo before 2017 and Discover never tagged a revenue total. Their 10-Qs tag net interest income and noninterest income separately: Wells Fargo's second quarter of 2012 was $11,037 million and $10,252 million. A list of concepts couldn't add them up. A sum does now (see the update below).
   - ExxonMobil's 10-Qs before 2017 tag revenue only with its own extension concepts, which company facts leave out.
   - Goldman Sachs's own filings before 2014 tagged net revenues with no listed concept. Its later filings' comparatives fill in those quarters, known from 2014.
   - Pioneer tagged only its oil and gas revenue (`OilAndGasRevenue`) before 2014, and Kohl's net sales became total revenue, other revenue included, with ASC 606.
   - A filing here and there has no facts at all for its own period, such as Citigroup's first two 10-Qs of 2026, so it's a gap in every metric.
+
+**Update (2026-11-10, S7.4).** The signal library's first runs showed the gaps above.
+- **Sums.** Discover's and Wells Fargo's revenue now add up net interest income and noninterest income. `ingest sec` kept the two concepts, answering from the raw cache.
+- **Coverage.** On data version `20261111T030742Z`, revenue covers 97.4% of the same 3,049 filings. Discover and Wells Fargo miss none.
+- **Quarter lengths.** PepsiCo's 16-week fourth quarters are derived now that quarters run 80 to 119 days ([time model, rule 6](time-model.md#6-an-xbrl-fact-is-known-when-the-filing-that-reported-it-was-accepted)).
 
 **Limits, cost, and terms:** the same as the submissions API. XBRL data usually updates within a minute of a filing.
 

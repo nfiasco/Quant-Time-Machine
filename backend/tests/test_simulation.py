@@ -1,9 +1,10 @@
 """The simulation loop (S7.3) on a toy market: three made-up stocks in the universe, and
 SPY, from December 2020 through April 2021 (tests/toy_market.py).
 
-A scripted momentum signal stands in for the signal library (S7.4): at each decision
-it answers from a script, so each test chooses the holdings, and it records what the
-decision could see.
+Most tests use a scripted momentum signal in place of the signal library: at each
+decision it answers from a script, so each test chooses the holdings, and it records
+what the decision could see. One runs the canonical spec's signals from the library
+itself (S7.4).
 """
 
 import ast
@@ -33,6 +34,7 @@ from tests.toy_market import (
     add_action,
     add_bars,
     add_member,
+    add_revenue,
     add_security,
     steps,
 )
@@ -272,10 +274,11 @@ FORBIDDEN = ("duckdb", "pyarrow", "app.data.store", "app.data.versions", "app.co
 
 
 def store_access(folder: Path, private: set[str]) -> list[str]:
-    """Each line in the Python files under `folder` that imports something FORBIDDEN or
-    reads one of `private`, a view's private members, as "file:line"."""
+    """Each line in the Python files under `folder`, in its packages too, that imports
+    something FORBIDDEN or reads one of `private`, a view's private members, as
+    "file:line" with the file's path from `folder`."""
     found = []
-    for path in sorted(folder.glob("*.py")):
+    for path in sorted(folder.rglob("*.py")):
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
             names: list[str] = []
             if isinstance(node, ast.Import):
@@ -288,7 +291,8 @@ def store_access(folder: Path, private: set[str]) -> list[str]:
                 for name in names
                 for banned in FORBIDDEN
             ):
-                found.append(f"{path.name}:{getattr(node, 'lineno', 0)}")
+                where = path.relative_to(folder).as_posix()
+                found.append(f"{where}:{getattr(node, 'lineno', 0)}")
     return found
 
 
@@ -317,12 +321,15 @@ def test_the_engine_never_touches_the_store_itself(store_dir: Path) -> None:
         "rows = view._select('price_bars')",
     ],
 )
+@pytest.mark.parametrize("where", ["portfolio.py", "signals/momentum.py"])
 def test_the_store_guard_catches_an_offender(
-    tmp_path: Path, store_dir: Path, line: str
+    tmp_path: Path, store_dir: Path, line: str, where: str
 ) -> None:
-    (tmp_path / "signals.py").write_text(f'"""A signal."""\n{line}\n', encoding="utf-8")
+    path = tmp_path / where
+    path.parent.mkdir(exist_ok=True)
+    path.write_text(f'"""Engine code."""\n{line}\n', encoding="utf-8")
 
-    assert store_access(tmp_path, private_members(store_dir)) == ["signals.py:2"]
+    assert store_access(tmp_path, private_members(store_dir)) == [f"{where}:2"]
 
 
 def test_next_day_open_fills(store_dir: Path) -> None:
@@ -660,21 +667,66 @@ def test_what_the_engine_cant_run_is_rejected(store: Path, field: str) -> None:
     assert [(p.field, p.message) for p in raised.value.problems] == [(field, message)]
 
 
-def test_the_canonical_spec_waits_for_the_signal_library(store: Path) -> None:
-    # Until S7.4 adds them, the engine has no signals of its own.
-    canonical = parse_spec(CANONICAL.read_text(encoding="utf-8"))
-
+def test_a_signal_the_engine_lacks_is_rejected(store: Path) -> None:
     with pytest.raises(SpecError) as raised:
-        simulate(canonical, partial(PointInTimeView, store=store))
+        simulate(toy_spec(), partial(PointInTimeView, store=store), signals={})
 
-    rev_accel, mom = raised.value.problems
-    assert rev_accel.message == (
-        "signals.rev_accel.type 'revenue_growth_acceleration' can't be evaluated "
-        "yet: the engine has no such signal."
+    assert [p.message for p in raised.value.problems] == [
+        (
+            "signals.mom.type 'momentum' can't be evaluated yet: the engine has no "
+            "such signal."
+        )
+    ]
+
+
+def test_the_canonical_specs_signals_run_in_the_loop(store_dir: Path) -> None:
+    # The library's own signals, with nothing scripted (S7.4). All three stocks rise,
+    # so their 12-1 momentum is positive, but only alpha's revenue growth accelerates:
+    # 1%, 3%, 6%, then 10% over 2019. Beta's slows, and gamma files no revenue.
+    rising = steps(
+        date(2019, 12, 2),
+        END,
+        {date(2019, 12, 2): 100.0, date(2020, 6, 1): 110.0}
+        | {date(2020, 10, 1): 121.0, date(2021, 1, 4): 133.1},
     )
-    assert mom.message == (
-        "signals.mom_12_1.type 'momentum' can't be evaluated yet: the engine has no "
-        "such signal."
+    for security_id, ticker, cik in [
+        ("alpha", "AAA", 1),
+        ("beta", "BBB", 2),
+        ("gamma", "CCC", None),
+    ]:
+        add_security(store_dir, security_id, ticker, cik=cik)
+        add_member(store_dir, security_id)
+        add_bars(store_dir, security_id, rising)
+    add_security(store_dir, "spdr-sp500", "SPY")
+    add_bars(store_dir, "spdr-sp500", steps(START, END, {START: 300.0}))
+    year = [date(2019, 3, 31), date(2019, 6, 30), date(2019, 9, 30), date(2019, 12, 31)]
+    a_year_later = [day.replace(year=2020) for day in year]
+    flat = dict.fromkeys(year, 100.0)
+    add_revenue(store_dir, 1, flat | dict(zip(a_year_later, [101.0, 103, 106, 110])))
+    add_revenue(store_dir, 2, flat | dict(zip(a_year_later, [110.0, 108, 105, 101])))
+    data = json.loads(CANONICAL.read_text(encoding="utf-8"))
+    data["period"] = {"start": "2021-01-01", "end": "2021-04-30"}
+
+    result = simulate(parse_spec(data), partial(PointInTimeView, store=store_dir))
+
+    assert [[h.security_id for h in p.holdings] for p in result.periods] == [
+        ["alpha"]
+    ] * 4
+    holdings = [p.holdings[0].signals for p in result.periods]
+    # Until the 10-K for 2020 was accepted, on 2021-02-09, the latest quarter known
+    # ended 2020-09-30: 6% growth after 3%. Then 10% after 6%.
+    assert [h["rev_accel"] for h in holdings] == pytest.approx([0.03, 0.03, 0.04, 0.04])
+    # From 100 to 121, then to 133.1, as the window moves past January 2021's rise.
+    assert [h["mom_12_1"] for h in holdings] == pytest.approx(
+        [0.21, 0.21, 0.331, 0.331]
+    )
+    assert [(w.kind, w.decision, w.ticker, w.signal) for w in result.warnings] == [
+        ("missing_signal", day, "CCC", "rev_accel")
+        for day in (JAN_4, FEB_1, MAR_1, APR_1)
+    ]
+    assert result.warnings[0].message == (
+        "CCC was left out at the 2021-01-04 decision, because rev_accel had no value. "
+        "No quarterly revenue was known then."
     )
 
 

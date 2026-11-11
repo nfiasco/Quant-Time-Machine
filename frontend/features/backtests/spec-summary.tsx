@@ -1,4 +1,5 @@
-import type { ExperimentSpec, SignalSpec } from "@/features/backtests/types";
+import { describeSignal } from "@/features/backtests/describe-signal";
+import type { ExperimentSpec } from "@/features/backtests/types";
 import { cn } from "@/lib/utils";
 
 const UNIVERSE_LABELS: Record<string, string> = {
@@ -13,15 +14,6 @@ const FILL_LABELS: Record<ExperimentSpec["schedule"]["fill"], string> = {
 function describeDecision(decision: string): string {
   const match = /^first_trading_day (\d{2}:\d{2}) America\/New_York$/.exec(decision);
   return match ? `first trading day at ${match[1]} ET` : decision;
-}
-
-function describeSignal(signal: SignalSpec): string {
-  switch (signal.type) {
-    case "revenue_growth_acceleration":
-      return "Revenue growth acceleration (year over year, quarterly)";
-    case "momentum":
-      return `Momentum, ${signal.lookback_months}-month lookback, skipping the last ${signal.skip_months}`;
-  }
 }
 
 /**

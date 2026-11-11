@@ -263,7 +263,7 @@ Every backtest, whether built in the web form (498) or by the AI assistant (499)
 }
 ```
 
-The model is [`app/backtest/spec.py`](../backend/app/backtest/spec.py), and its JSON Schema is [`experiment-spec-v1.schema.json`](reference/experiment-spec-v1.schema.json) (S7.1). Signals come from a fixed, documented library, not free-form code. When a spec asks for data outside our coverage, for example fundamentals before XBRL existed, the engine rejects it or warns, and says why.
+The model is [`app/backtest/spec.py`](../backend/app/backtest/spec.py), and its JSON Schema is [`experiment-spec-v1.schema.json`](reference/experiment-spec-v1.schema.json) (S7.1). Signals come from a fixed, [documented library](reference/signals.md), not free-form code. When a spec asks for data outside our coverage, for example fundamentals before XBRL existed, the engine rejects it or warns, and says why.
 
 ## 4. Requirements
 
@@ -680,7 +680,7 @@ Every story in one table. Verified contributors are listed for completed stories
 | [S7.1](#s71-experiment-spec-v1) | Experiment spec v1 | E7 | P0 | M | 3 | M3 | ✅ Done | [#141](https://github.com/nfiasco/Quant-Time-Machine/issues/141) | [nfiasco](https://github.com/nfiasco) |
 | [S7.2](#s72-rebalance-schedule-and-decision-and-fill-timing) | Rebalance schedule and decision and fill timing | E7 | P0 | S | 3 | M3 | ✅ Done | [#142](https://github.com/nfiasco/Quant-Time-Machine/issues/142) | [nfiasco](https://github.com/nfiasco) |
 | [S7.3](#s73-simulation-loop) | Simulation loop | E7 | P0 | L | 4 | M4 | In review | [#30](https://github.com/nfiasco/Quant-Time-Machine/issues/30) | See issue |
-| [S7.4](#s74-signal-library-v1) | Signal library v1 | E7 | P0 | M | 4 | M4 | Ready | [#31](https://github.com/nfiasco/Quant-Time-Machine/issues/31) | See issue |
+| [S7.4](#s74-signal-library-v1) | Signal library v1 | E7 | P0 | M | 4 | M4 | In review | [#31](https://github.com/nfiasco/Quant-Time-Machine/issues/31) | See issue |
 | [S7.5](#s75-portfolio-construction-and-costs) | Portfolio construction and costs | E7 | P0 | M | 4 | M4 | Backlog | [#143](https://github.com/nfiasco/Quant-Time-Machine/issues/143) | See issue |
 | [S7.6](#s76-metrics-and-benchmark-comparison) | Metrics and benchmark comparison | E7 | P0 | M | 4 | M4 | Backlog | [#32](https://github.com/nfiasco/Quant-Time-Machine/issues/32) | See issue |
 | [S7.7](#s77-run-records-determinism-and-audit-log) | Run records, determinism, and audit log | E7 | P0 | M | 4 | M4 | Backlog | [#36](https://github.com/nfiasco/Quant-Time-Machine/issues/36) | See issue |
@@ -1539,6 +1539,8 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Progress evidence (2026-11-08):** Six standard metrics, company overrides, concept resolution, ASC 606 cases, and fundamentals coverage are merged. Evidence: [PR #81](https://github.com/nfiasco/Quant-Time-Machine/pull/81), [PR #84](https://github.com/nfiasco/Quant-Time-Machine/pull/84), `backend/app/data/sources/metrics.toml`, `backend/app/data/fundamentals.py`, `backend/app/data/coverage.py`, `backend/tests/test_coverage.py`.
 
+**Follow-up (2026-11-10, found in S7.4):** A concept in `metrics.toml` can now add others up. Discover's income statement has no revenue total, and Wells Fargo's filings before 2017 tag none, so their revenue is net interest income plus noninterest income. `ingest sec` kept the two concepts, answering from the raw cache, in data version 20261111T030742Z. Revenue now covers 97.4% of the 3,049 filings, up from 94.4%, and Discover and Wells Fargo miss none. Evidence: `test_a_sum_adds_up_its_concepts_for_each_quarter` and `test_discovers_revenue_is_its_net_interest_and_other_income` in `backend/tests/test_fundamentals.py`.
+
 **Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
 **GitHub:** [#132](https://github.com/nfiasco/Quant-Time-Machine/issues/132) · **Parent epic:** [#100](https://github.com/nfiasco/Quant-Time-Machine/issues/100)
@@ -1564,6 +1566,8 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 - [x] Write tests, including a synthetic restatement: [`tests/test_fundamentals.py`](../backend/tests/test_fundamentals.py), with `test_restatement_applies_from_amendment` (a made-up 10-K/A), Apple's fiscal 2021 Q4, and Microsoft's June fiscal year
 
 **Progress evidence (2026-11-08):** Quarter classification, Q2/Q3/Q4 derivation, filing-time restatements, provenance, and fiscal-year edge cases are merged. Evidence: [PR #82](https://github.com/nfiasco/Quant-Time-Machine/pull/82), `backend/app/data/fundamentals.py`, `backend/tests/test_fundamentals.py`.
+
+**Follow-up (2026-11-10, found in S7.4):** PepsiCo's year is three 12-week quarters and a 16-week fourth, so none of its fourth quarters was derived. Quarters now run 80 to 119 days, six months 161 to 196, and nine months 245 to 287. That adds PepsiCo's 18 fourth quarters of revenue from 2008 to 2025, and changes no other company's quarters in the local store. Evidence: `test_pepsicos_16_week_fourth_quarter_is_derived` in `backend/tests/test_fundamentals.py`.
 
 **Verified contributors (2026-11-09):** [nfiasco](https://github.com/nfiasco). [Authorship evidence](project/contribution-history.md).
 
@@ -1847,7 +1851,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 #### S7.4 Signal library v1
 
-**Priority:** P0 · **Size:** M · **Sprint:** 4 · **Milestone:** M4 · **Area:** engine · **Depends on:** S4.4, S5.7, S6.3 · **Reqs:** FR-B4 · **Status:** Ready
+**Priority:** P0 · **Size:** M · **Sprint:** 4 · **Milestone:** M4 · **Area:** engine · **Depends on:** S4.4, S5.7, S6.3 · **Reqs:** FR-B4 · **Status:** In review
 
 **Story:** As a researcher, I want standard, documented signals, so that I can express common hypotheses without writing code.
 
@@ -1861,11 +1865,23 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 **Tasks**
 
-- [ ] Implement the signals
-- [ ] Write `doc/reference/signals.md` with the formulas
-- [ ] Write the tests, including poisoned-future rows
+- [x] Implement the signals: [`app/backtest/signals/`](../backend/app/backtest/signals/), one module per kind, each reading only through the decision's view and giving every member a value or the reason it has none.
+  - `momentum` compounds total returns over whole months, 12-1 by default.
+  - `revenue_growth` and `revenue_growth_acceleration` compare the latest quarter known with the same quarter a year earlier, matched by end date so 52- and 53-week years count. A latest quarter that ended more than 200 days before the decision gives no value.
+  - `macro_change` is a series' change over its last *k* releases, both values at their latest versions known then. It's the same for every stock, and a filter sets the threshold: `unrate_3m < 0` holds stocks only while unemployment is lower than three months before.
+  - The spec adds `revenue_growth` and `macro_change`, defaults momentum to 12-1, and allows at most 120 months or releases back. The frontend's types and spec summary follow.
+- [x] Write [`doc/reference/signals.md`](reference/signals.md) with the formulas: each signal's data, minimum history, and every reason it can give, with worked examples. Apple's revenue grew 0.51% in the quarter known at the June 1, 2020 decision, after 8.91%, an acceleration of −8.39 points. UNRATE's change over one release on June 5, 2020 was −1.4 points at 09:30 ET and +10.3 at 08:00, before the jobs report.
+- [x] Write the tests, including poisoned-future rows: [`test_momentum.py`](../backend/tests/test_momentum.py), [`test_revenue_growth.py`](../backend/tests/test_revenue_growth.py), and [`test_macro_change.py`](../backend/tests/test_macro_change.py). Each signal gets rows known only after the decision (a microsecond later, the next filing or release, or 2099), which never reach it but count once known. [`test_signals.py`](../backend/tests/test_signals.py) checks the library has every spec type, and `test_the_canonical_specs_signals_run_in_the_loop` runs the canonical spec's own signals on a toy market.
 
-**Progress evidence (2026-11-08):** Signal schemas and catalog descriptions exist, but momentum, revenue-growth, and macro-condition calculators and doc/reference/signals.md do not. The existing issue owner is retained. Evidence: `backend/app/backtest/spec.py`, `backend/app/api/catalog.py`.
+**Progress evidence (2026-11-10):** The engine runs the canonical spec with its own signals. On the local store (data version 20261111T030742Z), 2020 to 2022 took 32 seconds for 36 decisions, against 28 with S7.3's scripted signal, and held 4 to 31 stocks, 15.1 on average.
+- **Cross-checks.** Apple's growth and acceleration at the June 1, 2020 decision match its 10-Qs, and at the November 1, 2021 decision they come from a derived fourth quarter (a `local_data` test checks both). Its 12-1 momentum matches an independent compounding of the same 11 months.
+- **Coverage.** 15 of 1,425 member-decisions had no `rev_accel`, each with its reason: single missing quarters at Alphabet, Kohl's, and NVIDIA. The first runs also missed 51 more, now filled:
+  - Discover's revenue at every decision. Its income statement has no total, so its revenue is now net interest income plus noninterest income (see S5.6's follow-up).
+  - PepsiCo's 16-week fourth quarters, which are now derived (see S5.7's follow-up).
+  - One of Wells Fargo's fourth quarters, filled by the same sum.
+- **For S7.7.** Each decision's view logged about 18,000 rows, mostly the revenue facts it read: about 3.5 million over 2010 to 2025's 192 decisions, which the audit will need to summarize.
+
+Evidence: `backend/app/backtest/signals/`, `doc/reference/signals.md`, `backend/tests/test_momentum.py`, `backend/tests/test_revenue_growth.py`, `backend/tests/test_macro_change.py`.
 
 **GitHub:** [#31](https://github.com/nfiasco/Quant-Time-Machine/issues/31) · **Parent epic:** [#14](https://github.com/nfiasco/Quant-Time-Machine/issues/14)
 

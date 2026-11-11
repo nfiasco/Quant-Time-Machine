@@ -364,6 +364,7 @@ A company's last quarters of a standard metric, as filed by the knowledge time, 
   ```
 
 - **`concept`** is the XBRL concept the value came from. A metric tries its concepts in order for each quarter, so a company whose tag changed keeps one series. Many changed with the 2018 revenue rules (ASC 606).
+- **A sum of concepts.** Discover's income statement has no revenue total, so its revenue's `concept` is `us-gaap:InterestIncomeExpenseNet + us-gaap:NoninterestIncome`: the two added up. `accession_numbers` cites every filing they came from, and `source_ref` joins each one's with " plus " where they differ.
 - **`fiscal_year` and `fiscal_period`** come from the filing that reported the period as its own. For example, Microsoft's quarter from April to June 2021 is fiscal 2021 `Q4`. Both are `null` when no filing in our data reported the period as its own.
 - **A quarter without a value is skipped, not filled**, so match quarters by `period_end`, not by position.
 - **Instants.** For `total_assets` and `shares_outstanding`, `period_start` is `null`, and the last `quarters` dates come back. Shares outstanding is the count on each filing's cover page, dated shortly before the filing.
@@ -530,49 +531,63 @@ The members of each universe at the knowledge time, under the tickers and names 
 
 ### `GET /v1/catalog/signals`
 
-The kinds of signal an experiment spec can use, each with the JSON Schema of its object in a spec's `signals` (S8.5). They depend on neither time nor data, so there's no `as_of`, and the response has no `knowledge_time` or `data_version`. `GET /v1/catalog/signals`, with one schema shortened:
+The kinds of signal an experiment spec can use, each with the JSON Schema of its object in a spec's `signals` (S8.5). They depend on neither time nor data, so there's no `as_of`, and the response has no `knowledge_time` or `data_version`. `GET /v1/catalog/signals`, with three schemas shortened:
 
 ```json
 {
   "spec_version": 1,
   "data": [
     {
-      "type": "revenue_growth_acceleration",
-      "description": "This quarter's year-over-year revenue growth minus last quarter's.",
-      "parameters": { "title": "RevenueGrowthAccelerationSignal", "type": "object" }
-    },
-    {
       "type": "momentum",
-      "description": "The total return over a lookback, leaving out the most recent months.",
+      "description": "The total return over a lookback, leaving out the most recent months: 12-1 by\ndefault.",
       "parameters": {
         "additionalProperties": false,
-        "description": "The total return over a lookback, leaving out the most recent months.",
+        "description": "The total return over a lookback, leaving out the most recent months: 12-1 by\ndefault.",
         "properties": {
           "type": { "const": "momentum", "title": "Type", "type": "string" },
           "lookback_months": {
-            "description": "How many months back the return starts: 12 for 12-1 momentum.",
+            "default": 12,
+            "description": "How many months back the return starts: 12, the default, for 12-1 momentum. At\nmost 120.",
+            "maximum": 120,
             "minimum": 1,
             "title": "Lookback Months",
             "type": "integer"
           },
           "skip_months": {
-            "description": "How many of the latest months to leave out: 1 for 12-1 momentum. Fewer than\n`lookback_months`.",
+            "default": 1,
+            "description": "How many of the latest months to leave out: 1, the default, for 12-1 momentum.\nFewer than `lookback_months`.",
             "minimum": 0,
             "title": "Skip Months",
             "type": "integer"
           }
         },
-        "required": ["type", "lookback_months", "skip_months"],
+        "required": ["type"],
         "title": "MomentumSignal",
         "type": "object"
       }
+    },
+    {
+      "type": "revenue_growth",
+      "description": "The latest quarter's revenue growth over the same quarter a year earlier.",
+      "parameters": { "title": "RevenueGrowthSignal", "type": "object" }
+    },
+    {
+      "type": "revenue_growth_acceleration",
+      "description": "This quarter's year-over-year revenue growth minus last quarter's.",
+      "parameters": { "title": "RevenueGrowthAccelerationSignal", "type": "object" }
+    },
+    {
+      "type": "macro_change",
+      "description": "A macro series' change over its latest releases, as published by the decision.\nIt's the same for every security, so a filter on it holds securities only while the\neconomy meets a condition, such as unemployment falling.",
+      "parameters": { "title": "MacroChangeSignal", "type": "object" }
     }
   ]
 }
 ```
 
 - **`parameters`** is the schema that [`experiment-spec-v1.schema.json`](experiment-spec-v1.schema.json) lists under `$defs`, `type` included, so a form can build its fields from it. A test keeps the two equal.
-- **The library grows in Sprint 4.** Each signal S7.4 adds to the spec shows up here with no other change.
+- **Defaults are in the schema.** A parameter with a `default`, such as momentum's `lookback_months`, can be left out of a spec.
+- **What each signal computes,** the data it reads, and the reasons it can have no value are in [signals.md](signals.md) (S7.4). A signal added to the spec shows up here with no other change.
 
 ### `GET /v1/snapshot`
 

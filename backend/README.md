@@ -5,7 +5,7 @@ The Quant Time Machine API, built with [FastAPI](https://fastapi.tiangolo.com). 
 - the point-in-time data layer: the store and its writer, `PointInTimeView`, and the NYSE calendar;
 - the ingestion client and CLI;
 - the `/v1` as-of endpoints for macro series and their revisions, prices, filings, and fundamentals, with their conventions, plus the catalogs and the knowledge snapshot;
-- the start of the [backtest engine](#backtest-engine): total returns from raw prices, splits, and dividends, the experiment spec, the rebalance schedule, and the simulation loop, which waits for the signal library (S7.4) to run a real spec.
+- the start of the [backtest engine](#backtest-engine): total returns from raw prices, splits, and dividends, the experiment spec, the rebalance schedule, the simulation loop, and the signal library (S7.4).
 
 Three sources are in, each ingested and readable as of any moment:
 
@@ -247,7 +247,7 @@ The engine in [`app/backtest/`](app/backtest/) reads data only through `PointInT
 | [`returns.py`](app/backtest/returns.py) | Daily and monthly total returns from raw prices, splits, and dividends, as known at a time (S6.4). Split factors are rounded to the ratio they stand for, such as 7 for Tiingo's 7.000007. The returns match Tiingo's adjusted closes to within 10⁻⁶. `holding_return` runs from one fill's price to the next's, each a session's open or close, and values a holding whose bars end early at its last close that traded (S7.3) |
 | [`spec.py`](app/backtest/spec.py) | The experiment spec, version 1: Pydantic models that match the frontend's `ExperimentSpec` type field for field (S7.1). `parse_spec` raises `SpecError`, whose problems each name a field: "schedule.fill must be 'same_day_close' or 'next_day_open'." `signal_types()` lists the kinds of signal, with their JSON Schemas, for `/v1/catalog/signals` (S8.5) |
 | [`schedule.py`](app/backtest/schedule.py) | A spec's decisions, on the first trading day of each month, and their fills (S7.2). A fill is at the same day's close (13:00 ET on an early close) or the next session's open, always strictly after its decision; `ScheduleError` names any day it can't be |
-| [`signals.py`](app/backtest/signals.py) | What the loop asks of a signal: each member's `SignalValue` at a decision, or the reason it has none. `SIGNALS` lists the kinds the engine can evaluate, and is empty until the signal library (S7.4) |
+| [`signals/`](app/backtest/signals/) | What the loop asks of a signal: each member's `SignalValue` at a decision, or the reason it has none (S7.3). `SIGNALS` is the library, by spec `type` (S7.4): `momentum` over whole months, 12-1 by default; `revenue_growth` and `revenue_growth_acceleration` from the quarters filed by then; and `macro_change`, a macro series' change over its latest releases. [`doc/reference/signals.md`](../doc/reference/signals.md) has their formulas |
 | [`portfolio.py`](app/backtest/portfolio.py) | The filters, equal weights, and the trades that reach them. Costs are `bps_per_trade` of the value traded, which is the sum of each weight's change, and come out of the portfolio (S7.3). Value weights, long-short, and ranking are S7.5's |
 | [`simulation.py`](app/backtest/simulation.py) | The loop (S7.3). `simulate(spec, views)` steps through a spec's decisions, each with a view bound to its time, then values the holdings and trades at a view bound to the fill session's close. It returns each holding period's holdings, trades, costs, and returns, the benchmark's, and warnings for the data it did without |
 
@@ -277,7 +277,7 @@ from app.data.view import PointInTimeView
 
 spec = parse_spec(Path("tests/fixtures/specs/canonical.json").read_text())
 views = partial(PointInTimeView, data_version="20261101T202624Z")  # pinned, as runs are
-result = simulate(spec, views)  # SpecError until S7.4 adds the spec's signals
+result = simulate(spec, views)  # with the library's signals (S7.4)
 result.periods[0].holdings  # the first decision's holdings, weights, and returns
 result.warnings  # each gap in the data, and what the run assumed instead
 ```
@@ -288,7 +288,26 @@ result.warnings  # each gap in the data, and what the run assumed instead
 - **Missing data** doesn't stop a run. A member that stopped trading or has no signal value is left out, a security without a price at its fill isn't bought, and a holding whose bars end early, such as a company bought out between fills, is valued at its last close and sold at the next fill. Each becomes a warning that says what was assumed.
 - **Only sessions that traded have prices.** Tiingo has bars for some sessions in which a security didn't trade: one with no volume that repeats the last close, as for Twitter, Pioneer Natural Resources, and Marathon Oil on the days their trading was suspended, and a leftover with a few shares after a delisting, as for Xilinx on February 14, 2022. The engine can't trade at such a bar, or value a holding at it, and it ignores a delisted security's bars from the day its curated history ends its ticker.
 - **Results hold no prices,** only weights, returns, and dates, because Tiingo's prices are for internal use only (D2).
-- **Not yet:** value weights and long-short portfolios (S7.5) are rejected with a `SpecError` that names the field, and so is a signal the engine doesn't have.
+- **Not yet:** value weights and long-short portfolios (S7.5) are rejected with a `SpecError` that names the field.
+
+**Signals.** Each signal reads only through the view it's given, so it sees what was known at the decision, and gives every member a value or a reason it has none, which becomes a `missing_signal` warning. A signal can also be called on its own:
+
+```python
+from app.backtest.signals.revenue import revenue_growth_acceleration
+from app.backtest.spec import RevenueGrowthAccelerationSignal
+from app.data.timeutil import parse_knowledge_time
+from app.data.view import PointInTimeView
+
+params = RevenueGrowthAccelerationSignal(
+    type="revenue_growth_acceleration", basis="yoy_quarterly"
+)
+with PointInTimeView(parse_knowledge_time("2020-06-01")) as view:
+    apple = [m for m in view.universe_as_of("starter_large_caps") if m.ticker == "AAPL"]
+    # -0.0839: 0.51% growth after 8.91%
+    revenue_growth_acceleration(view, apple, params)
+```
+
+The formulas, the data each signal reads, its minimum history, and every reason it can give are in [`doc/reference/signals.md`](../doc/reference/signals.md). On the local store, the canonical spec runs 2020 to 2022, 36 decisions, in about 30 seconds.
 
 The spec's JSON Schema, for the API and the assistant, is [`doc/reference/experiment-spec-v1.schema.json`](../doc/reference/experiment-spec-v1.schema.json). After changing the models, regenerate it, or a test fails: `uv run python -m app.backtest.spec > ../doc/reference/experiment-spec-v1.schema.json`. A test also checks the models against the frontend's [`types.ts`](../frontend/features/backtests/types.ts), so change both together.
 

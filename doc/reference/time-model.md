@@ -159,8 +159,11 @@ Here the value never changed. If a later filing had restated it, the restated nu
 | --- | --- | --- | --- | --- |
 | Apple, fiscal Q4 2021 (June 27 to September 25, 2021) | $365,817 million (10-K 0000320193-21-000105) | $282,457 million (10-Q 0000320193-21-000065) | $83,360 million | 2021-10-28 18:04:28 ET, the 10-K's acceptance |
 | Microsoft, fiscal Q4 2021 (April to June 2021) | $168,088 million (10-K 0001564590-21-039151) | $121,936 million (10-Q 0001564590-21-020891) | $46,152 million | 2021-07-29 16:21:55 ET |
+| PepsiCo, Q4 2021 (16 weeks, September 5 to December 25, 2021) | $79,474 million (10-K 0000077476-22-000010) | $54,226 million for 36 weeks (10-Q 0000077476-21-000050) | $25,248 million | 2022-02-09 18:03:39 ET |
 
-Periods are sorted by length, so Apple's 14-week first quarters and 53-week years count. Microsoft's quarters follow its fiscal year, which ends in June.
+**Revenue added up from parts (S5.6).** Discover's income statement has no revenue total, so its revenue is net interest income plus noninterest income. Each part is its latest value filed by *T*, and the sum is known when the last of them was: $2,398 million plus $490 million for the first quarter of 2020, both from the 10-Q accepted at 16:19:10 ET on April 30, 2020.
+
+Periods are sorted by length: a quarter is 80 to 119 days, six months 161 to 196, nine months 245 to 287, and a year 350 to 380. So Apple's 14-week first quarters and 53-week years count, and so does PepsiCo's year of three 12-week quarters and a 16-week fourth (17 weeks in a 53-week year). Microsoft's quarters follow its fiscal year, which ends in June. *Changed in Sprint 4: quarters were 80 to 100 days, six months 175 to 196, and nine months 266 to 287, so PepsiCo's fourth quarters were never derived. Widening them changed no other company's quarters in the local store (S7.4).*
 
 ### 7. A macro observation is known at its vintage date plus its release time
 
@@ -326,6 +329,9 @@ Each rule becomes at least one golden test, built on small committed fixtures (n
 | `test_november_2012_after_hurricane_sandy` | 2, 9, 10 | October and November 2012 | Decisions on October 1 and November 1; a next-day open fill after October 26 is at October 31's open |
 | `test_each_decision_sees_only_what_was_known_then` | 4, 10 | The simulation loop on a toy market, January to April 2021 (S7.3) | Each decision reads through a view bound to its time, whose newest bar is the previous session's |
 | `test_next_day_open_fills` | 4, 10 | A toy holding bought and sold at next-day opens, with a dividend and a split on the mornings it's sold (S7.3) | Each fill is valued through a view bound to its session's close; the holder at the close before an ex-date gets its dividend |
+| `test_a_future_bar_never_reaches_momentum` | 4 | Later versions of a bar and a split inside 12-1 momentum's window, known a microsecond after the decision or in 2099 (S7.4) | Momentum is the value without them, and counts them once they're known |
+| `test_a_future_filing_never_reaches_revenue_signals` | 6 | The next 10-Q, and a restatement accepted in 2099 (S7.4) | Revenue growth and acceleration count the 10-Q from its acceptance, inclusive, and never the restatement |
+| `test_a_future_release_never_reaches_macro_change` | 7 | A revision and a new first print of UNRATE, published after a June 5, 2020 decision (S7.4) | The change is −1.4 points, May's 13.3% minus April's 14.7% |
 | `test_june_5_2020_table` | All | `GET /v1/snapshot` for AAPL, TSLA, UNRATE, and FEDFUNDS at 09:30 ET on 2020-06-05 | Each row of the June 5 table is in `known` or `not_yet_known`, as marked, with its exact timestamp (S8.3) |
 | `test_poisoned_future_row_never_returned` | All | Add a row with `available_at` in 2099 | It never appears in any query result (S3.3) |
 | `test_pinned_data_version_ignores_later_rows` | Two clocks | Pin a data version, then ingest more rows | The pinned query's result doesn't change (S3.7) |

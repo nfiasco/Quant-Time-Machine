@@ -9,7 +9,9 @@ itself. So far it has:
   its JSON Schema (S7.1) and the signal types the catalog lists (S8.5)
 - `schedule`: decision times and their fills, which always come strictly after them
   (S7.2)
-- `signals`: what the loop asks of a signal, and the signals it can evaluate (S7.3)
+- `signals`: what the loop asks of a signal (S7.3), and the signal library it
+  evaluates: momentum, revenue growth and its acceleration, and a macro series' change
+  (S7.4; doc/reference/signals.md)
 - `portfolio`: equal-weight targets from the filters, and the trades and costs that
   reach them (S7.3)
 - `simulation`: the loop, which steps through a spec's decisions, each reading only

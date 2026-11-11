@@ -293,7 +293,9 @@ class Fundamental:
     """A metric in app/data/sources/metrics.toml, such as "revenue"."""
     concept: str
     """The XBRL concept the value came from, such as
-    "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax"."""
+    "us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax", or the concepts it
+    adds up, such as "us-gaap:InterestIncomeExpenseNet + us-gaap:NoninterestIncome"
+    for Discover's revenue."""
     unit: str
     period_start: date | None
     """None for an instant."""
@@ -314,4 +316,5 @@ class Fundamental:
     time_assumed: bool
     source: str
     source_ref: str
-    """The accession number, or "<longer total's> minus <shorter total's>"."""
+    """The accession number, or "<longer total's> minus <shorter total's>". A sum
+    cites each concept's, joined by " plus " where they differ."""
