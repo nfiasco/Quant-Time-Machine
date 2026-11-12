@@ -67,8 +67,11 @@ def test_the_canonical_spec_is_valid() -> None:
     assert spec == parse_spec(canonical())  # JSON text or parsed JSON
     assert spec.schedule.decision_time == time(9, 30)
     assert spec.signals["mom_12_1"].type == "momentum"
-    # Nothing is added or lost on the way back to JSON.
-    assert spec.model_dump(mode="json") == canonical()
+    # Nothing is lost on the way back to JSON, and a saved spec states that it had no
+    # ranking.
+    saved = canonical()
+    saved["portfolio"]["rank"] = None
+    assert spec.model_dump(mode="json") == saved
 
 
 @pytest.mark.parametrize(
@@ -77,7 +80,18 @@ def test_the_canonical_spec_is_valid() -> None:
         ("schedule.fill", "next_day_open"),
         ("schedule.decision", "first_trading_day 15:59 America/New_York"),
         ("portfolio.weighting", "value"),
-        ("portfolio.long_only", False),
+        ("portfolio.rank", None),
+        ("portfolio.rank", {"signal": "mom_12_1", "quantiles": 5, "long": "top"}),
+        ("portfolio.rank", {"signal": "rev_accel", "quantiles": 2, "long": "bottom"}),
+        ("portfolio.rank", {"signal": "mom_12_1", "quantiles": 100, "long": "top"}),
+        (
+            "portfolio",
+            {
+                "weighting": "equal",
+                "long_only": False,
+                "rank": {"signal": "mom_12_1", "quantiles": 10, "long": "top"},
+            },
+        ),
         ("filters", []),
         ("signals.mom_12_1.skip_months", 0),
         ("signals.mom_12_1", {"type": "momentum", "lookback_months": 6}),
@@ -118,6 +132,15 @@ def test_a_macro_change_can_name_any_catalog_series(series: str) -> None:
     spec = parse_spec(changed("signals.mom_12_1", signal | {"change": "absolute"}))
 
     assert spec.signals["mom_12_1"].type == "macro_change"
+
+
+def test_a_ranking_is_saved_as_it_was_written() -> None:
+    rank = {"signal": "mom_12_1", "quantiles": 5, "long": "top"}
+    spec = parse_spec(changed("portfolio.rank", rank))
+
+    assert spec.portfolio.rank is not None
+    assert spec.portfolio.rank.quantiles == 5
+    assert spec.model_dump(mode="json") == changed("portfolio.rank", rank)
 
 
 def test_a_1600_decision_fills_at_the_next_open() -> None:
@@ -331,6 +354,66 @@ INVALID = [
         "portfolio.long_only must be true or false.",
     ),
     (
+        "portfolio.long_only",
+        False,
+        "portfolio.long_only",
+        (
+            "portfolio.long_only must be true without portfolio.rank: a long-short "
+            "portfolio is long one end of a ranking and short the other."
+        ),
+    ),
+    (
+        "portfolio.rank",
+        "mom_12_1",
+        "portfolio.rank",
+        "portfolio.rank must be an object.",
+    ),
+    (
+        "portfolio.rank",
+        {"signal": "mom_12", "quantiles": 5, "long": "top"},
+        "portfolio.rank.signal",
+        (
+            "portfolio.rank.signal must name a signal in signals: 'rev_accel' or "
+            "'mom_12_1'."
+        ),
+    ),
+    (
+        "portfolio.rank",
+        {"signal": "mom_12_1", "quantiles": 1, "long": "top"},
+        "portfolio.rank.quantiles",
+        "portfolio.rank.quantiles must be at least 2.",
+    ),
+    (
+        "portfolio.rank",
+        {"signal": "mom_12_1", "quantiles": 101, "long": "top"},
+        "portfolio.rank.quantiles",
+        "portfolio.rank.quantiles must be at most 100.",
+    ),
+    (
+        "portfolio.rank",
+        {"signal": "mom_12_1", "quantiles": 2.5, "long": "top"},
+        "portfolio.rank.quantiles",
+        "portfolio.rank.quantiles must be a whole number.",
+    ),
+    (
+        "portfolio.rank",
+        {"signal": "mom_12_1", "quantiles": 5, "long": "high"},
+        "portfolio.rank.long",
+        "portfolio.rank.long must be 'top' or 'bottom'.",
+    ),
+    (
+        "portfolio.rank",
+        {"signal": "mom_12_1", "quantiles": 5},
+        "portfolio.rank.long",
+        "portfolio.rank.long is required.",
+    ),
+    (
+        "portfolio.rank",
+        {"signal": "mom_12_1", "quantiles": 5, "long": "top", "short": "bottom"},
+        "portfolio.rank.short",
+        "portfolio.rank.short isn't part of experiment spec version 1.",
+    ),
+    (
         "benchmark",
         "spy",
         "benchmark",
@@ -365,6 +448,35 @@ def test_filters_need_a_signal_to_name() -> None:
         (
             "filters.0.signal",
             "filters.0.signal must name a signal in signals, which has none.",
+        )
+    ]
+
+
+def test_a_ranking_needs_a_signal_to_name() -> None:
+    spec = changed("portfolio.rank", {"signal": "mom", "quantiles": 5, "long": "top"})
+    spec["signals"], spec["filters"] = {}, []
+
+    assert problems(spec) == [
+        (
+            "portfolio.rank.signal",
+            "portfolio.rank.signal must name a signal in signals, which has none.",
+        )
+    ]
+
+
+def test_a_macro_change_cant_rank_securities() -> None:
+    # It gives every security the same value, so they would all tie.
+    macro = {"type": "macro_change", "series": "UNRATE", "releases": 3}
+    spec = changed("signals.unrate_3", macro | {"change": "absolute"})
+    spec["portfolio"]["rank"] = {"signal": "unrate_3", "quantiles": 5, "long": "top"}
+
+    assert problems(spec) == [
+        (
+            "portfolio.rank.signal",
+            (
+                "portfolio.rank.signal must be a signal that differs between "
+                "securities, and unrate_3, a macro_change, is the same for all of them."
+            ),
         )
     ]
 

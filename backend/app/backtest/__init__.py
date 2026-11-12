@@ -13,7 +13,8 @@ itself. So far it has:
   evaluates: momentum, revenue growth and its acceleration, and a macro series' change
   (S7.4; doc/reference/signals.md)
 - `portfolio`: equal-weight targets from the filters, and the trades and costs that
-  reach them (S7.3)
+  reach them (S7.3); a ranking's top or bottom quantile, long only or long-short
+  (S7.5; doc/reference/portfolio.md)
 - `simulation`: the loop, which steps through a spec's decisions, each reading only
   what was known then through a view factory (S7.3)
 """

@@ -21,7 +21,8 @@ fields. Its universe must be a curated list, and a macro signal's series one in 
 macro catalog (app/data/sources/alfred_series.toml). Whether our data covers it, such
 as fundamentals before XBRL, or whether the engine supports an option, such as value
 weights, is for the engine to say (S7.3). What each signal computes is in
-doc/reference/signals.md (S7.4).
+doc/reference/signals.md (S7.4), and how a ranking and the weights turn signals into a
+portfolio in doc/reference/portfolio.md (S7.5).
 """
 
 import json
@@ -63,6 +64,9 @@ TICKER = re.compile(r"[A-Z0-9][A-Z0-9.-]*")
 
 MAX_MONTHS_BACK = 120
 """The most months, or releases, a signal can reach back: ten years of monthly data."""
+
+MAX_QUANTILES = 100
+"""The most parts a ranking can be split into: percentiles."""
 
 
 def _broken(field: str, rule: str) -> PydanticCustomError:
@@ -250,12 +254,43 @@ class FilterSpec(_Part):
     value: float = Field(allow_inf_nan=False)
 
 
+class RankSpec(_Part):
+    """A ranking of the securities that pass the filters, by a signal. Only its ends
+    are held: each is one of `quantiles` equal parts, rounded down, and at least one
+    security."""
+
+    signal: str
+    """The ID of a signal in `signals` whose value differs between securities, so not
+    a macro_change."""
+    quantiles: int = Field(ge=2, le=MAX_QUANTILES)
+    """How many parts the ranking is split into: 5 for quintiles, 10 for deciles. At
+    most 100."""
+    long: Literal["top", "bottom"]
+    """The end that's held long: "top" for the highest values, "bottom" for the
+    lowest. A long-short portfolio is short the other end."""
+
+
 class PortfolioSpec(_Part):
-    """How the securities that pass the filters are weighted."""
+    """Which of the securities that pass the filters are held, and at what weights
+    (doc/reference/portfolio.md)."""
 
     weighting: Literal["equal", "value"]
     """"value" weights by market cap."""
     long_only: bool
+    """False for a long-short portfolio, which needs `rank`: it's long one end of the
+    ranking and short the other."""
+    rank: RankSpec | None = None
+    """Without one, every security that passes the filters is held."""
+
+    @model_validator(mode="after")
+    def _short_needs_rank(self) -> Self:
+        if not self.long_only and self.rank is None:
+            raise _broken(
+                "long_only",
+                "must be true without portfolio.rank: a long-short portfolio is long "
+                "one end of a ranking and short the other",
+            )
+        return self
 
 
 class CostsSpec(_Part):
@@ -277,8 +312,8 @@ class ExperimentSpec(_Part):
     signals: dict[str, SignalSpec] = Field(
         json_schema_extra={"propertyNames": {"pattern": f"^{SIGNAL_ID.pattern}$"}}
     )
-    """The signals the filters use, each under an ID of lowercase letters, digits, and
-    underscores, such as "mom_12_1"."""
+    """The signals the filters and the ranking use, each under an ID of lowercase
+    letters, digits, and underscores, such as "mom_12_1"."""
     filters: list[FilterSpec]
     """Conditions every holding must meet, all of them."""
     portfolio: PortfolioSpec
@@ -322,6 +357,30 @@ class ExperimentSpec(_Part):
                     else "must name a signal in signals, which has none",
                 )
         return filters
+
+    @field_validator("portfolio")
+    @classmethod
+    def _rank_names_signal(
+        cls, portfolio: PortfolioSpec, info: ValidationInfo
+    ) -> PortfolioSpec:
+        signals = info.data.get("signals")
+        if portfolio.rank is None or signals is None:  # invalid, and reported already
+            return portfolio
+        ranking = portfolio.rank.signal
+        if ranking not in signals:
+            raise _broken(
+                "rank.signal",
+                f"must name a signal in signals: {_one_of(signals)}"
+                if signals
+                else "must name a signal in signals, which has none",
+            )
+        if isinstance(signals[ranking], MacroChangeSignal):
+            raise _broken(
+                "rank.signal",
+                f"must be a signal that differs between securities, and {ranking}, a "
+                "macro_change, is the same for all of them",
+            )
+        return portfolio
 
     @field_validator("benchmark")
     @classmethod

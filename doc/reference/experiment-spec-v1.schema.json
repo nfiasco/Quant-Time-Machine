@@ -146,7 +146,7 @@
     },
     "PortfolioSpec": {
       "additionalProperties": false,
-      "description": "How the securities that pass the filters are weighted.",
+      "description": "Which of the securities that pass the filters are held, and at what weights\n(doc/reference/portfolio.md).",
       "properties": {
         "weighting": {
           "description": "\"value\" weights by market cap.",
@@ -158,8 +158,21 @@
           "type": "string"
         },
         "long_only": {
+          "description": "False for a long-short portfolio, which needs `rank`: it's long one end of the\nranking and short the other.",
           "title": "Long Only",
           "type": "boolean"
+        },
+        "rank": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RankSpec"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Without one, every security that passes the filters is held."
         }
       },
       "required": [
@@ -167,6 +180,40 @@
         "long_only"
       ],
       "title": "PortfolioSpec",
+      "type": "object"
+    },
+    "RankSpec": {
+      "additionalProperties": false,
+      "description": "A ranking of the securities that pass the filters, by a signal. Only its ends\nare held: each is one of `quantiles` equal parts, rounded down, and at least one\nsecurity.",
+      "properties": {
+        "signal": {
+          "description": "The ID of a signal in `signals` whose value differs between securities, so not\na macro_change.",
+          "title": "Signal",
+          "type": "string"
+        },
+        "quantiles": {
+          "description": "How many parts the ranking is split into: 5 for quintiles, 10 for deciles. At\nmost 100.",
+          "maximum": 100,
+          "minimum": 2,
+          "title": "Quantiles",
+          "type": "integer"
+        },
+        "long": {
+          "description": "The end that's held long: \"top\" for the highest values, \"bottom\" for the\nlowest. A long-short portfolio is short the other end.",
+          "enum": [
+            "top",
+            "bottom"
+          ],
+          "title": "Long",
+          "type": "string"
+        }
+      },
+      "required": [
+        "signal",
+        "quantiles",
+        "long"
+      ],
+      "title": "RankSpec",
       "type": "object"
     },
     "RevenueGrowthAccelerationSignal": {
@@ -320,7 +367,7 @@
           }
         ]
       },
-      "description": "The signals the filters use, each under an ID of lowercase letters, digits, and\nunderscores, such as \"mom_12_1\".",
+      "description": "The signals the filters and the ranking use, each under an ID of lowercase\nletters, digits, and underscores, such as \"mom_12_1\".",
       "propertyNames": {
         "pattern": "^[a-z][a-z0-9_]*$"
       },

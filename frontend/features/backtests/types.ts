@@ -37,7 +37,16 @@ export type ExperimentSpec = {
   };
   signals: Record<string, SignalSpec>;
   filters: FilterSpec[];
-  portfolio: { weighting: "equal" | "value"; long_only: boolean };
+  portfolio: {
+    weighting: "equal" | "value";
+    /** False for a long-short portfolio, which needs `rank`. */
+    long_only: boolean;
+    /**
+     * Holds only the ends of a ranking of the securities that pass the filters:
+     * doc/reference/portfolio.md (S7.5). Without one, all that pass are held.
+     */
+    rank?: { signal: string; quantiles: number; long: "top" | "bottom" } | null;
+  };
   benchmark: string;
   costs: { bps_per_trade: number };
 };

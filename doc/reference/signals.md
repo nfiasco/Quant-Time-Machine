@@ -156,6 +156,8 @@ Every filter compares one signal with a number, and a stock is held only if it p
 
 This holds the stocks whose revenue growth is speeding up and whose 12-1 momentum is positive, but only while unemployment is lower than three months before and prices rose less than 3% over the last year.
 
+A signal can also rank the stocks that pass the filters, so that only the top or bottom quantile is held: [portfolio construction](portfolio.md#2-ranking) (S7.5). A stock needs a value for the ranking's signal as it does for a filter's. A macro change is the same for every stock, so it can filter but not rank, and a spec that ranks by one is rejected.
+
 ## Known limitations
 
 1. **Momentum counts whole calendar months.** The days of the decision's own month never count, even for a decision late in the month, and a missing bar on the window's first or last session gives no value rather than a nearby close.

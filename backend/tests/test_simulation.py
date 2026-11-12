@@ -5,6 +5,9 @@ Most tests use a scripted momentum signal in place of the signal library: at eac
 decision it answers from a script, so each test chooses the holdings, and it records
 what the decision could see. One runs the canonical spec's signals from the library
 itself (S7.4).
+
+The ranked and long-short runs (S7.5) are worked by hand in
+doc/reference/portfolio.md, which has the rules they check.
 """
 
 import ast
@@ -66,7 +69,8 @@ simple ratio."""
 
 Script = Mapping[date, Mapping[str, float | str]]
 """The scripted signal's answers: at each decision, a value for each security, or the
-reason it has none. A security left out gets -1, which fails the filter."""
+reason it has none. A security left out gets -1, which fails `toy_spec`'s filter. A
+spec without that filter would rank it last, so a ranking's script lists every one."""
 
 CHOICES: Script = {
     JAN_4: {"alpha": 1.0, "beta": 1.0},
@@ -617,52 +621,474 @@ def test_a_decision_that_would_fill_after_the_end_is_skipped(store: Path) -> Non
     )
 
 
-REJECTED = {
-    "portfolio.weighting": (
+DECISIONS = (JAN_4, FEB_1, MAR_1, APR_1)
+
+
+def order(*security_ids: str) -> dict[str, float]:
+    """A script's answers that rank the securities in this order: 0.3, 0.2, and 0.1
+    for three, so each passes `toy_spec`'s filter."""
+    count = len(security_ids)
+    return {s: (count - place) / 10 for place, s in enumerate(security_ids)}
+
+
+def ranked_spec(
+    *, quantiles: int = 3, long: str = "top", long_only: bool = True, **changes: Any
+) -> ExperimentSpec:
+    """`toy_spec` with a ranking by its signal. By default it holds the top third,
+    which is one of the three stocks."""
+    rank = {"signal": "mom", "quantiles": quantiles, "long": long}
+    return toy_spec(portfolio={"long_only": long_only, "rank": rank}, **changes)
+
+
+def weights(result: Simulation) -> list[list[tuple[str, float]]]:
+    """Each period's holdings and their weights."""
+    return [[(h.security_id, h.weight) for h in p.holdings] for p in result.periods]
+
+
+def test_a_hand_checked_ranked_run(store: Path) -> None:
+    # A fourth stock, flat at 20 but for 10% in March, so half of the four is two.
+    add_security(store, "delta", "DDD")
+    add_bars(store, "delta", steps(START, END, {START: 20.0, date(2021, 3, 15): 22.0}))
+    add_member(store, "delta")
+    script = {
+        JAN_4: order("alpha", "gamma", "beta", "delta"),
+        # Beta fails the filter, so three are ranked, and half of three is one.
+        FEB_1: order("gamma", "alpha", "delta") | {"beta": -0.1},
+        MAR_1: order("beta", "delta", "alpha", "gamma"),
+        APR_1: order("alpha", "gamma", "beta", "delta"),
+    }
+
+    result = run(store, script, ranked_spec(quantiles=2))
+    jan, feb, mar, apr = result.periods
+
+    assert {p.universe_size for p in result.periods} == {4}
+    assert weights(result) == [
+        [("alpha", 0.5), ("gamma", 0.5)],
+        [("gamma", 1.0)],
+        [("beta", 0.5), ("delta", 0.5)],
+        [("alpha", 0.5), ("gamma", 0.5)],
+    ]
+    assert jan.holdings[0].signals == {"mom": 0.4}
+
+    # January: the top half, bought from cash. Alpha gains 10%, and gamma nothing.
+    assert (jan.turnover, jan.cost) == (1.0, pytest.approx(0.001))
+    assert jan.gross_return == pytest.approx(0.05)
+    assert jan.value == pytest.approx(0.999 * 1.05)
+
+    # February: alpha grew to 0.55 of the 1.05, and all of it is sold for gamma.
+    assert [(t.security_id, t.weight_before, t.weight_after) for t in feb.trades] == [
+        ("alpha", pytest.approx(11 / 21), 0.0),
+        ("gamma", pytest.approx(10 / 21), 1.0),
+    ]
+    assert feb.turnover == pytest.approx(22 / 21)
+    assert feb.gross_return == pytest.approx(0.1)  # gamma's 10%
+
+    # March and April: everything is sold for two others, which both gain 10%.
+    for period in (mar, apr):
+        assert (period.turnover, period.cost) == (
+            pytest.approx(2.0),
+            pytest.approx(0.002),
+        )
+        assert period.gross_return == pytest.approx(0.1)
+    assert apr.value == pytest.approx(
+        (0.999 * 1.05) * ((1 - 0.001 * 22 / 21) * 1.1) * (0.998 * 1.1) ** 2
+    )
+    assert result.warnings == ()
+
+
+def test_a_hand_checked_long_short_run(store: Path) -> None:
+    # Long the top third of the three stocks and short the bottom third: one each
+    # (doc/reference/portfolio.md works this run through).
+    script = {
+        JAN_4: order("alpha", "gamma", "beta"),
+        FEB_1: order("alpha", "gamma", "beta"),
+        MAR_1: order("beta", "gamma", "alpha"),
+        APR_1: order("gamma", "beta", "alpha"),
+    }
+
+    result = run(store, script, ranked_spec(long_only=False))
+    jan, feb, mar, apr = result.periods
+
+    assert weights(result) == [
+        [("alpha", 1.0), ("beta", -1.0)],
+        [("alpha", 1.0), ("beta", -1.0)],
+        [("alpha", -1.0), ("beta", 1.0)],
+        [("alpha", -1.0), ("gamma", 1.0)],
+    ]
+
+    # January: all of the portfolio is bought, and as much again sold short, for 10 bps
+    # of both. Alpha's 10% gain and beta's 10% loss both pay.
+    assert (jan.turnover, jan.cost) == (2.0, pytest.approx(0.002))
+    assert [h.period_return for h in jan.holdings] == [
+        pytest.approx(0.1),
+        pytest.approx(-0.1),
+    ]
+    assert jan.gross_return == pytest.approx(0.2)
+    assert jan.net_return == pytest.approx(0.998 * 1.2 - 1)
+    assert jan.value == pytest.approx(1.1976)
+
+    # February: the portfolio grew 20%, so both sides are short of their targets.
+    # Alpha is 1.1 / 1.2 of it, and beta -0.9 / 1.2.
+    assert [(t.security_id, t.weight_before, t.weight_after) for t in feb.trades] == [
+        ("alpha", pytest.approx(11 / 12), 1.0),
+        ("beta", pytest.approx(-3 / 4), -1.0),
+    ]
+    assert (feb.turnover, feb.cost) == (pytest.approx(1 / 3), pytest.approx(1 / 3000))
+    assert feb.gross_return == pytest.approx(-0.1)  # alpha's -10%, with beta flat
+
+    # March: the ends swap. The portfolio shrank to 0.9, so alpha is 0.9 / 0.9 of it,
+    # and beta -1 / 0.9.
+    assert [(t.security_id, t.weight_before, t.weight_after) for t in mar.trades] == [
+        ("alpha", pytest.approx(1.0), -1.0),
+        ("beta", pytest.approx(-10 / 9), 1.0),
+    ]
+    assert mar.turnover == pytest.approx(2 + 19 / 9)  # more than four times: 37 / 9
+    assert mar.gross_return == pytest.approx(0.1)  # beta's 10%, with alpha flat
+
+    # April: gamma replaces beta, which grew with the portfolio to 1.1 / 1.1 of it.
+    # Alpha, flat, is -1 / 1.1, and is topped up.
+    assert [(t.security_id, t.weight_before, t.weight_after) for t in apr.trades] == [
+        ("alpha", pytest.approx(-10 / 11), -1.0),
+        ("beta", pytest.approx(1.0), 0.0),
+        ("gamma", 0.0, 1.0),
+    ]
+    assert apr.turnover == pytest.approx(23 / 11)
+    assert apr.gross_return == pytest.approx(0, abs=1e-15)  # both gain 10%
+
+    growth = 1.0
+    for period in result.periods:
+        assert period.cost == pytest.approx(0.001 * period.turnover)
+        assert period.net_return == pytest.approx(
+            (1 + period.gross_return) * (1 - period.cost) - 1
+        )
+        growth *= 1 + period.net_return
+    assert apr.value == pytest.approx(growth)
+    assert apr.value == pytest.approx(1.177888167267)
+    assert [p.benchmark_return for p in result.periods] == [pytest.approx(0.01)] * 4
+    assert result.warnings == ()
+
+
+def test_filters_come_before_the_ranking(store: Path) -> None:
+    # Gamma has the lowest value, but it fails the filter, so the bottom half of the
+    # two that are ranked is beta.
+    script = {day: {"alpha": 0.3, "beta": 0.2, "gamma": -0.1} for day in DECISIONS}
+
+    result = run(store, script, ranked_spec(quantiles=2, long="bottom"))
+
+    assert weights(result) == [[("beta", 1.0)]] * 4
+    assert result.warnings == ()
+
+
+def test_a_tie_in_the_ranking_goes_to_the_lower_security_id(store: Path) -> None:
+    script = {day: {"gamma": 0.2, "beta": 0.2, "alpha": 0.2} for day in DECISIONS}
+
+    result = run(store, script, ranked_spec(long_only=False))
+
+    assert weights(result) == [[("alpha", 1.0), ("gamma", -1.0)]] * 4
+
+
+def test_a_member_missing_the_rankings_signal_is_left_out(store: Path) -> None:
+    # No filter needs the signal here: only the ranking does.
+    reason = "Fewer than 2 months of prices were known."
+    script: Script = {
+        JAN_4: {"alpha": 0.3, "beta": reason, "gamma": 0.2},
+        **dict.fromkeys(DECISIONS[1:], order("beta", "alpha", "gamma")),
+    }
+
+    result = run(store, script, ranked_spec(quantiles=2, filters=[]))
+
+    assert weights(result)[:2] == [[("alpha", 1.0)], [("beta", 1.0)]]
+    assert result.warnings == (
+        SimulationWarning(
+            "missing_signal",
+            JAN_4,
+            "BBB was left out at the 2021-01-04 decision, because mom had no value. "
+            "Fewer than 2 months of prices were known.",
+            "beta",
+            "BBB",
+            "mom",
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    ("long_only", "held", "what"),
+    [
+        (True, [("alpha", 1.0)], "the top one was held"),
+        (
+            False,
+            [("alpha", 1.0), ("gamma", -1.0)],
+            "the top one was held long and the bottom one short",
+        ),
+    ],
+)
+def test_a_ranking_with_fewer_members_than_quantiles_holds_one(
+    store: Path, long_only: bool, held: list[tuple[str, float]], what: str
+) -> None:
+    # A fifth of three stocks rounds down to none, and a portfolio of none would say
+    # nothing about the ranking.
+    script = dict.fromkeys(DECISIONS, order("alpha", "beta", "gamma"))
+
+    result = run(store, script, ranked_spec(quantiles=5, long_only=long_only))
+
+    assert weights(result) == [held] * 4
+    assert [(w.kind, w.decision) for w in result.warnings] == [
+        ("thin_ranking", day) for day in DECISIONS
+    ]
+    assert result.warnings[0].message == (
+        "Only 3 members of starter_large_caps could be ranked by mom at the "
+        f"2021-01-04 decision, fewer than the ranking's 5 quantiles, so {what}."
+    )
+
+
+def test_a_long_short_portfolio_needs_two_members_to_rank(store: Path) -> None:
+    script = {
+        **dict.fromkeys(DECISIONS, order("alpha", "gamma", "beta")),
+        FEB_1: {"alpha": 0.3},  # the others fail the filter
+    }
+
+    result = run(store, script, ranked_spec(long_only=False))
+
+    feb = result.periods[1]
+    assert feb.holdings == ()
+    assert [(t.security_id, t.weight_after) for t in feb.trades] == [
+        ("alpha", 0.0),
+        ("beta", 0.0),
+    ]
+    assert feb.gross_return == 0
+    assert result.warnings == (
+        SimulationWarning(
+            "empty_portfolio",
+            FEB_1,
+            "Only 1 member of starter_large_caps could be ranked by mom at the "
+            "2021-02-01 decision, and a long-short portfolio needs 2, so the "
+            "portfolio held cash.",
+        ),
+    )
+
+
+def test_a_short_without_a_fill_price_isnt_opened(store_dir: Path) -> None:
+    # Beta has no bar on February 1, the day it would be sold short.
+    toy(store_dir, skip={"beta": [FEB_1]})
+    script = {
+        JAN_4: order("gamma", "beta", "alpha"),
+        **dict.fromkeys(DECISIONS[1:], order("gamma", "alpha", "beta")),
+    }
+
+    result = run(store_dir, script, ranked_spec(quantiles=2, long_only=False))
+    feb = result.periods[1]
+
+    assert [(h.security_id, h.weight) for h in feb.holdings] == [("gamma", 1.0)]
+    # Alpha, short, rose 10% in January while gamma was flat, so the portfolio was
+    # worth 0.9: alpha is bought back, and gamma trimmed to all of what's left.
+    assert [(t.security_id, t.weight_before, t.weight_after) for t in feb.trades] == [
+        ("alpha", pytest.approx(-11 / 9), 0.0),
+        ("gamma", pytest.approx(10 / 9), 1.0),
+    ]
+    assert feb.gross_return == pytest.approx(0.1)  # gamma's 10%, with nothing short
+    assert result.warnings == (
+        SimulationWarning(
+            "no_fill_price",
+            FEB_1,
+            "BBB had no price at the close on 2021-02-01, so it wasn't sold short, "
+            "and the portfolio went without it until the next fill.",
+            "beta",
+            "BBB",
+        ),
+    )
+
+
+def test_a_delisted_short_is_bought_back_at_its_last_close(store_dir: Path) -> None:
+    # Gamma stopped trading on March 11, at 60.5 after 55 on March 1, while the
+    # portfolio was short it.
+    gamma = {START: 50.0, date(2021, 2, 16): 55.0, date(2021, 3, 8): 60.5}
+    toy(
+        store_dir,
+        levels={**LEVELS, "gamma": gamma},
+        stopped={"gamma": date(2021, 3, 11)},
+    )
+    script = {
+        JAN_4: order("alpha", "gamma", "beta"),
+        FEB_1: order("alpha", "gamma", "beta"),
+        MAR_1: order("alpha", "beta", "gamma"),
+        APR_1: order("alpha", "beta"),
+    }
+
+    result = run(store_dir, script, ranked_spec(quantiles=2, long_only=False))
+    _, _, mar, apr = result.periods
+
+    _, short = mar.holdings
+    assert (short.security_id, short.weight) == ("gamma", -1.0)
+    assert short.exit == PricePoint(date(2021, 3, 10), "close")
+    assert short.period_return == pytest.approx(0.1)
+    assert mar.gross_return == pytest.approx(-0.1)  # its 10% rise is the short's loss
+    # The portfolio is worth 0.9, so alpha is 1 / 0.9 of it and gamma -1.1 / 0.9.
+    # Gamma is bought back at its last close's value, and beta sold short instead.
+    assert [(t.security_id, t.weight_before, t.weight_after) for t in apr.trades] == [
+        ("alpha", pytest.approx(10 / 9), 1.0),
+        ("beta", 0.0, -1.0),
+        ("gamma", pytest.approx(-11 / 9), 0.0),
+    ]
+    assert apr.turnover == pytest.approx(7 / 3)
+    assert result.warnings == (
+        SimulationWarning(
+            "delisted_exit",
+            MAR_1,
+            "CCC stopped trading after 2021-03-10, so it was valued at that day's "
+            "close, and bought back at the next fill, on 2021-04-01.",
+            "gamma",
+            "CCC",
+        ),
+        SimulationWarning(
+            "stopped_trading",
+            APR_1,
+            "CCC Corp. had stopped trading by the 2021-04-01 decision, so it was left "
+            "out.",
+            "gamma",
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    ("alpha", "gamma"),
+    [
+        # Gamma triples: the short loses twice the portfolio, less alpha's 10% gain.
+        (LEVELS["alpha"], 150.0),
+        # Gamma doubles while alpha is flat: the short loses exactly all of it.
+        ({START: 100.0}, 100.0),
+    ],
+)
+def test_a_short_that_loses_everything_ends_the_run(
+    store_dir: Path, alpha: Mapping[date, float], gamma: float
+) -> None:
+    # Gamma is sold short at 50 in January, and is at `gamma` by February's fill.
+    levels = {
+        **LEVELS,
+        "alpha": alpha,
+        "gamma": {START: 50.0, date(2021, 1, 15): gamma},
+    }
+    toy(store_dir, levels=levels)
+    script = dict.fromkeys(DECISIONS, order("alpha", "beta", "gamma"))
+
+    result = run(store_dir, script, ranked_spec(long_only=False))
+
+    (jan,) = result.periods  # February's decision was made, but never traded
+    assert weights(result) == [[("alpha", 1.0), ("gamma", -1.0)]]
+    assert jan.holdings[1].period_return == pytest.approx(gamma / 50 - 1)
+    assert jan.end == PricePoint(FEB_1, "close")
+    assert (jan.gross_return, jan.net_return, jan.value) == (-1.0, -1.0, 0.0)
+    assert result.warnings == (
+        SimulationWarning(
+            "wiped_out",
+            JAN_4,
+            "The portfolio had nothing left at the close on 2021-02-01: what it held "
+            "since the 2021-01-04 decision lost all of its value, so the run ended "
+            "there.",
+        ),
+    )
+
+
+def test_trades_the_portfolio_cant_pay_for_end_the_run(store: Path) -> None:
+    # At 2,400 bps, opening both sides costs 48% of the portfolio. Then beta, long,
+    # loses 10% and alpha, short, gains 10%, which leaves 0.52 * 0.8 = 0.416.
+    script = {
+        JAN_4: order("beta", "gamma", "alpha"),
+        **dict.fromkeys(DECISIONS[1:], order("alpha", "gamma", "beta")),
+    }
+    spec = ranked_spec(long_only=False, costs={"bps_per_trade": 2400})
+
+    result = run(store, script, spec)
+
+    (jan,) = result.periods
+    assert jan.cost == pytest.approx(0.48)
+    assert jan.gross_return == pytest.approx(-0.2)
+    assert jan.value == pytest.approx(0.416)
+    # Swapping the ends in February would trade 19 / 8 of alpha, from -1.1 / 0.8, and
+    # 17 / 8 of beta, from 0.9 / 0.8: 4.5 times the portfolio, for 108% of it. The
+    # 0.416 stands.
+    assert result.warnings == (
+        SimulationWarning(
+            "wiped_out",
+            FEB_1,
+            "The 2021-02-01 decision's trades, at the close on 2021-02-01, would have "
+            "cost 108% of the portfolio's value, so none was made, and the run ended "
+            "there.",
+        ),
+    )
+
+
+REJECTED = [
+    (
+        "portfolio.weighting",
         {"portfolio": {"weighting": "value"}},
         (
             "portfolio.weighting must be 'equal' for now: value weights aren't "
             "supported yet."
         ),
     ),
-    "portfolio.long_only": (
-        {"portfolio": {"long_only": False}},
-        (
-            "portfolio.long_only must be true for now: long-short portfolios aren't "
-            "supported yet."
-        ),
-    ),
-    "costs.bps_per_trade": (
+    (
+        "costs.bps_per_trade",
         {"costs": {"bps_per_trade": 5000}},
         (
             "costs.bps_per_trade must be less than 5,000: a rebalance can trade "
             "twice the portfolio's value, so higher costs could use all of it."
         ),
     ),
-    "period": (
+    (
+        "costs.bps_per_trade",
+        {
+            "costs": {"bps_per_trade": 2500},
+            "portfolio": {
+                "long_only": False,
+                "rank": {"signal": "mom", "quantiles": 3, "long": "top"},
+            },
+        },
+        (
+            "costs.bps_per_trade must be less than 2,500 for a long-short portfolio: "
+            "swapping its long and short ends trades four times the portfolio's "
+            "value, so higher costs could use all of it."
+        ),
+    ),
+    (
+        "period",
         {"period": {"start": "2021-01-01", "end": "2021-01-04"}},
         (
             "period must include a decision whose trades fill before its last "
             "close, on 2021-01-04."
         ),
     ),
-    "benchmark": (
+    (
+        "benchmark",
         {"benchmark": "NOPE"},
         (
             "benchmark must be a ticker in our data, but no security used NOPE at "
             "the 2021-01-04 decision."
         ),
     ),
-}
-"""For each field the engine rejects: a spec change it rejects, and its message."""
+]
+"""A field the engine rejects, a spec change that it rejects for it, and its message.
+What a spec can't say at all, such as a long-short portfolio without a ranking, is
+rejected when it's parsed (tests/test_spec.py)."""
 
 
-@pytest.mark.parametrize("field", REJECTED)
-def test_what_the_engine_cant_run_is_rejected(store: Path, field: str) -> None:
-    changes, message = REJECTED[field]
+@pytest.mark.parametrize(
+    ("field", "changes", "message"),
+    REJECTED,
+    ids=[
+        "value weights",
+        "long-only costs",
+        "long-short costs",
+        "no decision",
+        "unknown benchmark",
+    ],
+)
+def test_what_the_engine_cant_run_is_rejected(
+    store: Path, field: str, changes: dict[str, Any], message: str
+) -> None:
+    spec = toy_spec(**changes)  # it parses: only the engine turns it down
 
     with pytest.raises(SpecError) as raised:
-        run(store, CHOICES, toy_spec(**changes))
+        run(store, CHOICES, spec)
 
     assert [(p.field, p.message) for p in raised.value.problems] == [(field, message)]
 

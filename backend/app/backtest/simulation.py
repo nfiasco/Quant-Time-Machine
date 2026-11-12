@@ -1,5 +1,5 @@
 """The simulation loop: a spec's decisions, one at a time, each seeing only what was
-known then (S7.3).
+known then (S7.3, S7.5).
 
 `simulate(spec, views)` runs an experiment spec (app/backtest/spec.py) through the
 decisions its schedule makes (app/backtest/schedule.py). It reads data only through
@@ -7,8 +7,10 @@ decisions its schedule makes (app/backtest/schedule.py). It reads data only thro
 store or a database connection. For each decision:
 
 1. A view bound to the decision's time, 09:30 ET by default, gives the universe's
-   members then. Each signal is evaluated for them through that view, and the members
-   that pass every filter get equal weights (app/backtest/portfolio.py).
+   members then. Each signal is evaluated for them through that view. The members
+   that pass every filter get equal weights, or, if the spec has a ranking, the ones
+   at its ends do: the long end's add up to 1, and a long-short portfolio's short
+   end's to -1 (app/backtest/portfolio.py; doc/reference/portfolio.md).
 2. A view bound to the close of the fill's session, when the fill's bar became known
    (doc/reference/time-model.md, rules 4 and 10), values each holding from the last
    fill to this one (`holding_return` in app/backtest/returns.py). Then the portfolio
@@ -16,17 +18,25 @@ store or a database connection. For each decision:
 3. The portfolio holds until the next fill. After the last decision, it's valued at the
    close of the period's last session.
 
-The portfolio starts at 1, in cash, and cash earns nothing. Missing data doesn't stop a
+The portfolio starts at 1, in cash, and cash earns nothing. A short is a holding with
+a negative weight: its security's return counts against the portfolio, what it was
+sold for stays in cash, and borrowing it costs nothing. Missing data doesn't stop a
 run: each gap becomes a warning that says what was assumed.
 
 - A member that had stopped trading at a decision, or had no value for a filter's
-  signal, is left out (`stopped_trading`, `missing_signal`).
-- If no member is chosen, the portfolio holds cash (`empty_portfolio`).
+  signal or the ranking's, is left out (`stopped_trading`, `missing_signal`).
+- If no member is chosen, the portfolio holds cash (`empty_portfolio`). So does a
+  long-short portfolio with one member to rank, which can't be both ends.
+- A ranking of fewer members than it has quantiles holds one at each end
+  (`thin_ranking`).
 - A chosen security without a price at the fill isn't bought, and its share stays in
-  cash (`no_fill_price`).
+  cash, or isn't sold short, and the portfolio goes without it (`no_fill_price`).
 - A holding whose bars end before its period does, because it stopped trading or a bar
-  is missing, is valued at its last close and sold at the next fill (`delisted_exit`,
-  `missing_price`).
+  is missing, is valued at its last close and closed at the next fill
+  (`delisted_exit`, `missing_price`).
+- A portfolio with nothing left at a period's end, or worth less than a fill's trades
+  would cost, ends the run there (`wiped_out`). Only shorts, or holdings that lose
+  everything, can do that.
 
 A price counts only from a session in which the security traded: not from a bar with
 no volume, which repeats the last close, nor from a vendor's bar from the day the
@@ -46,7 +56,13 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Literal
 
-from app.backtest.portfolio import Trade, equal_weights, passes, trade_to_target
+from app.backtest.portfolio import (
+    Trade,
+    equal_weights,
+    passes,
+    ranked_weights,
+    trade_to_target,
+)
 from app.backtest.returns import PricePoint, fills_at_as_of, holding_return_as_of
 from app.backtest.schedule import Rebalance, rebalances
 from app.backtest.signals import SIGNALS, Signal, SignalValue
@@ -68,16 +84,23 @@ WarningKind = Literal[
     "stopped_trading",
     "missing_signal",
     "empty_portfolio",
+    "thin_ranking",
     "no_fill_price",
     "delisted_exit",
     "missing_price",
     "missing_benchmark",
     "fill_after_end",
+    "wiped_out",
 ]
 
 MAX_BPS_PER_TRADE = 5_000
 """Costs must stay below this. A long-only rebalance can trade up to twice the
 portfolio's value, so 50% of that would use all of it."""
+
+MAX_BPS_LONG_SHORT = 2_500
+"""And below this for a long-short portfolio, which trades four times its value to
+swap its ends. That's no guarantee: once its shorts have lost, its weights before a
+fill have no bound, so each fill checks that the portfolio can pay for its trades."""
 
 
 @dataclass(frozen=True)
@@ -104,12 +127,14 @@ class Holding:
     ticker: str
     """Its ticker at the decision that chose it."""
     weight: float
-    """Its weight after the fill, a fraction of the portfolio's value then."""
+    """Its weight after the fill, a fraction of the portfolio's value then. Negative
+    for a short."""
     signals: Mapping[str, float]
     """Its signals' values at the decision, by ID. A signal without a value is left
     out."""
     period_return: float
-    """Its total return from the fill to `exit`."""
+    """The security's total return from the fill to `exit`: a short gains what it
+    loses."""
     exit: PricePoint
     """Where it was valued: the period's end, or its last close if its bars ended
     first."""
@@ -141,7 +166,8 @@ class HoldingPeriod:
     benchmark_return: float | None
     """The benchmark's total return between the same prices, or None without them."""
     value: float
-    """The portfolio's value at the period's end. It starts at 1."""
+    """The portfolio's value at the period's end. It starts at 1, and a period that
+    leaves nothing ends at 0."""
 
 
 @dataclass(frozen=True)
@@ -152,6 +178,8 @@ class Simulation:
     data_version: str | None
     """The data version every view read, or None if they read the whole store."""
     periods: tuple[HoldingPeriod, ...]
+    """One for each decision that traded: fewer than the schedule's if the portfolio
+    was wiped out."""
     warnings: tuple[SimulationWarning, ...]
     """In decision order."""
 
@@ -165,7 +193,8 @@ def simulate(
     """Run `spec`, reading data only through the views `views` opens.
 
     `signals` are the kinds of signal the run can evaluate, by `type`: the library's,
-    unless a test passes its own. Raises SpecError, naming each field, for what the
+    unless a test passes its own. A portfolio with nothing left ends the run early,
+    with a `wiped_out` warning. Raises SpecError, naming each field, for what the
     engine can't run yet, such as value weights or a signal it doesn't have; for a
     period with no decision that fills before its last close; and for a benchmark no
     security used at the first decision. Raises ScheduleError for a schedule whose
@@ -192,7 +221,10 @@ def simulate(
         )
     for rebalance in schedule:
         run.step(rebalance)
-    run.finish(end)
+        if run.ended:
+            break
+    else:
+        run.finish(end)
     return run.result()
 
 
@@ -201,12 +233,13 @@ class _Position:
     """A security the portfolio holds, by value, between fills.
 
     One whose bars ended before its period did keeps its last close's value until the
-    next fill. It has no price there either, so it's sold then, at that value.
+    next fill. It has no price there either, so it's closed then, at that value.
     """
 
     ticker: str
     value: float
-    """In the portfolio's units: it starts at 1."""
+    """In the portfolio's units: it starts at 1. Negative for a short, which owes that
+    much."""
 
 
 @dataclass(frozen=True)
@@ -224,7 +257,9 @@ class _Decision:
     """The decision's New York day."""
     universe_size: int
     chosen: dict[str, _Choice]
-    """By security ID, in ID order."""
+    """The members it holds, by security ID, in ID order."""
+    targets: dict[str, float]
+    """Each one's target weight, negative for a short, in the same order."""
 
 
 @dataclass(frozen=True)
@@ -234,7 +269,8 @@ class _OpenPeriod:
     decision: _Decision
     fill: PricePoint
     weights: dict[str, float]
-    """The holdings' target weights, after the securities that couldn't fill."""
+    """The holdings' target weights, after the securities that couldn't fill. Negative
+    for a short."""
     trades: tuple[Trade, ...]
     turnover: float
     cost: float
@@ -253,13 +289,18 @@ class _Run:
         self.spec = spec
         self.views = views
         self.signals = signals
-        self.filter_signals = list(dict.fromkeys(f.signal for f in spec.filters))
+        # The signals a member needs a value for: the filters', then the ranking's.
+        required = [condition.signal for condition in spec.filters]
+        if spec.portfolio.rank is not None:
+            required.append(spec.portfolio.rank.signal)
+        self.required_signals = list(dict.fromkeys(required))
         self.data_version: str | None = None
         self.viewed = False
         self.benchmark: Security | None = None
         self.positions: dict[str, _Position] = {}
         self.cash = 1.0
         self.open: _OpenPeriod | None = None
+        self.ended = False  # once the portfolio is wiped out: no more decisions
         self.periods: list[HoldingPeriod] = []
         self.warnings: list[SimulationWarning] = []
 
@@ -290,7 +331,8 @@ class _Run:
         with self.view(calendar.session_close(rebalance.fill_session)) as view:
             if self.open is not None:
                 self.close_period(view, fill, final=False)
-            self.trade(view, decision, fill)
+            if not self.ended:
+                self.trade(view, decision, fill)
 
     def finish(self, end: PricePoint) -> None:
         """Value the last period's holdings at the close of the period's last
@@ -299,7 +341,8 @@ class _Run:
             self.close_period(view, end, final=True)
 
     def decide(self, rebalance: Rebalance) -> _Decision:
-        """The members a decision chooses, from what was known at its time only."""
+        """The members a decision chooses, and their target weights, from what was
+        known at its time only."""
         day = rebalance.decision_time.astimezone(ET).date()
         universe = self.spec.universe.id
         with self.view(rebalance.decision_time) as view:
@@ -323,14 +366,14 @@ class _Run:
                 for signal_id, params in self.spec.signals.items()
             }
 
-        chosen = {}
+        passed = {}
         for member in trading:
             ticker = member.ticker
             assert ticker is not None
             found = {
                 signal_id: values[signal_id][member.security_id] for signal_id in values
             }
-            missing = [s for s in self.filter_signals if found[s].value is None]
+            missing = [s for s in self.required_signals if found[s].value is None]
             for signal_id in missing:
                 self.warn(
                     "missing_signal",
@@ -347,18 +390,56 @@ class _Run:
                 for condition in self.spec.filters
             ):
                 continue
-            chosen[member.security_id] = _Choice(ticker, known)
-        if not chosen:
-            self.warn(
-                "empty_portfolio",
-                day,
-                f"No member of {universe} was chosen at the {day} decision, so the "
-                "portfolio held cash."
-                if members
-                else f"{universe} had no members at the {day} decision, so the "
-                "portfolio held cash.",
+            passed[member.security_id] = _Choice(ticker, known)
+        targets = self.target_weights(passed, day, universe_size=len(members))
+        chosen = {security_id: passed[security_id] for security_id in targets}
+        return _Decision(rebalance, day, len(members), chosen, targets)
+
+    def target_weights(
+        self, passed: Mapping[str, _Choice], day: date, *, universe_size: int
+    ) -> dict[str, float]:
+        """The target weights of the members that passed the filters at a decision,
+        in security ID order: equal ones for them all, or for the ends of the spec's
+        ranking of them."""
+        universe, portfolio = self.spec.universe.id, self.spec.portfolio
+        rank = portfolio.rank
+        if rank is None:
+            targets = equal_weights(sorted(passed))
+        else:
+            targets = ranked_weights(
+                {s: choice.signals[rank.signal] for s, choice in passed.items()},
+                quantiles=rank.quantiles,
+                long=rank.long,
+                long_only=portfolio.long_only,
             )
-        return _Decision(rebalance, day, len(members), dict(sorted(chosen.items())))
+        count = f"{len(passed)} {'member' if len(passed) == 1 else 'members'}"
+
+        if targets and rank is not None and len(passed) < rank.quantiles:
+            other = "bottom" if rank.long == "top" else "top"
+            held = (
+                f"the {rank.long} one was held"
+                if portfolio.long_only
+                else f"the {rank.long} one was held long and the {other} one short"
+            )
+            self.warn(
+                "thin_ranking",
+                day,
+                f"Only {count} of {universe} could be ranked by {rank.signal} at the "
+                f"{day} decision, fewer than the ranking's {rank.quantiles} "
+                f"quantiles, so {held}.",
+            )
+        if not targets:
+            if not universe_size:
+                why = f"{universe} had no members at the {day} decision"
+            elif passed and rank is not None:  # one member, which can't be both ends
+                why = (
+                    f"Only {count} of {universe} could be ranked by {rank.signal} at "
+                    f"the {day} decision, and a long-short portfolio needs 2"
+                )
+            else:
+                why = f"No member of {universe} was chosen at the {day} decision"
+            self.warn("empty_portfolio", day, f"{why}, so the portfolio held cash.")
+        return targets
 
     def evaluate(
         self,
@@ -396,21 +477,26 @@ class _Run:
     ) -> None:
         """Trade at `fill` to the decision's target, through a view bound to the close
         of the fill's session."""
-        targets = equal_weights(list(decision.chosen))
+        targets = dict(decision.targets)
         for security_id, choice in decision.chosen.items():
             if not fills_at_as_of(view, view.get_security(security_id), fill):
-                del targets[security_id]
+                short = targets.pop(security_id) < 0
+                instead = (
+                    "it wasn't sold short, and the portfolio went without it"
+                    if short
+                    else "it wasn't bought, and its share stayed in cash"
+                )
                 self.warn(
                     "no_fill_price",
                     decision.day,
                     f"{choice.ticker} had no price at the {fill.price} on "
-                    f"{fill.session}, so it wasn't bought, and its share stayed in "
-                    "cash until the next fill.",
+                    f"{fill.session}, so {instead} until the next fill.",
                     security_id,
                     choice.ticker,
                 )
 
         value_before = self.cash + sum(p.value for p in self.positions.values())
+        assert value_before > 0  # or the run would have ended when the period closed
         tickers: dict[str, str | None] = {
             security_id: position.ticker
             for security_id, position in self.positions.items()
@@ -423,6 +509,14 @@ class _Run:
             fill=fill,
             tickers=tickers,
         )
+        if cost >= 1:
+            self.wipe_out(
+                decision.day,
+                f"The {decision.day} decision's trades, at the {fill.price} on "
+                f"{fill.session}, would have cost {cost:.0%} of the portfolio's value, "
+                "so none was made, and the run ended there.",
+            )
+            return
         value_after = value_before * (1 - cost)
         self.positions = {
             security_id: _Position(
@@ -452,7 +546,8 @@ class _Run:
                 )
             position.value *= 1 + held.value
             if not held.complete:
-                self.warn_exit(position, security, held.exit, end, day, final)
+                short = period.weights[security_id] < 0
+                self.warn_exit(position, security, held.exit, end, day, final, short)
             holdings.append(
                 Holding(
                     security_id=security_id,
@@ -465,6 +560,14 @@ class _Run:
             )
 
         value = self.cash + sum(p.value for p in self.positions.values())
+        if value <= 0:
+            value, self.positions, self.cash = 0.0, {}, 0.0
+            self.wipe_out(
+                day,
+                f"The portfolio had nothing left at the {end.price} on {end.session}: "
+                f"what it held since the {day} decision lost all of its value, so the "
+                "run ended there.",
+            )
         self.periods.append(
             HoldingPeriod(
                 rebalance=period.decision.rebalance,
@@ -515,12 +618,14 @@ class _Run:
         end: PricePoint,
         day: date,
         final: bool,
+        short: bool,
     ) -> None:
         """Warn that a holding was valued at its last close, before the period's end."""
         then = (
             f"until the period ended, on {end.session}"
             if final
-            else f"and sold at the next fill, on {end.session}"
+            else f"and {'bought back' if short else 'sold'} at the next fill, on "
+            f"{end.session}"
         )
         if security.ticker is None:
             kind: WarningKind = "delisted_exit"
@@ -535,6 +640,11 @@ class _Run:
                 f"so it was valued at its last close, on {last.session}, {then}."
             )
         self.warn(kind, day, message, security.security_id, position.ticker)
+
+    def wipe_out(self, day: date, message: str) -> None:
+        """End the run: the portfolio has nothing left to trade with."""
+        self.ended = True
+        self.warn("wiped_out", day, message)
 
     def skip(self, rebalance: Rebalance, end: PricePoint) -> None:
         """Warn that a decision was skipped because it would fill too late."""
@@ -581,14 +691,6 @@ def _check_supported(spec: ExperimentSpec, signals: Mapping[str, Signal]) -> Non
                 "supported yet.",
             )
         )
-    if not spec.portfolio.long_only:
-        problems.append(
-            SpecProblem(
-                "portfolio.long_only",
-                "portfolio.long_only must be true for now: long-short portfolios "
-                "aren't supported yet.",
-            )
-        )
     for signal_id, params in spec.signals.items():
         if params.type not in signals:
             field = f"signals.{signal_id}.type"
@@ -599,13 +701,17 @@ def _check_supported(spec: ExperimentSpec, signals: Mapping[str, Signal]) -> Non
                     "no such signal.",
                 )
             )
-    if spec.costs.bps_per_trade >= MAX_BPS_PER_TRADE:
+    if spec.portfolio.long_only:
+        limit, whose, why = MAX_BPS_PER_TRADE, "", "a rebalance can trade twice"
+    else:
+        limit, whose = MAX_BPS_LONG_SHORT, " for a long-short portfolio"
+        why = "swapping its long and short ends trades four times"
+    if spec.costs.bps_per_trade >= limit:
         problems.append(
             SpecProblem(
                 "costs.bps_per_trade",
-                f"costs.bps_per_trade must be less than {MAX_BPS_PER_TRADE:,}: a "
-                "rebalance can trade twice the portfolio's value, so higher costs "
-                "could use all of it.",
+                f"costs.bps_per_trade must be less than {limit:,}{whose}: {why} the "
+                "portfolio's value, so higher costs could use all of it.",
             )
         )
     if problems:
