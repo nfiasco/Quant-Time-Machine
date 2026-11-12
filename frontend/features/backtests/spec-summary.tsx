@@ -1,3 +1,4 @@
+import { describePortfolio } from "@/features/backtests/describe-portfolio";
 import { describeSignal } from "@/features/backtests/describe-signal";
 import type { ExperimentSpec } from "@/features/backtests/types";
 import { cn } from "@/lib/utils";
@@ -67,10 +68,7 @@ export function SpecSummary({
         </span>
       ),
     },
-    {
-      term: "Portfolio",
-      detail: `${spec.portfolio.weighting === "equal" ? "Equal weight" : "Value weight"}${spec.portfolio.long_only ? ", long only" : ""}`,
-    },
+    { term: "Portfolio", detail: describePortfolio(spec.portfolio) },
     { term: "Benchmark", detail: <span className="font-mono">{spec.benchmark}</span> },
     {
       term: "Costs",
