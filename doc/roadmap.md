@@ -263,7 +263,7 @@ Every backtest, whether built in the web form (498) or by the AI assistant (499)
 }
 ```
 
-The model is [`app/backtest/spec.py`](../backend/app/backtest/spec.py), and its JSON Schema is [`experiment-spec-v1.schema.json`](reference/experiment-spec-v1.schema.json) (S7.1). Signals come from a fixed, [documented library](reference/signals.md), not free-form code. When a spec asks for data outside our coverage, for example fundamentals before XBRL existed, the engine rejects it or warns, and says why.
+The model is [`app/backtest/spec.py`](../backend/app/backtest/spec.py), and its JSON Schema is [`experiment-spec-v1.schema.json`](reference/experiment-spec-v1.schema.json) (S7.1). Signals come from a fixed, [documented library](reference/signals.md), not free-form code. A portfolio can also hold only the top or bottom quantile of a ranking, long only or long-short, with an optional `portfolio.rank` ([portfolio construction](reference/portfolio.md), S7.5). When a spec asks for data outside our coverage, for example fundamentals before XBRL existed, the engine rejects it or warns, and says why.
 
 ## 4. Requirements
 
@@ -681,7 +681,7 @@ Every story in one table. Verified contributors are listed for completed stories
 | [S7.2](#s72-rebalance-schedule-and-decision-and-fill-timing) | Rebalance schedule and decision and fill timing | E7 | P0 | S | 3 | M3 | ✅ Done | [#142](https://github.com/nfiasco/Quant-Time-Machine/issues/142) | [nfiasco](https://github.com/nfiasco) |
 | [S7.3](#s73-simulation-loop) | Simulation loop | E7 | P0 | L | 4 | M4 | In review | [#30](https://github.com/nfiasco/Quant-Time-Machine/issues/30) | See issue |
 | [S7.4](#s74-signal-library-v1) | Signal library v1 | E7 | P0 | M | 4 | M4 | In review | [#31](https://github.com/nfiasco/Quant-Time-Machine/issues/31) | See issue |
-| [S7.5](#s75-portfolio-construction-and-costs) | Portfolio construction and costs | E7 | P0 | M | 4 | M4 | Backlog | [#143](https://github.com/nfiasco/Quant-Time-Machine/issues/143) | See issue |
+| [S7.5](#s75-portfolio-construction-and-costs) | Portfolio construction and costs | E7 | P0 | M | 4 | M4 | In review | [#143](https://github.com/nfiasco/Quant-Time-Machine/issues/143) | See issue |
 | [S7.6](#s76-metrics-and-benchmark-comparison) | Metrics and benchmark comparison | E7 | P0 | M | 4 | M4 | Backlog | [#32](https://github.com/nfiasco/Quant-Time-Machine/issues/32) | See issue |
 | [S7.7](#s77-run-records-determinism-and-audit-log) | Run records, determinism, and audit log | E7 | P0 | M | 4 | M4 | Backlog | [#36](https://github.com/nfiasco/Quant-Time-Machine/issues/36) | See issue |
 | [S7.8](#s78-run-the-canonical-example-end-to-end) | Run the canonical example end to end | E7 | P0 | S | 4 | M4 | Backlog | [#144](https://github.com/nfiasco/Quant-Time-Machine/issues/144) | See issue |
@@ -1887,7 +1887,7 @@ Evidence: `backend/app/backtest/signals/`, `doc/reference/signals.md`, `backend/
 
 #### S7.5 Portfolio construction and costs
 
-**Priority:** P0 · **Size:** M · **Sprint:** 4 · **Milestone:** M4 · **Area:** engine · **Depends on:** S7.3 · **Reqs:** FR-B5 · **Status:** Backlog
+**Priority:** P0 · **Size:** M · **Sprint:** 4 · **Milestone:** M4 · **Area:** engine · **Depends on:** S7.3 · **Reqs:** FR-B5 · **Status:** In review
 
 **Story:** As a researcher, I want to turn signals into portfolios in standard ways, so that I can test "stocks with X outperform" ideas.
 
@@ -1899,12 +1899,24 @@ Evidence: `backend/app/backtest/signals/`, `doc/reference/signals.md`, `backend/
 
 **Tasks**
 
-- [ ] Implement filters and ranking
-- [ ] Implement the weighting schemes
-- [ ] Implement the cost model and turnover
-- [ ] Write hand-checked tests
+- [x] Implement filters and ranking: filters came with the loop (S7.3). The spec's optional `portfolio.rank` names a signal, a number of quantiles, and the end to hold, and [`app/backtest/portfolio.py`](../backend/app/backtest/portfolio.py) ranks the members that pass the filters.
+  - Each end holds the number ranked divided by the quantiles, rounded down, and at least one, so the two ends never share a stock. Ties go to the lower security ID.
+  - A member needs a value for the ranking's signal, as for a filter's. A `macro_change` can't rank, because it's the same for every stock, and the spec rejects it.
+  - With fewer members than quantiles, each end holds one, with a `thin_ranking` warning.
+- [x] Implement the weighting schemes: equal weights, long only (S7.3) or long-short. A long-short portfolio is long one end of the ranking at weights that add up to 1 and short the other at weights that add up to −1, so `long_only: false` needs a ranking.
+  - A short is a holding with a negative weight; borrowing costs nothing and cash earns nothing.
+  - A portfolio with nothing left at a period's end, or less than its next trades would cost, ends the run with a `wiped_out` warning.
+  - Value weights stay rejected with a `SpecError` until market cap exists (S6.6): the cover-page share count is missing for companies with several share classes, such as Alphabet, Meta, and Mastercard.
+- [x] Implement the cost model and turnover: `bps_per_trade` of the value traded, which is the sum of each weight's change, reported with the turnover for each holding period and each trade (S7.3). It works unchanged with negative weights. Costs must be less than 5,000 bps long only, and 2,500 long-short.
+- [x] Write hand-checked tests: `test_a_hand_checked_ranked_run` and `test_a_hand_checked_long_short_run` in [`test_simulation.py`](../backend/tests/test_simulation.py) work four months by hand, and [`doc/reference/portfolio.md`](reference/portfolio.md) shows the long-short one's arithmetic. [`test_portfolio.py`](../backend/tests/test_portfolio.py) checks the ranking, the size of each end, and trades with signed weights.
 
-**Progress evidence (2026-11-08):** No implementation or completion evidence for these acceptance criteria is present in the audited commit. This remains planned work.
+**Progress evidence (2026-11-12):** The engine runs ranked and long-short specs. On the local store (data version 20261111T030742Z), 12-1 momentum in quintiles from 2020 to 2022 took 18 seconds for 36 decisions long only, and 22 long-short.
+- **Ends.** The universe had 38 to 40 members, and each end held 7 or 8. The long weights added up to 1 and the short ones to −1 at every fill.
+- **Turnover and costs.** After the first fill, turnover averaged 0.50 a month long only and 1.14 long-short, and 10 bps of it cost 1.8% and 4.1% of the portfolio over the three years. In every period the cost was 10 bps of the turnover, and the net return the gross return after it.
+- **Past four.** Deciles of the members with positive momentum, long-short, held 1 to 4 a side, and one rebalance traded 4.25 times the portfolio: the 2,500 bps ceiling isn't a guarantee, so each fill checks that the portfolio can pay.
+- **For S7.6 and S7.7.** A run can now end early, in a period that returns −100%, and a saved spec states `"rank": null` when it has no ranking.
+
+Evidence: `backend/app/backtest/portfolio.py`, `backend/app/backtest/simulation.py`, `backend/app/backtest/spec.py`, `doc/reference/portfolio.md`, `backend/tests/test_portfolio.py`, `backend/tests/test_simulation.py`, `backend/tests/test_spec.py`.
 
 **GitHub:** [#143](https://github.com/nfiasco/Quant-Time-Machine/issues/143) · **Parent epic:** [#14](https://github.com/nfiasco/Quant-Time-Machine/issues/14)
 
