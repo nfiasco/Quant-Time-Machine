@@ -7,7 +7,9 @@ what the decision could see. One runs the canonical spec's signals from the libr
 itself (S7.4).
 
 The ranked and long-short runs (S7.5) are worked by hand in
-doc/reference/portfolio.md, which has the rules they check.
+doc/reference/portfolio.md, which has the rules they check. So is the run whose
+metrics are checked (S7.6), in doc/reference/metrics.md; tests/test_backtest_metrics.py
+checks each metric on its own.
 """
 
 import ast
@@ -21,6 +23,7 @@ from typing import Any
 
 import pytest
 
+from app.backtest.metrics import equity_curve, summarize
 from app.backtest.returns import PricePoint
 from app.backtest.schedule import rebalances
 from app.backtest.signals import SignalValue
@@ -37,6 +40,7 @@ from tests.toy_market import (
     add_action,
     add_bars,
     add_member,
+    add_release,
     add_revenue,
     add_security,
     steps,
@@ -79,6 +83,13 @@ CHOICES: Script = {
     APR_1: {"gamma": 1.0},
 }
 
+Rates = Sequence[tuple[date, float, date]]
+"""Releases of TB3MS, the risk-free rate: a month, its rate in percent a year, and the
+day it came out, at 16:15 ET."""
+
+LONG_KNOWN: Rates = [(date(2004, 12, 1), 1.2, date(2005, 1, 3))]
+"""One rate, which every decision here knows, in 2009 too."""
+
 
 def toy(
     store: Path,
@@ -86,10 +97,14 @@ def toy(
     levels: Mapping[str, Mapping[date, float]] = LEVELS,
     skip: Mapping[str, Sequence[date]] | None = None,
     stopped: Mapping[str, date] | None = None,
+    rates: Rates = LONG_KNOWN,
 ) -> Path:
     """The toy market, with a bar every session but the days in `skip`. A security in
-    `stopped` stopped trading on that day: no bar from then on, and no ticker."""
+    `stopped` stopped trading on that day: no bar from then on, and no ticker. `rates`
+    are the risk-free rate's releases."""
     skip, stopped = skip or {}, stopped or {}
+    for period, value, vintage in rates:
+        add_release(store, "TB3MS", period, value, vintage)
     for security_id, ticker in TICKERS.items():
         until = stopped.get(security_id)
         last = END if until is None else calendar.previous_session(until)
@@ -354,6 +369,7 @@ def test_next_day_open_fills(store_dir: Path) -> None:
     add_action(store_dir, "alpha", date(2021, 3, 2), "split", 2.0)
     add_security(store_dir, "spdr-sp500", "SPY")
     add_bars(store_dir, "spdr-sp500", steps(START, END, {START: 300.0}))
+    add_release(store_dir, "TB3MS", *LONG_KNOWN[0])
     opened: list[datetime] = []
 
     def views(moment: datetime) -> PointInTimeView:
@@ -1017,6 +1033,136 @@ def test_trades_the_portfolio_cant_pay_for_end_the_run(store: Path) -> None:
     )
 
 
+VARYING_SPY = {
+    **LEVELS,
+    # Up 2% in January, down 1%, up 3%, then up 1%.
+    "spdr-sp500": {START: 300.0, date(2021, 1, 15): 306.0, date(2021, 2, 16): 302.94}
+    | {date(2021, 3, 15): 312.0282, date(2021, 4, 15): 315.148482},
+}
+
+H15: Rates = [
+    (date(2020, 11, 1), 1.2, date(2020, 12, 1)),
+    (date(2020, 12, 1), 2.4, JAN_4),
+    (date(2021, 1, 1), 0.6, FEB_1),
+    (date(2021, 2, 1), 3.6, MAR_1),
+    (date(2021, 3, 1), 12.0, APR_1),
+]
+"""A month's rate comes out on the next month's first business day, at 16:15 ET: after
+that day's 09:30 decision, which still knows the month before's. April's decision is
+the last, so none of them knows March's 12%."""
+
+
+def test_each_period_carries_the_risk_free_rate_its_decision_knew(
+    store_dir: Path,
+) -> None:
+    toy(store_dir, rates=H15)
+
+    result = run(store_dir)
+
+    # Not 2.4, 0.6, 3.6, and 12: each of those came out that afternoon.
+    assert [p.risk_free_rate for p in result.periods] == [1.2, 2.4, 0.6, 3.6]
+    assert result.warnings == ()
+
+
+def test_a_rate_counts_from_its_release_time(store_dir: Path) -> None:
+    # A decision at 16:15 ET, the minute H.15 comes out, knows that day's release. It
+    # trades at the next open.
+    toy(store_dir, rates=H15)
+    schedule = {
+        "decision": "first_trading_day 16:15 America/New_York",
+        "fill": "next_day_open",
+    }
+
+    result = run(store_dir, spec=toy_spec(schedule=schedule))
+
+    assert [p.risk_free_rate for p in result.periods] == [2.4, 0.6, 3.6, 12.0]
+
+
+def test_a_period_without_a_risk_free_rate_is_warned_about(store_dir: Path) -> None:
+    # The first rate comes out after January's decision, so only that one has none.
+    toy(store_dir, rates=H15[1:])
+
+    result = run(store_dir)
+
+    assert [p.risk_free_rate for p in result.periods] == [None, 2.4, 0.6, 3.6]
+    assert result.warnings == (
+        SimulationWarning(
+            "missing_risk_free",
+            JAN_4,
+            "TB3MS, the 3-month Treasury bill rate, had no value known at the "
+            "2021-01-04 decision, so the risk-free rate for the period to 2021-02-01 "
+            "was taken as 0.",
+        ),
+    )
+
+
+def test_a_published_rate_of_zero_isnt_missing(store_dir: Path) -> None:
+    toy(store_dir, rates=[(date(2020, 11, 1), 0.0, date(2020, 12, 1))])
+
+    result = run(store_dir)
+
+    assert [p.risk_free_rate for p in result.periods] == [0.0] * 4
+    assert result.warnings == ()
+
+
+def test_a_hand_checked_runs_metrics_match_the_worked_example(store_dir: Path) -> None:
+    # The holdings of test_a_hand_checked_run, so its net returns, against a benchmark
+    # and a risk-free rate that vary. doc/reference/metrics.md works each number
+    # below by hand, to six places.
+    toy(store_dir, levels=VARYING_SPY, rates=H15)
+
+    result = run(store_dir)
+    metrics = summarize(result)
+
+    assert [p.net_return for p in result.periods] == pytest.approx(
+        [-0.001, -0.001, 1469 / 45000, 15269 / 155000]
+    )
+    assert [p.benchmark_return for p in result.periods] == pytest.approx(
+        [0.02, -0.01, 0.03, 0.01]
+    )
+    assert [p.risk_free_rate for p in result.periods] == [1.2, 2.4, 0.6, 3.6]
+    assert (metrics.periods, metrics.start, metrics.end) == (
+        4,
+        PricePoint(JAN_4, "close"),
+        PricePoint(END, "close"),
+    )
+    assert metrics.years == pytest.approx(116 / 365.25)
+    worked = {
+        "total_return": 0.132102,
+        "cagr": 0.477986,
+        "volatility": 0.162501,
+        "sharpe": 2.298444,
+        "max_drawdown": -0.001999,
+        "turnover": 1.007168,
+        "hit_rate": 0.75,
+        "benchmark_total_return": 0.050495,
+        "benchmark_cagr": 0.167786,
+        "excess_return": 0.310199,
+        "beta": 0.295384,
+        "alpha": 0.329415,
+        "mean_excess_return": 0.019789,
+        "excess_t_stat": 0.831492,
+    }
+    assert {name: getattr(metrics, name) for name in worked} == pytest.approx(
+        worked, abs=5e-7
+    )
+    assert [(p.at, p.value, p.benchmark) for p in equity_curve(result)] == [
+        (PricePoint(JAN_4, "close"), 1.0, 1.0),
+        (PricePoint(FEB_1, "close"), pytest.approx(0.999), pytest.approx(1.02)),
+        (PricePoint(MAR_1, "close"), pytest.approx(0.998001), pytest.approx(1.0098)),
+        (
+            PricePoint(APR_1, "close"),
+            pytest.approx(1.030580, abs=5e-7),
+            pytest.approx(1.040094),
+        ),
+        (
+            PricePoint(END, "close"),
+            pytest.approx(1.132102, abs=5e-7),
+            pytest.approx(1.050495, abs=5e-7),
+        ),
+    ]
+
+
 REJECTED = [
     (
         "portfolio.weighting",
@@ -1125,6 +1271,7 @@ def test_the_canonical_specs_signals_run_in_the_loop(store_dir: Path) -> None:
         add_bars(store_dir, security_id, rising)
     add_security(store_dir, "spdr-sp500", "SPY")
     add_bars(store_dir, "spdr-sp500", steps(START, END, {START: 300.0}))
+    add_release(store_dir, "TB3MS", *LONG_KNOWN[0])
     year = [date(2019, 3, 31), date(2019, 6, 30), date(2019, 9, 30), date(2019, 12, 31)]
     a_year_later = [day.replace(year=2020) for day in year]
     flat = dict.fromkeys(year, 100.0)
