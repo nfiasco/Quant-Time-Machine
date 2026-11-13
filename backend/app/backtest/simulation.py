@@ -10,7 +10,10 @@ store or a database connection. For each decision:
    members then. Each signal is evaluated for them through that view. The members
    that pass every filter get equal weights, or, if the spec has a ranking, the ones
    at its ends do: the long end's add up to 1, and a long-short portfolio's short
-   end's to -1 (app/backtest/portfolio.py; doc/reference/portfolio.md).
+   end's to -1 (app/backtest/portfolio.py; doc/reference/portfolio.md). The same
+   view gives the risk-free rate the decision knew, TB3MS as last published by then,
+   which the period's record carries for the Sharpe ratio (S7.6;
+   app/backtest/metrics.py).
 2. A view bound to the close of the fill's session, when the fill's bar became known
    (doc/reference/time-model.md, rules 4 and 10), values each holding from the last
    fill to this one (`holding_return` in app/backtest/returns.py). Then the portfolio
@@ -43,6 +46,8 @@ no volume, which repeats the last close, nor from a vendor's bar from the day th
 security's curated history says it stopped trading on (app/backtest/returns.py).
 - A period without the benchmark's prices has no benchmark return
   (`missing_benchmark`).
+- A period whose decision knew no risk-free rate has none, and the metrics count it
+  as 0 (`missing_risk_free`).
 - A decision whose trades would fill after the period's last close is skipped
   (`fill_after_end`).
 
@@ -89,9 +94,14 @@ WarningKind = Literal[
     "delisted_exit",
     "missing_price",
     "missing_benchmark",
+    "missing_risk_free",
     "fill_after_end",
     "wiped_out",
 ]
+
+RISK_FREE_SERIES = "TB3MS"
+"""The macro series whose latest value known at a decision is the period's risk-free
+rate: the 3-month Treasury bill rate, in percent a year."""
 
 MAX_BPS_PER_TRADE = 5_000
 """Costs must stay below this. A long-only rebalance can trade up to twice the
@@ -165,6 +175,10 @@ class HoldingPeriod:
     (1 - cost) - 1."""
     benchmark_return: float | None
     """The benchmark's total return between the same prices, or None without them."""
+    risk_free_rate: float | None
+    """The 3-month Treasury bill rate (TB3MS) as last published by the decision, in
+    percent a year: 0.09 is 0.09%. None if it had no value then, and the metrics count
+    the period's as 0 (app/backtest/metrics.py)."""
     value: float
     """The portfolio's value at the period's end. It starts at 1, and a period that
     leaves nothing ends at 0."""
@@ -260,6 +274,8 @@ class _Decision:
     """The members it holds, by security ID, in ID order."""
     targets: dict[str, float]
     """Each one's target weight, negative for a short, in the same order."""
+    risk_free_rate: float | None
+    """TB3MS as last published by then, in percent a year, or None without a value."""
 
 
 @dataclass(frozen=True)
@@ -348,6 +364,7 @@ class _Run:
         with self.view(rebalance.decision_time) as view:
             if self.benchmark is None:
                 self.benchmark = self.resolve_benchmark(view, day)
+            risk_free = view.get_macro_as_of(RISK_FREE_SERIES)
             members = view.universe_as_of(universe)
             trading = []
             for member in members:
@@ -393,7 +410,8 @@ class _Run:
             passed[member.security_id] = _Choice(ticker, known)
         targets = self.target_weights(passed, day, universe_size=len(members))
         chosen = {security_id: passed[security_id] for security_id in targets}
-        return _Decision(rebalance, day, len(members), chosen, targets)
+        rate = None if risk_free is None else risk_free.value
+        return _Decision(rebalance, day, len(members), chosen, targets, rate)
 
     def target_weights(
         self, passed: Mapping[str, _Choice], day: date, *, universe_size: int
@@ -580,6 +598,7 @@ class _Run:
                 gross_return=value / period.value_after - 1,
                 net_return=value / period.value_before - 1,
                 benchmark_return=self.benchmark_return(view, period, end),
+                risk_free_rate=self.risk_free_rate(period, end),
                 value=value,
             )
         )
@@ -609,6 +628,19 @@ class _Run:
             benchmark.ticker,
         )
         return None
+
+    def risk_free_rate(self, period: _OpenPeriod, end: PricePoint) -> float | None:
+        """The risk-free rate the period's decision knew, in percent a year."""
+        rate = period.decision.risk_free_rate
+        if rate is None:
+            self.warn(
+                "missing_risk_free",
+                period.decision.day,
+                f"{RISK_FREE_SERIES}, the 3-month Treasury bill rate, had no value "
+                f"known at the {period.decision.day} decision, so the risk-free rate "
+                f"for the period to {end.session} was taken as 0.",
+            )
+        return rate
 
     def warn_exit(
         self,

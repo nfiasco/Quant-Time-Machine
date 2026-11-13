@@ -234,7 +234,7 @@ A decision at 09:30 ET on Monday, June 1, 2020 sees prices through Friday, May 2
 
 **In code (S7.3).** [`app/backtest/simulation.py`](../../backend/app/backtest/simulation.py) steps through the decisions with two views each.
 
-- **The decision's view** is bound to the decision's time. It's the only view the decision reads: the universe's members, and each signal's values for them.
+- **The decision's view** is bound to the decision's time. It's the only view the decision reads: the universe's members, each signal's values for them, and the risk-free rate, TB3MS as last published by then (S7.6). A month's average comes out at 16:15 ET on the next month's first business day, after that day's 09:30 decision, so a decision knows the rate from two months back ([performance metrics](metrics.md#1-the-risk-free-rate)).
 - **The fill's view** is bound to the close of the fill's session, when that session's bar became known (rule 4). Through it the engine values the holdings from the last fill to this one, and trades. So a next-day open is read after that day's close, never at the decision.
 - **A holding's return** runs from one fill's price to the next's ([`app/backtest/returns.py`](../../backend/app/backtest/returns.py)), compounding the daily total returns between them:
   - **bought at an open,** it starts with that day's close over its open, which is already ex-split and ex-dividend;

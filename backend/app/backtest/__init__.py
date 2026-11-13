@@ -17,4 +17,7 @@ itself. So far it has:
   (S7.5; doc/reference/portfolio.md)
 - `simulation`: the loop, which steps through a spec's decisions, each reading only
   what was known then through a view factory (S7.3)
+- `metrics`: a run's CAGR, volatility, Sharpe ratio, drawdown, and turnover, and its
+  excess return, hit rate, beta, alpha, and t-statistic against the benchmark, with
+  the risk-free rate each decision knew (S7.6; doc/reference/metrics.md)
 """

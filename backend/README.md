@@ -249,7 +249,8 @@ The engine in [`app/backtest/`](app/backtest/) reads data only through `PointInT
 | [`schedule.py`](app/backtest/schedule.py) | A spec's decisions, on the first trading day of each month, and their fills (S7.2). A fill is at the same day's close (13:00 ET on an early close) or the next session's open, always strictly after its decision; `ScheduleError` names any day it can't be |
 | [`signals/`](app/backtest/signals/) | What the loop asks of a signal: each member's `SignalValue` at a decision, or the reason it has none (S7.3). `SIGNALS` is the library, by spec `type` (S7.4): `momentum` over whole months, 12-1 by default; `revenue_growth` and `revenue_growth_acceleration` from the quarters filed by then; and `macro_change`, a macro series' change over its latest releases. [`doc/reference/signals.md`](../doc/reference/signals.md) has their formulas |
 | [`portfolio.py`](app/backtest/portfolio.py) | The filters, equal weights, and the trades that reach them. Costs are `bps_per_trade` of the value traded, which is the sum of each weight's change, and come out of the portfolio (S7.3). A ranking holds only its ends, each a quantile of the members that pass the filters, rounded down and at least one; a long-short portfolio is long one end and short the other (S7.5). [`doc/reference/portfolio.md`](../doc/reference/portfolio.md) has the rules and a worked example |
-| [`simulation.py`](app/backtest/simulation.py) | The loop (S7.3). `simulate(spec, views)` steps through a spec's decisions, each with a view bound to its time, then values the holdings and trades at a view bound to the fill session's close. It returns each holding period's holdings, trades, costs, and returns, the benchmark's, and warnings for the data it did without |
+| [`simulation.py`](app/backtest/simulation.py) | The loop (S7.3). `simulate(spec, views)` steps through a spec's decisions, each with a view bound to its time, then values the holdings and trades at a view bound to the fill session's close. It returns each holding period's holdings, trades, costs, and returns, the benchmark's, the risk-free rate its decision knew, and warnings for the data it did without |
+| [`metrics.py`](app/backtest/metrics.py) | A run's metrics, from its holding periods (S7.6). `summarize(result)` gives CAGR, volatility, the Sharpe ratio, maximum drawdown, and turnover, and against the benchmark, excess return, hit rate, beta, alpha, and the t-statistic of the mean monthly excess return. `equity_curve(result)` gives the portfolio's value beside the benchmark's. Both only do arithmetic, and a metric that can't be computed is `None`. [`doc/reference/metrics.md`](../doc/reference/metrics.md) has the formulas and a run worked by hand |
 
 ```python
 from datetime import date
@@ -271,6 +272,7 @@ Price levels stay raw: only returns account for splits and dividends. The formul
 from functools import partial
 from pathlib import Path
 
+from app.backtest.metrics import equity_curve, summarize
 from app.backtest.simulation import simulate
 from app.backtest.spec import parse_spec
 from app.data.view import PointInTimeView
@@ -280,14 +282,17 @@ views = partial(PointInTimeView, data_version="20261101T202624Z")  # pinned, as 
 result = simulate(spec, views)  # with the library's signals (S7.4)
 result.periods[0].holdings  # the first decision's holdings, weights, and returns
 result.warnings  # each gap in the data, and what the run assumed instead
+summarize(result)  # CAGR, Sharpe ratio, drawdown, and the run against its benchmark
+equity_curve(result)  # the portfolio's value and the benchmark's, period by period
 ```
 
 - **Each decision** reads only through a view bound to its time, 09:30 ET by default: the universe's members then, and each signal's value for them. The members that pass every filter get equal weights. With `portfolio.rank`, they're ranked by a signal first, and only the top or bottom quantile is held.
 - **Each fill** is valued and traded through a view bound to the close of the fill's session, when its bar became known. A next-day open is read after that day's close, never at the decision.
-- **The portfolio** starts at 1, in cash, and cash earns nothing. A rebalance trades the change in each weight and pays `bps_per_trade` on it. Each holding period records its holdings, trades, turnover, cost, gross and net returns, value, and the benchmark's return between the same prices.
+- **The portfolio** starts at 1, in cash, and cash earns nothing. A rebalance trades the change in each weight and pays `bps_per_trade` on it. Each holding period records its holdings, trades, turnover, cost, gross and net returns, value, the benchmark's return between the same prices, and the risk-free rate its decision knew.
 - **A long-short portfolio** (`long_only: false`, with a ranking) is long one end at weights that add up to 1 and short the other at weights that add up to −1. A short is a holding with a negative weight, whose stock's return counts against the portfolio; borrowing costs nothing. If a period leaves nothing, or the next trades would cost as much as the portfolio is worth, the run ends there with a `wiped_out` warning.
 - **Missing data** doesn't stop a run. A member that stopped trading or has no signal value is left out, a security without a price at its fill isn't bought or sold short, and a holding whose bars end early, such as a company bought out between fills, is valued at its last close and closed at the next fill. A ranking of fewer members than it has quantiles holds one at each end. Each becomes a warning that says what was assumed.
 - **Only sessions that traded have prices.** Tiingo has bars for some sessions in which a security didn't trade: one with no volume that repeats the last close, as for Twitter, Pioneer Natural Resources, and Marathon Oil on the days their trading was suspended, and a leftover with a few shares after a delisting, as for Xilinx on February 14, 2022. The engine can't trade at such a bar, or value a holding at it, and it ignores a delisted security's bars from the day its curated history ends its ticker.
+- **Metrics** come from the holding periods alone (S7.6). A period counts as a month, so volatility and the Sharpe ratio annualize by √12; CAGR counts the days from the first fill. The risk-free rate is TB3MS as last published by each decision, which is the average from two months back, because a month's comes out at 16:15 ET on the next month's first business day. A period whose decision knew no rate counts 0, with a `missing_risk_free` warning, and one period without a benchmark return leaves every benchmark metric empty.
 - **Results hold no prices,** only weights, returns, and dates, because Tiingo's prices are for internal use only (D2).
 - **Not yet:** value weights are rejected with a `SpecError` that names the field, until market cap exists (S6.6).
 
