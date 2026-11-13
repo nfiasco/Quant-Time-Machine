@@ -11,6 +11,7 @@ Start with the [project README](../README.md#getting-started) to run the app, or
 - [Experiment spec v1 schema](reference/experiment-spec-v1.schema.json): the generated JSON Schema for backtest inputs.
 - [Signal library](reference/signals.md): each backtest signal's formula, data, minimum history, and the reasons it can have no value.
 - [Portfolio construction and costs](reference/portfolio.md): how filters, a ranking, and weights turn signals into a portfolio, long only or long-short, and what trading it costs.
+- [Performance metrics and the benchmark](reference/metrics.md): each metric's formula, the risk-free rate a decision knew, when a metric has no value, and a run worked by hand.
 - [Hosting](reference/hosting.md): deployment steps and the evidence behind the hosting decision.
 
 ## Project workflow

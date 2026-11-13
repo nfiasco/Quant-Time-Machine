@@ -97,7 +97,7 @@ net      = (1 + gross) × (1 − cost) − 1
 
 - **Turnover counts both sides.** Selling half the portfolio to buy something else is a turnover of 1. The first fill, from cash, is 1 for a long-only portfolio and 2 for a long-short one.
 - **The cost is a fraction of the portfolio's value before trading,** and comes out of it: after the fill, the weights are the targets, of a portfolio worth (1 − cost) times as much. Each trade carries its share of the cost.
-- **Each holding period reports** its `turnover`, `cost`, `gross_return` (from just after the fill to the period's end), and `net_return` (from just before the fill, so after costs), and each trade its weights before and after ([`HoldingPeriod`](../../backend/app/backtest/simulation.py)). Whole-run turnover is S7.6's.
+- **Each holding period reports** its `turnover`, `cost`, `gross_return` (from just after the fill to the period's end), and `net_return` (from just before the fill, so after costs), and each trade its weights before and after ([`HoldingPeriod`](../../backend/app/backtest/simulation.py)). A run's turnover is the mean of its periods' after the first fill ([performance metrics](metrics.md#4-trading), S7.6).
 - **Costs have a ceiling.** `bps_per_trade` must be less than 5,000 for a long-only portfolio, whose turnover is never more than 2. For a long-short one it must be less than 2,500, which covers swapping both ends at their targets, a turnover of 4.
 
 ## 5. Long-short portfolios

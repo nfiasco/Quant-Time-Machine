@@ -682,7 +682,7 @@ Every story in one table. Verified contributors are listed for completed stories
 | [S7.3](#s73-simulation-loop) | Simulation loop | E7 | P0 | L | 4 | M4 | In review | [#30](https://github.com/nfiasco/Quant-Time-Machine/issues/30) | See issue |
 | [S7.4](#s74-signal-library-v1) | Signal library v1 | E7 | P0 | M | 4 | M4 | In review | [#31](https://github.com/nfiasco/Quant-Time-Machine/issues/31) | See issue |
 | [S7.5](#s75-portfolio-construction-and-costs) | Portfolio construction and costs | E7 | P0 | M | 4 | M4 | In review | [#143](https://github.com/nfiasco/Quant-Time-Machine/issues/143) | See issue |
-| [S7.6](#s76-metrics-and-benchmark-comparison) | Metrics and benchmark comparison | E7 | P0 | M | 4 | M4 | Backlog | [#32](https://github.com/nfiasco/Quant-Time-Machine/issues/32) | See issue |
+| [S7.6](#s76-metrics-and-benchmark-comparison) | Metrics and benchmark comparison | E7 | P0 | M | 4 | M4 | In review | [#32](https://github.com/nfiasco/Quant-Time-Machine/issues/32) | See issue |
 | [S7.7](#s77-run-records-determinism-and-audit-log) | Run records, determinism, and audit log | E7 | P0 | M | 4 | M4 | Backlog | [#36](https://github.com/nfiasco/Quant-Time-Machine/issues/36) | See issue |
 | [S7.8](#s78-run-the-canonical-example-end-to-end) | Run the canonical example end to end | E7 | P0 | S | 4 | M4 | Backlog | [#144](https://github.com/nfiasco/Quant-Time-Machine/issues/144) | See issue |
 | [S8.1](#s81-api-conventions) | API conventions | E8 | P0 | S | 2 | M2 | ✅ Done | [#23](https://github.com/nfiasco/Quant-Time-Machine/issues/23) | [nfiasco](https://github.com/nfiasco) |
@@ -1922,7 +1922,7 @@ Evidence: `backend/app/backtest/portfolio.py`, `backend/app/backtest/simulation.
 
 #### S7.6 Metrics and benchmark comparison
 
-**Priority:** P0 · **Size:** M · **Sprint:** 4 · **Milestone:** M4 · **Area:** engine · **Depends on:** S7.3 · **Reqs:** FR-B6 · **Status:** Backlog
+**Priority:** P0 · **Size:** M · **Sprint:** 4 · **Milestone:** M4 · **Area:** engine · **Depends on:** S7.3 · **Reqs:** FR-B6 · **Status:** In review
 
 **Story:** As a researcher, I want standard performance metrics against a benchmark, so that I can judge whether a strategy beat the market.
 
@@ -1934,11 +1934,22 @@ Evidence: `backend/app/backtest/portfolio.py`, `backend/app/backtest/simulation.
 
 **Tasks**
 
-- [ ] Write the metrics module
-- [ ] Write the spreadsheet cross-check test
-- [ ] Document the formulas
+- [x] Write the metrics module: [`app/backtest/metrics.py`](../backend/app/backtest/metrics.py). `summarize(result)` reduces a run's holding periods to its metrics, after costs, and `equity_curve(result)` gives the portfolio's value beside the benchmark's. Both only do arithmetic on what the loop recorded.
+  - A period counts as a month: volatility and the Sharpe ratio annualize by √12, and alpha by 12. CAGR counts the days from the first fill to the last period's end.
+  - The risk-free rate is TB3MS as each decision knew it, read through the decision's view in [`simulation.py`](../backend/app/backtest/simulation.py) and kept on the period as `risk_free_rate`. That's the average from two months back, because a month's comes out at 16:15 ET on the next month's first business day, after that day's decision.
+  - Turnover is the mean of the rebalances after the first fill, and the hit rate the share of periods that beat the benchmark. Excess return is the CAGR less the benchmark's, and the t-statistic is of the mean monthly difference.
+  - A metric that can't be computed is `None`: one period has no standard deviation, returns that don't vary can't be divided by their spread, and a period without a benchmark return leaves every benchmark metric empty.
+- [x] Write the spreadsheet cross-check test: `test_a_hand_checked_runs_metrics_match_the_worked_example` in [`test_simulation.py`](../backend/tests/test_simulation.py) runs the loop's three stocks over four months against a benchmark and a risk-free rate that vary, and checks every metric against numbers worked by hand, to six places. [`test_backtest_metrics.py`](../backend/tests/test_backtest_metrics.py) checks each metric on its own, and when it has no value.
+- [x] Document the formulas: [`doc/reference/metrics.md`](reference/metrics.md) has each formula, the rate a decision knew, when a metric has no value, the worked example as a table with its arithmetic, and the known limitations.
 
-**Progress evidence (2026-11-08):** No implementation or completion evidence for these acceptance criteria is present in the audited commit. This remains planned work.
+**Progress evidence (2026-11-12):** `summarize` gives every metric the story lists, and the three-stock run matches its hand-worked numbers. On the local store (data version 20261111T030742Z), the canonical spec from 2020 to 2022 took 34 seconds for 36 decisions, and its metrics a third of a millisecond.
+- **Canonical spec.** A CAGR of 17.2% against SPY's 7.3%, an excess return of 9.9 points a year. Volatility was 23.3%, the Sharpe ratio 0.77, and the maximum drawdown −22.0%. It beat SPY in 23 months of 36, by 0.75% a month on average, a t-statistic of 1.50, with a beta of 0.93 and an alpha of 9.6% a year.
+- **Quintiles of 12-1 momentum.** Long only: a CAGR of 18.1%, a Sharpe ratio of 0.76, and a beta of 0.94. Long-short: −2.3%, 0.06, and −0.61, with a drawdown of −44.5%. Their turnovers, 0.50 and 1.14, are the ones S7.5 measured.
+- **The benchmark.** SPY returned 23.55% from the first fill, at January 2, 2020's close, to December 30, 2022's. By calendar year the same store gives 18.37%, 28.75%, and −18.17%, against the 18.37%, 28.75%, and −18.19% that Yahoo Finance lists. S7.8 checks the whole period.
+- **The risk-free rate.** Every decision knew one, from 0.02% to 3.72%. January 2020's used November 2019's 1.54%, and May 1, 2020's used March's 0.29%: April's 0.14% came out that afternoon.
+- **For S7.7.** A holding period has a new field, `risk_free_rate`, and a run a new warning, `missing_risk_free`. Each decision's access log now has its TB3MS read. CAGR is the engine's only power, whose last digit can differ between machines, so a saved number needs fixed rounding.
+
+Evidence: `backend/app/backtest/metrics.py`, `backend/app/backtest/simulation.py`, `doc/reference/metrics.md`, `backend/tests/test_backtest_metrics.py`, `backend/tests/test_simulation.py`.
 
 **GitHub:** [#32](https://github.com/nfiasco/Quant-Time-Machine/issues/32) · **Parent epic:** [#14](https://github.com/nfiasco/Quant-Time-Machine/issues/14)
 
