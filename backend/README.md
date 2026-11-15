@@ -64,7 +64,7 @@ The tests read small committed tables from [`tests/fixtures/`](tests/fixtures/),
 
 Tests that call real APIs are marked `network`. They're skipped by default, so CI never runs them. To run them, put keys in `.env` and use `uv run pytest -m network`. There are eight, each making a request or a few. Two call Tiingo's API and count against its limit of 50 an hour; a third downloads Tiingo's public ticker list, which doesn't.
 
-Tests marked `local_data` read your own `DATA_DIR`: the raw cache and the store. They're skipped by default too. `uv run pytest -m local_data` checks total returns against the adjusted closes in Tiingo's cached responses, which can't be committed (D2). It needs `ingest tiingo` first and takes a few seconds.
+Tests marked `local_data` read your own `DATA_DIR`: the raw cache and the store. They're skipped by default too. `uv run pytest -m local_data` checks total returns against the adjusted closes in Tiingo's cached responses, which can't be committed (D2). It also checks SPY's total return for each calendar year from 2010 to 2025 against the published figures, and Apple's revenue signals against its filings. It needs `ingest tiingo` and `ingest sec` first and takes a few seconds.
 
 ## Managing dependencies
 
