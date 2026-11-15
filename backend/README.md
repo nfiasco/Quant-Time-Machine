@@ -5,7 +5,7 @@ The Quant Time Machine API, built with [FastAPI](https://fastapi.tiangolo.com). 
 - the point-in-time data layer: the store and its writer, `PointInTimeView`, and the NYSE calendar;
 - the ingestion client and CLI;
 - the `/v1` as-of endpoints for macro series and their revisions, prices, filings, and fundamentals, with their conventions, plus the catalogs and the knowledge snapshot;
-- the start of the [backtest engine](#backtest-engine): total returns from raw prices, splits, and dividends, the experiment spec, the rebalance schedule, the simulation loop, and the signal library (S7.4).
+- the start of the [backtest engine](#backtest-engine): total returns from raw prices, splits, and dividends, the experiment spec, the rebalance schedule, the simulation loop, the signal library, portfolios, metrics, and [run records](#run-records) that the same inputs always reproduce byte for byte (S7.7).
 
 Three sources are in, each ingested and readable as of any moment:
 
@@ -45,6 +45,7 @@ Settings and API keys load through one typed module, [`app/config.py`](app/confi
 | `TIINGO_API_KEY`   | Downloading daily prices from Tiingo (D2)     | Free: create a Tiingo account and copy the token from [its API token page](https://www.tiingo.com/account/api/token)      |
 | `DATA_DIR`         | Where downloads and the local store live      | Default `data/` (that is, `backend/data/`, git-ignored). Relative paths are resolved from `backend/`.                      |
 | `CORS_ORIGINS`     | Browser access to the API (CORS)              | Exact origins, comma-separated, no trailing slash. Default `http://localhost:3000`; add the deployed site.                 |
+| `GIT_SHA`          | The commit a saved run records (S7.7)         | Optional. Unset, it's Railway's `RAILWAY_GIT_COMMIT_SHA` on a deploy, or git's HEAD on your machine, with `-dirty` for uncommitted changes. |
 | `SERVE_RAW_PRICES` | `GET /v1/prices` answering at all             | Default `false`, so the endpoint answers 403. Tiingo's prices are internal use only (D2): set `true` on your own machine, never on a deployment others can reach. |
 
 In code, call `get_settings()` from `app.config`. API keys are `SecretStr` values, so they never show up in logs; use `.get_secret_value()` where the real value is needed. Route handlers don't call `get_settings()`. They read the settings the app was built with, through the `AppSettings` dependency, so a test can build an app with its own settings: `create_app(Settings(_env_file=None, data_dir=...))`. The tests don't need any keys: they use fixtures instead of live APIs.
@@ -81,6 +82,7 @@ backend/
 ├── app/
 │   ├── main.py         # Creates the FastAPI app and registers routers
 │   ├── config.py       # Typed settings: API keys and paths from the environment or .env
+│   ├── runs.py         # Runs a spec on the store and saves its record (S7.7)
 │   ├── api/            # HTTP route handlers (thin; they call into data/ and backtest/)
 │   │   ├── health.py   # GET /health
 │   │   ├── v1.py       # The /v1 router
@@ -99,7 +101,7 @@ backend/
 ├── spikes/             # Experiments behind the data, storage, and hosting decisions (not app code)
 ├── scripts/            # Deploy tools: the smoke test and the store upload (S15.1)
 ├── tests/              # pytest tests, plus fixtures/ (small committed tables)
-├── data/               # DATA_DIR: downloads and the local store (git-ignored; created when needed)
+├── data/               # DATA_DIR: downloads, the local store, and saved runs (git-ignored; created when needed)
 ├── Dockerfile          # The API's image (S1.6, D4), which Railway builds and runs
 ├── .env.example        # Template for .env (copy it; never commit .env)
 ├── pyproject.toml      # Project metadata, dependencies, and tool settings
@@ -251,6 +253,9 @@ The engine in [`app/backtest/`](app/backtest/) reads data only through `PointInT
 | [`portfolio.py`](app/backtest/portfolio.py) | The filters, equal weights, and the trades that reach them. Costs are `bps_per_trade` of the value traded, which is the sum of each weight's change, and come out of the portfolio (S7.3). A ranking holds only its ends, each a quantile of the members that pass the filters, rounded down and at least one; a long-short portfolio is long one end and short the other (S7.5). [`doc/reference/portfolio.md`](../doc/reference/portfolio.md) has the rules and a worked example |
 | [`simulation.py`](app/backtest/simulation.py) | The loop (S7.3). `simulate(spec, views)` steps through a spec's decisions, each with a view bound to its time, then values the holdings and trades at a view bound to the fill session's close. It returns each holding period's holdings, trades, costs, and returns, the benchmark's, the risk-free rate its decision knew, and warnings for the data it did without |
 | [`metrics.py`](app/backtest/metrics.py) | A run's metrics, from its holding periods (S7.6). `summarize(result)` gives CAGR, volatility, the Sharpe ratio, maximum drawdown, and turnover, and against the benchmark, excess return, hit rate, beta, alpha, and the t-statistic of the mean monthly excess return. `equity_curve(result)` gives the portfolio's value beside the benchmark's. Both only do arithmetic, and a metric that can't be computed is `None`. [`doc/reference/metrics.md`](../doc/reference/metrics.md) has the formulas and a run worked by hand |
+| [`canonical.py`](app/backtest/canonical.py) | Canonical JSON (S7.7): sorted keys, one way to write each number, and `rounded`, which keeps 12 significant digits of a computed result. Equal values give equal bytes, so equal hashes |
+| [`audit.py`](app/backtest/audit.py) | A run's audit (S7.7). As each view closes, the loop summarizes its access log: for each table, the distinct rows, the earliest and latest `available_at`, a SHA-256 of them all, and each company's or series' newest source |
+| [`records.py`](app/backtest/records.py) | A run's record (S7.7). `build_record` turns a finished run into its files, and `write_run` saves them under its run ID, the SHA-256 of the spec, the data version, and `ENGINE_VERSION`. Saving different results for a saved run raises `RunConflictError`. [`doc/reference/runs.md`](../doc/reference/runs.md) has the files and the rules |
 
 ```python
 from datetime import date
@@ -295,6 +300,24 @@ equity_curve(result)  # the portfolio's value and the benchmark's, period by per
 - **Metrics** come from the holding periods alone (S7.6). A period counts as a month, so volatility and the Sharpe ratio annualize by √12; CAGR counts the days from the first fill. The risk-free rate is TB3MS as last published by each decision, which is the average from two months back, because a month's comes out at 16:15 ET on the next month's first business day. A period whose decision knew no rate counts 0, with a `missing_risk_free` warning, and one period without a benchmark return leaves every benchmark metric empty.
 - **Results hold no prices,** only weights, returns, and dates, because Tiingo's prices are for internal use only (D2).
 - **Not yet:** value weights are rejected with a `SpecError` that names the field, until market cap exists (S6.6).
+
+### Run records
+
+[`app/runs.py`](app/runs.py) is where the engine meets the store (S7.7). It pins a run to a data version, the store's newest unless you name one, runs the spec, and saves the run's record in `DATA_DIR/runs/<run ID>/`:
+
+```bash
+uv run python -m app.runs tests/fixtures/specs/canonical.json
+```
+
+It prints the run ID, the headline metrics, and the folder. `--data-version` reads an older data version, `--out` saves somewhere else, and `--overwrite` replaces a saved run whose results differ.
+
+- **A record is seven JSON files:** `run.json` (the spec as it ran, its hash, the data version, the engine version, the git SHA, and each other file's hash), `returns.json`, `holdings.json`, `trades.json`, `metrics.json`, `warnings.json`, and `audit.json`.
+- **The run ID** is the SHA-256 of the spec, the data version, and the engine version, so the same inputs always have the same ID.
+- **The same inputs give the same bytes.** The files are canonical JSON, computed numbers keep 12 significant digits, and no file has a time of day in it. CI runs a spec twice, in one process and in two, and compares every byte.
+- **The audit** has an entry for each view the run opened: what it read from each table, when the newest row became known, and a hash of every row. A decision of the canonical spec reads about 17,700 rows, so the rows themselves aren't kept.
+- **Raise `ENGINE_VERSION`** in [`app/backtest/__init__.py`](app/backtest/__init__.py) with any change that can change a saved result, in the engine or in how `app/data` reads the store. A test with a toy run's hashes written into it fails until you do.
+
+The files, the canonical JSON rules, how to check an audit hash, and the known limitations are in [`doc/reference/runs.md`](../doc/reference/runs.md).
 
 **Signals.** Each signal reads only through the view it's given, so it sees what was known at the decision, and gives every member a value or a reason it has none, which becomes a `missing_signal` warning. A signal can also be called on its own:
 
@@ -387,12 +410,14 @@ data/
 │                    <sha256>.json    # its metadata: the URL without keys, status, fetch time
 ├── store/<table>/part-<ingested_at>-<id>.parquet   # zstd, sorted by key, then available_at
 │        _versions/<data_version>.json             # one manifest per data version (S3.7)
+├── runs/<run_id>/run.json, returns.json, …        # one folder per saved run (S7.7)
 └── samples/<name>.csv                # output of the sample-data scripts (testing only)
 ```
 
 - **Raw cache.** `<sha256>` hashes the method and the URL, with its query sorted and its keys removed; `<ab>` is the hash's first two characters.
 - **Store.** Every write that adds rows creates a new Parquet file, so files accumulate. For example, `fred` writes one per series on each run that finds new vintages. Every file carries the provenance columns.
 - **Data versions.** `store/_versions/` holds one manifest per finished ingestion run, which names its files relative to `store/`. Keep it with the store: copying or uploading `store/` takes it along.
+- **Runs.** `runs/` holds one folder per [saved run](#run-records), named by its run ID. A run can be reproduced only while the store still has its data version's files.
 
 | Table | Key | Holds |
 | --- | --- | --- |
