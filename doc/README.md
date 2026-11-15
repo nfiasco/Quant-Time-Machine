@@ -24,5 +24,6 @@ Start with the [project README](../README.md#getting-started) to run the app, or
 
 ## Research notes
 
+- [The canonical backtest, 2010 to 2025](research/canonical-backtest.md): the revenue-growth-plus-momentum question run end to end, its warnings and sanity checks, how far to trust the result, and the demo's middle section.
 - [Market data exploration notebook](research/market-data-exploration.ipynb): early experiments with yfinance and FRED, with follow-up corrections.
 - [Database choice review](research/database-choice-review.md): alternatives considered and why the project kept its current storage design.
