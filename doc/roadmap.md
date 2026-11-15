@@ -684,7 +684,7 @@ Every story in one table. Verified contributors are listed for completed stories
 | [S7.5](#s75-portfolio-construction-and-costs) | Portfolio construction and costs | E7 | P0 | M | 4 | M4 | In review | [#143](https://github.com/nfiasco/Quant-Time-Machine/issues/143) | See issue |
 | [S7.6](#s76-metrics-and-benchmark-comparison) | Metrics and benchmark comparison | E7 | P0 | M | 4 | M4 | In review | [#32](https://github.com/nfiasco/Quant-Time-Machine/issues/32) | See issue |
 | [S7.7](#s77-run-records-determinism-and-audit-log) | Run records, determinism, and audit log | E7 | P0 | M | 4 | M4 | In review | [#36](https://github.com/nfiasco/Quant-Time-Machine/issues/36) | See issue |
-| [S7.8](#s78-run-the-canonical-example-end-to-end) | Run the canonical example end to end | E7 | P0 | S | 4 | M4 | Backlog | [#144](https://github.com/nfiasco/Quant-Time-Machine/issues/144) | See issue |
+| [S7.8](#s78-run-the-canonical-example-end-to-end) | Run the canonical example end to end | E7 | P0 | S | 4 | M4 | In review | [#144](https://github.com/nfiasco/Quant-Time-Machine/issues/144) | See issue |
 | [S8.1](#s81-api-conventions) | API conventions | E8 | P0 | S | 2 | M2 | ✅ Done | [#23](https://github.com/nfiasco/Quant-Time-Machine/issues/23) | [nfiasco](https://github.com/nfiasco) |
 | [S8.2](#s82-as-of-data-endpoints) | As-of data endpoints | E8 | P0 | M | 2–3 | M3 | ✅ Done | [#24](https://github.com/nfiasco/Quant-Time-Machine/issues/24) | [nfiasco](https://github.com/nfiasco) |
 | [S8.3](#s83-knowledge-snapshot-endpoint) | Knowledge snapshot endpoint | E8 | P0 | M | 3 | M3 | ✅ Done | [#145](https://github.com/nfiasco/Quant-Time-Machine/issues/145) | [nfiasco](https://github.com/nfiasco) |
@@ -2000,7 +2000,7 @@ Evidence: `backend/app/backtest/canonical.py`, `backend/app/backtest/audit.py`, 
 
 #### S7.8 Run the canonical example end to end
 
-**Priority:** P0 · **Size:** S · **Sprint:** 4 · **Milestone:** M4 · **Area:** engine · **Depends on:** S7.4, S7.5, S7.6, S7.7, S6.5 · **Reqs:** FR-B1, FR-B6 · **Status:** Backlog
+**Priority:** P0 · **Size:** S · **Sprint:** 4 · **Milestone:** M4 · **Area:** engine · **Depends on:** S7.4, S7.5, S7.6, S7.7, S6.5 · **Reqs:** FR-B1, FR-B6 · **Status:** In review
 
 **Story:** As a team, we want the revenue-growth-plus-momentum question answered by the engine, so that we have a real result to demo and sanity-check.
 
@@ -2012,11 +2012,27 @@ Evidence: `backend/app/backtest/canonical.py`, `backend/app/backtest/audit.py`, 
 
 **Tasks**
 
-- [ ] Run the spec and inspect the results
-- [ ] Sanity-check them (benchmark returns match published SPY returns; holdings look plausible)
-- [ ] Write it up
+- [x] Run the spec and inspect the results: `uv run python -m app.runs tests/fixtures/specs/canonical.json` on data version 20261111T030742Z gave run `ffe49fd67e83…`, 192 holding periods from January 4, 2010's close to December 31, 2025's.
+  - Its metrics, each year against SPY, its 340 warnings by kind, year, and company, and its 2,868 holdings were read from the run's files.
+  - The same spec without one filter, or without both, was run for comparison.
+- [x] Sanity-check them (benchmark returns match published SPY returns; holdings look plausible): [`test_benchmark_vs_published.py`](../backend/tests/test_benchmark_vs_published.py), a `local_data` test, checks SPY's total return for each calendar year from 2010 to 2025 against the figures Yahoo Finance lists.
+  - Every holding had both signals above zero and was a member at its decision, the weights are equal and add up to 1, and each period's returns and costs follow from its holdings and trades.
+  - Microsoft's and Apple's signals at the June 1, 2020 decision, and the run's two largest acceleration values, match the companies' filings.
+- [x] Write it up: [`doc/research/canonical-backtest.md`](research/canonical-backtest.md) has the result, the warnings, the checks, how far to trust it, and "In the demo", the middle section of the demo script (S15.4).
 
-**Progress evidence (2026-11-08):** No implementation or completion evidence for these acceptance criteria is present in the audited commit. This remains planned work.
+**Progress evidence (2026-11-15):** The canonical spec ran on universe v1 for 2010 to 2025, and its results are reviewed and written up. Measured on the local store (data version 20261111T030742Z, engine 1.0.0, commit `f3a971c`):
+- **The result.** A CAGR of 18.5% against SPY's 13.9%, after costs: $1 became $15.04, against $8.03. The Sharpe ratio was 1.06, the maximum drawdown −22.0%, and the beta 0.94. It beat SPY in 107 months of 192, by 0.34% a month on average, a t-statistic of 2.32, and in 11 years of 16.
+- **Most of that is the universe.** Every member at equal weights, with no filters, returned 17.6% a year, 3.7 points more than SPY. The two signals add 0.9 points: 0.05% a month, a t-statistic of 0.37. Either filter alone returned less than none, 17.5% for revenue and 17.1% for momentum. The filters lowered the drawdown, from −27.7%, for ten times the turnover.
+- **The benchmark.** SPY's 16 calendar years are each within 0.005 points of the published figure, which is its rounding. The run's 702.63% for SPY compares with 702.69% from compounding the published years.
+- **Coverage.** Revenue acceleration had no value for 312 member-decisions of 7,529. 2010 had 17.3% of its own without one and 2011 had 8.6%: thinner than later years, but less than expected. Twelve of 38 members lacked it at the first decision, and three by January 2011. Those three, ExxonMobil (until September 2018), Pioneer, and Goldman Sachs, are 216 of the 312, from how they tag revenue (S5.6), not from XBRL's phase-in. Momentum had no value 25 times, for AbbVie's and PayPal's first year after their spin-offs.
+- **Delistings.** Three holdings stopped trading while held, as their acquisitions closed: Celgene, Xilinx, and Pioneer. Each was valued at its last close and sold at the next fill.
+- **Concentration.** The portfolio held 4 to 31 stocks, 14.9 on average, and 8 or fewer in 32 months. In 2022 it averaged 7.3 and beat SPY by 26.3 points, with ExxonMobil and Marathon Oil in six of the months.
+- **Determinism and the audit.** A second run of the whole period, in a fresh process with another hash seed, gave the same run ID, and `diff -r` found no difference. No table in the audit's 385 views had a row known after its view's time.
+- **For S15.2.** The run took 196 seconds with 336 MB of memory at its peak, against NFR-5's target of 60 seconds.
+- **For S6.6, S9.6, and S14.4.** A result on universe v1 says more about the 50 companies than about a signal, so the results page should show the unfiltered universe beside a run, or the engine should accept a second benchmark. S14.4's statistics should compare with it as well as with SPY.
+- **Not done.** The team's review is this write-up's; nobody else has read it yet. The results page doesn't exist, so the demo section shows the command's report and the files.
+
+Evidence: `doc/research/canonical-backtest.md`, `backend/tests/test_benchmark_vs_published.py`, `backend/tests/fixtures/specs/canonical.json`, `backend/app/runs.py`.
 
 **GitHub:** [#144](https://github.com/nfiasco/Quant-Time-Machine/issues/144) · **Parent epic:** [#14](https://github.com/nfiasco/Quant-Time-Machine/issues/14)
 
