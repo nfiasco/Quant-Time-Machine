@@ -10,6 +10,9 @@ toy securities are members of `starter_large_caps` in a store that holds nothing
     add_revenue(store, 1, {date(2020, 9, 30): 100.0, date(2020, 12, 31): 110.0})
     add_release(store, "UNRATE", date(2020, 5, 1), 13.3, vintage=date(2020, 6, 5))
 
+`canonical_market(store)` is a whole market that the canonical spec's own signals can
+run on, from January through April 2021 (S7.4, S7.7).
+
 Each row becomes known as ingestion would make it known: a security's identity and a
 membership at 00:00 ET on their dates, a bar or an action at its session's close, a
 revenue fact at its filing's acceptance, and a macro observation at its release's time
@@ -268,3 +271,40 @@ def add_release(
         ],
         now=INGESTED_AT,
     )
+
+
+def canonical_market(store: Path) -> Path:
+    """A market for the canonical spec's own signals (roadmap §3.4), with nothing
+    scripted, from January through April 2021.
+
+    Alpha, beta, and gamma are the universe, and SPY is flat. All three stocks rise,
+    from 100 to 110 in June 2020, 121 in October, and 133.1 on January 4, 2021, so
+    their 12-1 momentum is positive. Only alpha's revenue growth accelerates: 1%, 3%,
+    6%, then 10% over 2020's quarters, each known 40 days after it ends. Beta's slows,
+    and gamma files no revenue. TB3MS has one rate, 1.2%, known since 2005.
+    """
+    start, end = date(2019, 12, 2), date(2021, 4, 30)
+    rising = steps(
+        start,
+        end,
+        {start: 100.0, date(2020, 6, 1): 110.0}
+        | {date(2020, 10, 1): 121.0, date(2021, 1, 4): 133.1},
+    )
+    for security_id, ticker, cik in [
+        ("alpha", "AAA", 1),
+        ("beta", "BBB", 2),
+        ("gamma", "CCC", None),
+    ]:
+        add_security(store, security_id, ticker, cik=cik)
+        add_member(store, security_id)
+        add_bars(store, security_id, rising)
+    add_security(store, "spdr-sp500", "SPY")
+    flat_from = date(2020, 12, 1)
+    add_bars(store, "spdr-sp500", steps(flat_from, end, {flat_from: 300.0}))
+    add_release(store, "TB3MS", date(2004, 12, 1), 1.2, date(2005, 1, 3))
+    year = [date(2019, 3, 31), date(2019, 6, 30), date(2019, 9, 30), date(2019, 12, 31)]
+    a_year_later = [day.replace(year=2020) for day in year]
+    flat = dict.fromkeys(year, 100.0)
+    add_revenue(store, 1, flat | dict(zip(a_year_later, [101.0, 103, 106, 110])))
+    add_revenue(store, 2, flat | dict(zip(a_year_later, [110.0, 108, 105, 101])))
+    return store
