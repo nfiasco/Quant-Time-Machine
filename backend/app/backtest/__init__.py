@@ -20,4 +20,24 @@ itself. So far it has:
 - `metrics`: a run's CAGR, volatility, Sharpe ratio, drawdown, and turnover, and its
   excess return, hit rate, beta, alpha, and t-statistic against the benchmark, with
   the risk-free rate each decision knew (S7.6; doc/reference/metrics.md)
+- `canonical`: canonical JSON, so equal values give equal bytes and hashes (S7.7)
+- `audit`: what each view a run opened read, summarized from its access log, with
+  each row's `available_at` (S7.7)
+- `records`: a run's record, the files that say what it used and produced, keyed by
+  a run ID that hashes its spec, data version, and engine version (S7.7;
+  doc/reference/runs.md)
+
+Running a spec against the store and saving its record is app/runs.py's job: the
+engine itself never learns where the store is.
+"""
+
+ENGINE_VERSION = "1.0.0"
+"""The version of the code that turns a spec and a data version into results. It's
+part of every run ID (app/backtest/records.py), so two runs with the same ID must have
+the same results.
+
+Raise it with any change that can change a saved result: to a signal, the portfolio,
+returns, metrics, or the loop here, or to how app/data reads the store, such as how a
+quarter is derived. `test_a_pinned_runs_files_never_change` in tests/test_records.py
+fails until you do.
 """
