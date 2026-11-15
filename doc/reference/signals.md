@@ -6,7 +6,7 @@ A signal is a number for each stock at each decision. The engine evaluates every
 
 - **No value, with a reason.** When a signal can't be computed for a stock, it says why. The engine leaves the stock out and records a `missing_signal` warning: "CCC was left out at the 2021-01-04 decision, because rev_accel had no value. No quarterly revenue was known then."
 - **Units.** Values are fractions, as returns are: 0.01 is 1%. An absolute macro change is in its series' units instead.
-- **Read through the view.** Signals get the decision's `PointInTimeView` and nothing else, and a test checks that nothing in `app/backtest/` reaches the store itself (S7.3). Every row a signal reads is in the view's access log, which a run's audit will come from (S7.7). With no members, as before a universe's history starts, a signal reads nothing.
+- **Read through the view.** Signals get the decision's `PointInTimeView` and nothing else, and a test checks that nothing in `app/backtest/` reaches the store itself (S7.3). Every row a signal reads is in the view's access log, which a run's [audit](runs.md#the-audit) summarizes (S7.7). With no members, as before a universe's history starts, a signal reads nothing.
 
 ## The library at a glance
 

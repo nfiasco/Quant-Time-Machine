@@ -53,6 +53,11 @@ security's curated history says it stopped trading on (app/backtest/returns.py).
 
 Results hold weights, returns, and dates, never prices: Tiingo's prices are for
 internal use only (D2).
+
+As each view closes, the loop keeps a summary of what it read: the tables, how many
+rows, and when the newest became known (app/backtest/audit.py). Together they're the
+run's audit (S7.7), in the order the views were opened: a decision's, then its fill's,
+and last the period's end's.
 """
 
 from collections.abc import Callable, Iterator, Mapping, Sequence
@@ -61,6 +66,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any, Literal
 
+from app.backtest.audit import Purpose, ViewInputs, summarize_inputs
 from app.backtest.portfolio import (
     Trade,
     equal_weights,
@@ -196,6 +202,8 @@ class Simulation:
     was wiped out."""
     warnings: tuple[SimulationWarning, ...]
     """In decision order."""
+    audit: tuple[ViewInputs, ...] = ()
+    """What each view the run opened read, in the order they were opened."""
 
 
 def simulate(
@@ -319,11 +327,15 @@ class _Run:
         self.ended = False  # once the portfolio is wiped out: no more decisions
         self.periods: list[HoldingPeriod] = []
         self.warnings: list[SimulationWarning] = []
+        self.audit: list[ViewInputs] = []
 
     @contextmanager
-    def view(self, moment: datetime) -> Iterator[PointInTimeView]:
+    def view(
+        self, moment: datetime, purpose: Purpose, day: date
+    ) -> Iterator[PointInTimeView]:
         """A view bound to `moment`, from the factory, closed after use. Every view
-        must read the same data version."""
+        must read the same data version. What it read goes in the audit, as the
+        `purpose` it served for the decision of `day`."""
         with self.views(moment) as view:
             if view.knowledge_time != to_utc(moment):
                 raise ValueError(
@@ -338,13 +350,15 @@ class _Run:
                     f"{self.data_version!r}"
                 )
             yield view
+            self.audit.append(summarize_inputs(view, purpose, day))
 
     def step(self, rebalance: Rebalance) -> None:
         """Make a decision, then value the last period's holdings at its fill and
         trade to its target."""
         decision = self.decide(rebalance)
         fill = _fill(rebalance)
-        with self.view(calendar.session_close(rebalance.fill_session)) as view:
+        close = calendar.session_close(rebalance.fill_session)
+        with self.view(close, "fill", decision.day) as view:
             if self.open is not None:
                 self.close_period(view, fill, final=False)
             if not self.ended:
@@ -353,7 +367,8 @@ class _Run:
     def finish(self, end: PricePoint) -> None:
         """Value the last period's holdings at the close of the period's last
         session."""
-        with self.view(end.time) as view:
+        assert self.open is not None  # or the run would have ended
+        with self.view(end.time, "end", self.open.decision.day) as view:
             self.close_period(view, end, final=True)
 
     def decide(self, rebalance: Rebalance) -> _Decision:
@@ -361,7 +376,7 @@ class _Run:
         known at its time only."""
         day = rebalance.decision_time.astimezone(ET).date()
         universe = self.spec.universe.id
-        with self.view(rebalance.decision_time) as view:
+        with self.view(rebalance.decision_time, "decision", day) as view:
             if self.benchmark is None:
                 self.benchmark = self.resolve_benchmark(view, day)
             risk_free = view.get_macro_as_of(RISK_FREE_SERIES)
@@ -709,6 +724,7 @@ class _Run:
             data_version=self.data_version,
             periods=tuple(self.periods),
             warnings=tuple(sorted(self.warnings, key=lambda w: w.decision)),
+            audit=tuple(self.audit),
         )
 
 

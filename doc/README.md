@@ -12,6 +12,7 @@ Start with the [project README](../README.md#getting-started) to run the app, or
 - [Signal library](reference/signals.md): each backtest signal's formula, data, minimum history, and the reasons it can have no value.
 - [Portfolio construction and costs](reference/portfolio.md): how filters, a ranking, and weights turn signals into a portfolio, long only or long-short, and what trading it costs.
 - [Performance metrics and the benchmark](reference/metrics.md): each metric's formula, the risk-free rate a decision knew, when a metric has no value, and a run worked by hand.
+- [Run records, determinism, and the audit](reference/runs.md): the files a run saves, its run ID, canonical JSON, what each decision read, and how byte-identical results are checked.
 - [Hosting](reference/hosting.md): deployment steps and the evidence behind the hosting decision.
 
 ## Project workflow

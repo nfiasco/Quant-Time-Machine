@@ -263,7 +263,7 @@ Every backtest, whether built in the web form (498) or by the AI assistant (499)
 }
 ```
 
-The model is [`app/backtest/spec.py`](../backend/app/backtest/spec.py), and its JSON Schema is [`experiment-spec-v1.schema.json`](reference/experiment-spec-v1.schema.json) (S7.1). Signals come from a fixed, [documented library](reference/signals.md), not free-form code. A portfolio can also hold only the top or bottom quantile of a ranking, long only or long-short, with an optional `portfolio.rank` ([portfolio construction](reference/portfolio.md), S7.5). When a spec asks for data outside our coverage, for example fundamentals before XBRL existed, the engine rejects it or warns, and says why.
+The model is [`app/backtest/spec.py`](../backend/app/backtest/spec.py), and its JSON Schema is [`experiment-spec-v1.schema.json`](reference/experiment-spec-v1.schema.json) (S7.1). Signals come from a fixed, [documented library](reference/signals.md), not free-form code. A portfolio can also hold only the top or bottom quantile of a ranking, long only or long-short, with an optional `portfolio.rank` ([portfolio construction](reference/portfolio.md), S7.5). Each run saves a [record](reference/runs.md) of what it used and produced, under an ID that hashes the spec, the data version, and the engine version (S7.7). When a spec asks for data outside our coverage, for example fundamentals before XBRL existed, the engine rejects it or warns, and says why.
 
 ## 4. Requirements
 
@@ -683,7 +683,7 @@ Every story in one table. Verified contributors are listed for completed stories
 | [S7.4](#s74-signal-library-v1) | Signal library v1 | E7 | P0 | M | 4 | M4 | In review | [#31](https://github.com/nfiasco/Quant-Time-Machine/issues/31) | See issue |
 | [S7.5](#s75-portfolio-construction-and-costs) | Portfolio construction and costs | E7 | P0 | M | 4 | M4 | In review | [#143](https://github.com/nfiasco/Quant-Time-Machine/issues/143) | See issue |
 | [S7.6](#s76-metrics-and-benchmark-comparison) | Metrics and benchmark comparison | E7 | P0 | M | 4 | M4 | In review | [#32](https://github.com/nfiasco/Quant-Time-Machine/issues/32) | See issue |
-| [S7.7](#s77-run-records-determinism-and-audit-log) | Run records, determinism, and audit log | E7 | P0 | M | 4 | M4 | Backlog | [#36](https://github.com/nfiasco/Quant-Time-Machine/issues/36) | See issue |
+| [S7.7](#s77-run-records-determinism-and-audit-log) | Run records, determinism, and audit log | E7 | P0 | M | 4 | M4 | In review | [#36](https://github.com/nfiasco/Quant-Time-Machine/issues/36) | See issue |
 | [S7.8](#s78-run-the-canonical-example-end-to-end) | Run the canonical example end to end | E7 | P0 | S | 4 | M4 | Backlog | [#144](https://github.com/nfiasco/Quant-Time-Machine/issues/144) | See issue |
 | [S8.1](#s81-api-conventions) | API conventions | E8 | P0 | S | 2 | M2 | ✅ Done | [#23](https://github.com/nfiasco/Quant-Time-Machine/issues/23) | [nfiasco](https://github.com/nfiasco) |
 | [S8.2](#s82-as-of-data-endpoints) | As-of data endpoints | E8 | P0 | M | 2–3 | M3 | ✅ Done | [#24](https://github.com/nfiasco/Quant-Time-Machine/issues/24) | [nfiasco](https://github.com/nfiasco) |
@@ -1955,7 +1955,7 @@ Evidence: `backend/app/backtest/metrics.py`, `backend/app/backtest/simulation.py
 
 #### S7.7 Run records, determinism, and audit log
 
-**Priority:** P0 · **Size:** M · **Sprint:** 4 · **Milestone:** M4 · **Area:** engine · **Depends on:** S7.3, S3.7 · **Reqs:** FR-B3, FR-B7, NFR-2 · **Status:** Backlog
+**Priority:** P0 · **Size:** M · **Sprint:** 4 · **Milestone:** M4 · **Area:** engine · **Depends on:** S7.3, S3.7 · **Reqs:** FR-B3, FR-B7, NFR-2 · **Status:** In review
 
 **Story:** As a reviewer, I want every run to record exactly what it used and produced, so that I can verify and reproduce it.
 
@@ -1967,12 +1967,34 @@ Evidence: `backend/app/backtest/metrics.py`, `backend/app/backtest/simulation.py
 
 **Tasks**
 
-- [ ] Write canonical JSON (sorted keys, fixed number formatting)
-- [ ] Write the run writer (files keyed by run ID for now)
-- [ ] Build the audit from the access log
-- [ ] Write the determinism test
+- [x] Write canonical JSON (sorted keys, fixed number formatting): [`app/backtest/canonical.py`](../backend/app/backtest/canonical.py). `canonical_json` sorts keys at every level and writes each number one way, so equal values give equal bytes.
+  - Hashes use the compact text, and files the same text indented, so two runs can be compared with `diff`.
+  - Computed results keep 12 significant digits (`rounded`), which absorbs the last digit of CAGR's power (S7.6). The spec is never rounded: it's saved exactly as it ran.
+- [x] Write the run writer (files keyed by run ID for now): [`app/backtest/records.py`](../backend/app/backtest/records.py) builds a run's record and saves it in `DATA_DIR/runs/<run ID>/`, and [`app/runs.py`](../backend/app/runs.py) runs a spec on the store, pinned to a data version: `uv run python -m app.runs <spec.json>`.
+  - A record is seven files: `run.json` (the spec, its hash, the data version, the engine version, the git SHA, and each other file's size and SHA-256), `returns.json`, `holdings.json`, `trades.json`, `metrics.json`, `warnings.json`, and `audit.json`.
+  - The run ID is the SHA-256 of the spec, the data version, and `ENGINE_VERSION`, now 1.0.0 in [`app/backtest/__init__.py`](../backend/app/backtest/__init__.py). The git SHA is recorded but isn't part of it: the `GIT_SHA` setting, Railway's `RAILWAY_GIT_COMMIT_SHA`, or git's HEAD, with `-dirty` for uncommitted changes.
+  - No file has a time of day in it, and a run that read the whole store, instead of a data version, can't be recorded.
+  - Saving different results for a run that's already saved raises `RunConflictError`: the engine changed without a new version.
+- [x] Build the audit from the access log: [`app/backtest/audit.py`](../backend/app/backtest/audit.py). As each view closes, the loop in [`simulation.py`](../backend/app/backtest/simulation.py) summarizes its access log and drops the rows, so a run never holds millions of them.
+  - The audit has an entry for each view the run opened: a decision's, its fill's, and the period's end's.
+  - For each table a view read, it has the distinct rows, the earliest and latest `available_at`, and a SHA-256 of every row.
+  - It also groups each table's rows by security, company, or series, with the group's newest row's `available_at` and source: for a company's facts, the accession number of the last filing known.
+- [x] Write the determinism test: [`tests/test_records.py`](../backend/tests/test_records.py), in CI's `uv run pytest`.
+  - `test_the_same_inputs_give_byte_identical_files` runs a spec twice in one process, and `test_two_processes_give_byte_identical_files` in two fresh ones with different hash seeds. Both compare every byte.
+  - `test_a_pinned_runs_files_never_change` has a toy run's ID and file hashes written into it, so a laptop and CI's Linux must agree, and a change to results fails until `ENGINE_VERSION` is raised.
+  - [`tests/test_audit.py`](../backend/tests/test_audit.py) checks that nothing in an audit was known after its view's time, and that a row known a microsecond after a decision isn't in its audit. [`tests/test_canonical.py`](../backend/tests/test_canonical.py) checks the JSON.
 
-**Progress evidence (2026-11-08):** No implementation or completion evidence for these acceptance criteria is present in the audited commit. This remains planned work.
+**Progress evidence (2026-11-12):** A run saves everything the story lists, and the same inputs give the same bytes. [`doc/reference/runs.md`](reference/runs.md) has the files, the rules, and the limitations. Measured on the local store (data version 20261111T030742Z):
+- **Byte-identical.** The canonical spec from 2020 to 2022, run in two processes with different hash seeds, gave run `9dfedcfa9183…` both times, and `diff -r` found no difference between the two folders. Its metrics are the ones S7.6 measured: a CAGR of 17.2% against SPY's 7.3%, and a Sharpe ratio of 0.77.
+- **2010 to 2025.** The whole period took 216 seconds for 192 decisions, with 333 MB of memory at its peak. The folder is 10.9 MB, of which `audit.json` is 8.7 MB: 385 views that read 2,989,428 rows, in 37,377 groups. A decision read 9,208 to 19,686 rows. No table had a row known after its view's time. S7.8 reviews the results themselves.
+- **The audit against the store.** At the June 1, 2020 decision, Apple's newest facts came from `0000320193-20-000052`, its 10-Q accepted at 18:03 ET on April 30, which is the latest filing the view gives at that moment. TB3MS came from the May 1 vintage, and Apple's newest bar was April 30's, since 12-1 momentum skips May. The macro table's hash, worked out by hand from its one row, matched.
+- **Cost.** Summarizing the access log added about 3 seconds to the 36 decisions of 2020 to 2022, under 10%.
+- **Not checked yet.** The pinned hashes were produced on macOS. CI's Linux run on the pull request is the first check that another machine agrees.
+- **For S7.8.** `uv run python -m app.runs tests/fixtures/specs/canonical.json` is the run to review. It reported 340 warnings, 337 `missing_signal` and 3 `delisted_exit`, a CAGR of 18.5% against SPY's 13.9%, and a Sharpe ratio of 1.06.
+- **For S8.4.** `run_backtest` in `app/runs.py` is the function to call. The deployed server's user can only read the volume, so runs there need a folder it can write to. Files hold UTC times, which the API shows in New York time (D12). At 216 seconds, the whole period needs the background task.
+- **For S12.1 and S13.1.** Each audit entry has its view's `knowledge_time` and each table's `latest_available_at`, which is all the timing check compares. A saved run has no creation time or owner, which the registry adds beside the files.
+
+Evidence: `backend/app/backtest/canonical.py`, `backend/app/backtest/audit.py`, `backend/app/backtest/records.py`, `backend/app/runs.py`, `backend/app/backtest/simulation.py`, `doc/reference/runs.md`, `backend/tests/test_canonical.py`, `backend/tests/test_audit.py`, `backend/tests/test_records.py`.
 
 **GitHub:** [#36](https://github.com/nfiasco/Quant-Time-Machine/issues/36) · **Parent epic:** [#14](https://github.com/nfiasco/Quant-Time-Machine/issues/14)
 

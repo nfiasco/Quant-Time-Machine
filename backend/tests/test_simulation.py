@@ -41,8 +41,8 @@ from tests.toy_market import (
     add_bars,
     add_member,
     add_release,
-    add_revenue,
     add_security,
+    canonical_market,
     steps,
 )
 
@@ -1254,29 +1254,8 @@ def test_a_signal_the_engine_lacks_is_rejected(store: Path) -> None:
 def test_the_canonical_specs_signals_run_in_the_loop(store_dir: Path) -> None:
     # The library's own signals, with nothing scripted (S7.4). All three stocks rise,
     # so their 12-1 momentum is positive, but only alpha's revenue growth accelerates:
-    # 1%, 3%, 6%, then 10% over 2019. Beta's slows, and gamma files no revenue.
-    rising = steps(
-        date(2019, 12, 2),
-        END,
-        {date(2019, 12, 2): 100.0, date(2020, 6, 1): 110.0}
-        | {date(2020, 10, 1): 121.0, date(2021, 1, 4): 133.1},
-    )
-    for security_id, ticker, cik in [
-        ("alpha", "AAA", 1),
-        ("beta", "BBB", 2),
-        ("gamma", "CCC", None),
-    ]:
-        add_security(store_dir, security_id, ticker, cik=cik)
-        add_member(store_dir, security_id)
-        add_bars(store_dir, security_id, rising)
-    add_security(store_dir, "spdr-sp500", "SPY")
-    add_bars(store_dir, "spdr-sp500", steps(START, END, {START: 300.0}))
-    add_release(store_dir, "TB3MS", *LONG_KNOWN[0])
-    year = [date(2019, 3, 31), date(2019, 6, 30), date(2019, 9, 30), date(2019, 12, 31)]
-    a_year_later = [day.replace(year=2020) for day in year]
-    flat = dict.fromkeys(year, 100.0)
-    add_revenue(store_dir, 1, flat | dict(zip(a_year_later, [101.0, 103, 106, 110])))
-    add_revenue(store_dir, 2, flat | dict(zip(a_year_later, [110.0, 108, 105, 101])))
+    # 1%, 3%, 6%, then 10% over 2020. Beta's slows, and gamma files no revenue.
+    canonical_market(store_dir)
     data = json.loads(CANONICAL.read_text(encoding="utf-8"))
     data["period"] = {"start": "2021-01-01", "end": "2021-04-30"}
 
