@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import SecretStr, field_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -49,6 +49,14 @@ class Settings(BaseSettings):
     # only (D2), so it's off unless turned on, and it stays off on any deployment other
     # people can reach until display rights are settled. Off, the endpoint answers 403.
     serve_raw_prices: bool = False
+
+    # The commit the code runs from, which every saved run records (S7.7). Railway sets
+    # RAILWAY_GIT_COMMIT_SHA on a deploy from GitHub. Unset, as on a laptop, it's asked
+    # of git itself (app/runs.py).
+    git_sha: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("git_sha", "railway_git_commit_sha"),
+    )
 
     @field_validator("sec_user_agent")
     @classmethod
