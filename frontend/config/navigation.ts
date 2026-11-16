@@ -225,7 +225,7 @@ export const routes = {
     href: "/sign-in",
     icon: LogInIcon,
     description: "Sign in to keep your experiments and runs.",
-    status: "planned",
+    status: "live",
     story: {
       id: "S16.3",
       title: "Sign-up, sign-in, and sign-out",
@@ -237,12 +237,27 @@ export const routes = {
     href: "/sign-up",
     icon: UserPlusIcon,
     description: "Create an account to save experiments and runs.",
-    status: "planned",
+    status: "live",
     story: {
       id: "S16.3",
       title: "Sign-up, sign-in, and sign-out",
       milestone: "M4",
     },
+  },
+  forgotPassword: {
+    title: "Reset your password",
+    href: "/forgot-password",
+    icon: LogInIcon,
+    description: "Request an email link to reset your password.",
+    status: "live",
+  },
+  resetPassword: {
+    title: "Choose a new password",
+    href: "/reset-password",
+    icon: LogInIcon,
+    description: "Set a new password for your account.",
+    status: "live",
+    requiresAccount: true,
   },
 } satisfies Record<string, AppRoute>;
 

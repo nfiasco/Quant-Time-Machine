@@ -25,7 +25,7 @@ Maintainers reproduce the issue, assess reachable impact, agree on a fix or miti
 
 ## System boundary and security expectations
 
-The current system consists of a Next.js frontend on Vercel, a FastAPI read API on Railway, and a maintainer-run ingestion CLI that writes a Parquet/DuckDB point-in-time store. Configuration and provider credentials come from local environment files or hosting settings. Supabase accounts, saved private research, and the research assistant are planned; the current sign-in forms are placeholders and do not provide access control.
+The current system consists of a Next.js frontend on Vercel, a FastAPI read API on Railway, and a maintainer-run ingestion CLI that writes a Parquet/DuckDB point-in-time store. Configuration and provider credentials come from local environment files or hosting settings. The Next.js frontend uses Supabase Auth for accounts and protects account-only pages with verified server sessions. Saved private research, API bearer-token verification, RLS user-data tables, and the research assistant remain planned; frontend sign-in does not provide API/storage authorization.
 
 Security-sensitive boundaries include browser and API input, downloaded provider responses, URLs and identifiers used for data access, deployment credentials, and GitHub Actions. In particular:
 

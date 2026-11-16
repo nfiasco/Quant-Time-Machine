@@ -1,18 +1,9 @@
 import { routeMetadata, routes } from "@/config/navigation";
-import { CredentialsForm } from "@/features/auth/credentials-form";
+import { AuthScreen } from "@/features/auth/auth-screen";
 
 export const metadata = routeMetadata(routes.signIn);
 
-export default function SignInPage() {
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-1.5 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
-        <p className="text-sm text-muted-foreground">
-          Pick up your research where you left off.
-        </p>
-      </div>
-      <CredentialsForm mode="sign-in" />
-    </div>
-  );
+export default async function Page(props: PageProps<"/sign-in">) {
+  const { next, error } = await props.searchParams;
+  return <AuthScreen mode="sign-in" next={next} error={error} />;
 }

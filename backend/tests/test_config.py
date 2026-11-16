@@ -12,6 +12,9 @@ ENV_VARS = (
     "DATA_DIR",
     "CORS_ORIGINS",
     "SERVE_RAW_PRICES",
+    "SUPABASE_URL",
+    "SUPABASE_JWT_AUDIENCE",
+    "SUPABASE_PUBLISHABLE_KEY",
 )
 
 
@@ -29,6 +32,8 @@ def test_defaults_need_no_keys() -> None:
     assert settings.fred_api_key is None
     assert settings.sec_user_agent is None
     assert settings.tiingo_api_key is None
+    assert settings.supabase_url is None
+    assert settings.supabase_jwks_url is None
     assert settings.data_dir == BACKEND_DIR / "data"
     assert settings.cors_origins == ["http://localhost:3000"]
     # Raw Tiingo prices are internal use only (D2): off unless turned on.
@@ -116,3 +121,28 @@ def test_raw_prices_turn_on_only_when_asked(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setenv("SERVE_RAW_PRICES", "true")
 
     assert Settings(_env_file=None).serve_raw_prices is True
+
+
+def test_supabase_verification_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co/")
+    settings = Settings(_env_file=None)
+    assert settings.supabase_url == "https://example.supabase.co"
+    assert settings.supabase_jwt_audience == "authenticated"
+    assert settings.supabase_jwt_issuer == "https://example.supabase.co/auth/v1"
+    assert settings.supabase_jwks_url == (
+        "https://example.supabase.co/auth/v1/.well-known/jwks.json"
+    )
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["http://example.com", "https://u:p@example.com", "https://example.com/auth/v1"],
+)
+def test_supabase_rejects_unsafe_origins(url: str) -> None:
+    with pytest.raises(ValidationError, match="HTTPS origin"):
+        Settings(_env_file=None, supabase_url=url)
+
+
+def test_supabase_local_cli_origin() -> None:
+    settings = Settings(_env_file=None, supabase_url="http://127.0.0.1:54321/")
+    assert settings.supabase_jwt_issuer == "http://127.0.0.1:54321/auth/v1"

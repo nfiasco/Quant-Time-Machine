@@ -30,7 +30,7 @@ cp .env.example .env
 uv run fastapi dev
 ```
 
-The frontend is at <http://localhost:3000>; the API documentation is at <http://localhost:8000/docs>. Environment files are optional for defaults; do not overwrite an existing local configuration. Running the apps and fixture tests needs no provider keys. Data endpoints need an ingested local store; follow the [backend guide](../backend/README.md#ingestion) when working on live data. Network and local-data tests are opt-in. Accounts and saved experiments are still planned; the sign-in forms do not establish an authenticated session.
+The frontend is at <http://localhost:3000>; the API documentation is at <http://localhost:8000/docs>. Environment files are optional for defaults; do not overwrite an existing local configuration. Running the apps and fixture tests needs no provider keys. Data endpoints need an ingested local store; follow the [backend guide](../backend/README.md#ingestion) when working on live data. Network and local-data tests are opt-in. Accounts use Supabase Auth when configured (see [the setup guide](../supabase/README.md)); blank settings show an unavailable state. Saved experiments remain planned.
 
 ## Development conventions
 

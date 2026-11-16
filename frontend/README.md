@@ -41,12 +41,21 @@ Copy [`.env.example`](.env.example) to `.env.local` (git-ignored):
 | Variable              | Default                 | What it is                                   |
 | --------------------- | ----------------------- | -------------------------------------------- |
 | `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Base URL of the backend API (see `backend/`) |
+| `NEXT_PUBLIC_SUPABASE_URL` | unset | Supabase project origin |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | unset | Public publishable or legacy anon key |
+| `SITE_URL` | localhost in dev | Server-only trusted frontend origin for email links |
 
 Read it only through [`lib/api/client.ts`](lib/api/client.ts) (`API_URL`, `apiUrl("/health")`, `apiFetch`). The dashboard shows whether the API is reachable; with the backend running (`cd backend && uv run fastapi dev`), it says "API online". Next.js copies `NEXT_PUBLIC_` values into the JavaScript sent to browsers when the app is built, so:
 
 - never put a secret in one;
 - restart `npm run dev` after changing one;
 - in Vercel, set it per environment (Production, Preview), because the value is frozen into each deployment when it's built. Production is set to the deployed API, `https://quant-time-machine-api.up.railway.app` (S15.1). Preview isn't set, so previews use the default; the API's CORS allows only production and `localhost:3000`.
+
+## Accounts (S16.1 / S16.3)
+
+Email/password sign-up, sign-in, sign-out, email confirmation, and password recovery use Supabase Auth. Copy the auth placeholders in `.env.example` to an ignored `.env.local`. Set the project URL, public publishable/anon key, and trusted `SITE_URL`; configure the hosted redirect allow-list and email delivery as described in [`../supabase/README.md`](../supabase/README.md). Missing configuration shows **Accounts unavailable**. No service-role key is used.
+
+Sessions persist in server-managed HttpOnly cookies across reloads. The header shows the verified email and a sign-out action. `/experiments` requires sign-in and preserves its return destination; public research pages remain available. Saved experiments, backend bearer-token verification, and RLS user-data tables remain separate stories. The auth smoke tests use the real Supabase SSR client with synthetic HTTP responses, so default tests need no account or network access.
 
 ## Scripts
 
@@ -73,7 +82,7 @@ app/                      # Routing only: layouts, pages, loading/error/not-foun
 │   ├── dashboard/       # Dashboard (/dashboard)
 │   └── time-machine/, backtests/, backtests/new/, revisions/, filings/,
 │       experiments/, methodology/, privacy/, assistant/, compare/
-└── (auth)/               # Sign-in and sign-up, without the app shell
+└── (auth)/               # Sign-in, sign-up, and password recovery, without the app shell
 components/
 ├── ui/                   # shadcn/ui primitives (generated, then owned by us)
 ├── layout/               # App shell: sidebar, header, footer, page header, theme toggle
