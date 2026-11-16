@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.api import (
+    backtests,
     catalog,
     examples,
     filings,
@@ -21,3 +22,4 @@ router.include_router(filings.router)
 router.include_router(fundamentals.router)
 router.include_router(catalog.router)
 router.include_router(snapshot.router)
+router.include_router(backtests.router)
