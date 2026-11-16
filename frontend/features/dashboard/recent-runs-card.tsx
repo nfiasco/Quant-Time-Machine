@@ -2,13 +2,7 @@ import Link from "next/link";
 import { ChartLineIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Empty,
   EmptyContent,
@@ -39,8 +33,8 @@ export function RecentRunsCard({ className }: { className?: string }) {
             </EmptyMedia>
             <EmptyTitle>No runs yet</EmptyTitle>
             <EmptyDescription>
-              Runs you start from the builder will show up here. Once accounts launch,
-              sign in to keep them between visits.
+              Runs you start from the builder will show up here. Once accounts launch, sign in to
+              keep them between visits.
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>

@@ -29,8 +29,8 @@ export function QuickStartCard() {
       <CardHeader>
         <CardTitle className="text-lg">Open the time machine</CardTitle>
         <CardDescription className="text-pretty">
-          Pick a knowledge time. Everything you look at or test from there uses only
-          what was public by then.
+          Pick a knowledge time. Everything you look at or test from there uses only what was public
+          by then.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
@@ -64,8 +64,7 @@ export function QuickStartCard() {
 
         <div className="flex flex-col gap-3">
           <h3 className="text-sm font-medium text-pretty">
-            Example: what a researcher could see on {formatEtDate(demoMoment)}, at the
-            market open
+            Example: what a researcher could see on {formatEtDate(demoMoment)}, at the market open
           </h3>
           <KnowledgeHorizon moment={demoMoment} events={demoMomentEvents} />
         </div>

@@ -16,9 +16,9 @@ describe("describeSignal", () => {
     expect(describeSignal({ type: "revenue_growth", basis: "yoy_quarterly" })).toBe(
       "Revenue growth (year over year, quarterly)",
     );
-    expect(
-      describeSignal({ type: "revenue_growth_acceleration", basis: "yoy_quarterly" }),
-    ).toBe("Revenue growth acceleration (year over year, quarterly)");
+    expect(describeSignal({ type: "revenue_growth_acceleration", basis: "yoy_quarterly" })).toBe(
+      "Revenue growth acceleration (year over year, quarterly)",
+    );
   });
 
   it("describes a macro change, with one release or several", () => {

@@ -126,7 +126,9 @@ describe("buildSnapshotView on the §2.3 example (doc/reference/time-model.md, J
     const joins = tsla.events.find((item) => !item.known);
     expect(joins?.label).toBe("Joins starter_large_caps");
     expect(joins && shownTime(joins)).toBe("Dec 21, 2020 · effective");
-    expect(joins?.link?.href).toBe("https://press.spglobal.com/2020-11-16-Tesla-Set-to-Join-S-P-500");
+    expect(joins?.link?.href).toBe(
+      "https://press.spglobal.com/2020-11-16-Tesla-Set-to-Join-S-P-500",
+    );
   });
 
   it("puts every known event at or before T, and every other one after it", () => {
@@ -140,7 +142,9 @@ describe("buildSnapshotView on the §2.3 example (doc/reference/time-model.md, J
   it("keeps each side in time order", () => {
     for (const horizon of [...view.companies, ...view.series]) {
       for (const known of [true, false]) {
-        const times = horizon.events.filter((item) => item.known === known).map((item) => toAsOfParam(item.at));
+        const times = horizon.events
+          .filter((item) => item.known === known)
+          .map((item) => toAsOfParam(item.at));
         expect(times).toEqual([...times].sort());
       }
     }
@@ -183,7 +187,11 @@ describe("buildSnapshotView keeps future records off the known side", () => {
     const view = buildSnapshotView(response);
     const ids = view.companies[0].events.map((item) => item.id);
     expect(ids).not.toContain("company-AAPL:filing:0000320193-20-000052");
-    expect(view.companies[0].events.filter((item) => item.known).every((item) => toAsOfParam(item.at) <= "2020-06-05T09:30")).toBe(true);
+    expect(
+      view.companies[0].events
+        .filter((item) => item.known)
+        .every((item) => toAsOfParam(item.at) <= "2020-06-05T09:30"),
+    ).toBe(true);
     expect(view.hidden).toBe(1);
   });
 
@@ -243,7 +251,12 @@ describe("buildSnapshotView edge cases", () => {
 
     const unrate = buildSnapshotView(response, catalog).series[0];
     expect(unrate.name).toBe("Unemployment Rate");
-    expect(unrate.facts).toEqual(["Percent", "Monthly", "Seasonally Adjusted", "Employment Situation"]);
+    expect(unrate.facts).toEqual([
+      "Percent",
+      "Monthly",
+      "Seasonally Adjusted",
+      "Employment Situation",
+    ]);
     expect(unrate.events).toEqual([]);
     expect(unrate.emptyKnown).toBe("No value had been published by T.");
   });

@@ -40,11 +40,10 @@ export function SnapshotResults({ view, href, requestUrl }: SnapshotResultsProps
         </div>
 
         <p className="max-w-3xl text-sm text-pretty text-muted-foreground">
-          <strong className="font-medium text-foreground">Known</strong> means public at or
-          before T. <strong className="font-medium text-foreground">Not yet known</strong>{" "}
-          lists what our data shows became public after T: the next close, the next filing
-          of each form, amendments, and later versions of the values shown, but not new
-          periods.
+          <strong className="font-medium text-foreground">Known</strong> means public at or before
+          T. <strong className="font-medium text-foreground">Not yet known</strong> lists what our
+          data shows became public after T: the next close, the next filing of each form,
+          amendments, and later versions of the values shown, but not new periods.
         </p>
 
         {view.pricesWithheld ? (
@@ -52,8 +51,8 @@ export function SnapshotResults({ view, href, requestUrl }: SnapshotResultsProps
             <EyeOffIcon />
             <AlertTitle>Prices are withheld on this server</AlertTitle>
             <AlertDescription>
-              Our price source&apos;s terms don&apos;t cover showing raw prices yet
-              (decision D2), so each close shows when it became known, without the price.
+              Our price source&apos;s terms don&apos;t cover showing raw prices yet (decision D2),
+              so each close shows when it became known, without the price.
             </AlertDescription>
           </Alert>
         ) : null}
@@ -74,14 +73,12 @@ export function SnapshotResults({ view, href, requestUrl }: SnapshotResultsProps
         {view.hidden > 0 ? (
           <Alert variant="warning" role="note">
             <TriangleAlertIcon />
-            <AlertTitle>
-              {plural(view.hidden, "record", "records")} left out
-            </AlertTitle>
+            <AlertTitle>{plural(view.hidden, "record", "records")} left out</AlertTitle>
             <AlertDescription>
-              {view.hidden === 1 ? "Its time contradicts" : "Their times contradict"} the
-              side of T the API put {view.hidden === 1 ? "it" : "them"} on. Rather than risk
-              showing a later record as known, the page leaves{" "}
-              {view.hidden === 1 ? "it" : "them"} out. Please report it.
+              {view.hidden === 1 ? "Its time contradicts" : "Their times contradict"} the side of T
+              the API put {view.hidden === 1 ? "it" : "them"} on. Rather than risk showing a later
+              record as known, the page leaves {view.hidden === 1 ? "it" : "them"} out. Please
+              report it.
             </AlertDescription>
           </Alert>
         ) : null}

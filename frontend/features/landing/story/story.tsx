@@ -51,8 +51,7 @@ function StoryHero() {
         data-story-name
         className="absolute top-(--story-anchor-y) left-1/2 -translate-x-1/2 -translate-y-1/2 text-center text-[length:calc(var(--story-r)*0.34)] leading-[0.92] font-semibold tracking-[-0.045em]"
       >
-        <span className="block">Quant</span>{" "}
-        <span className="block">Time</span>{" "}
+        <span className="block">Quant</span> <span className="block">Time</span>{" "}
         <span className="block">Machine</span>
       </h1>
       <div
@@ -86,14 +85,9 @@ function StoryAsk() {
       data-story-ask
       className={`mx-auto w-full max-w-xl px-6 py-16 story-animated:py-0 ${belowCircle}`}
     >
-      <p className="font-mono text-xs text-muted-foreground">
-        A question, asked in the past
-      </p>
+      <p className="font-mono text-xs text-muted-foreground">A question, asked in the past</p>
       <div className="mt-2 rounded-2xl border bg-card p-4 shadow-xs sm:p-5">
-        <h2
-          id="story-title"
-          className="text-base font-medium text-balance sm:text-lg"
-        >
+        <h2 id="story-title" className="text-base font-medium text-balance sm:text-lg">
           {STORY_QUERY.question}
         </h2>
         <p className="mt-2 font-mono text-xs break-words text-muted-foreground">

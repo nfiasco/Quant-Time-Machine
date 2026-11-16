@@ -19,8 +19,8 @@ export default function MethodologyPage() {
             <a href={siteConfig.timeModelUrl} target="_blank" rel="noreferrer">
               time model
             </a>{" "}
-            explains how &ldquo;known at time T&rdquo; works for every kind of data, with
-            worked examples. The core rule: a decision at time T may use only facts whose{" "}
+            explains how &ldquo;known at time T&rdquo; works for every kind of data, with worked
+            examples. The core rule: a decision at time T may use only facts whose{" "}
             <code className="font-mono text-xs">available_at</code> is at or before T.
           </p>
         </AlertDescription>

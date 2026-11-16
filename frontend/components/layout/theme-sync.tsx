@@ -2,12 +2,7 @@
 
 import { useLayoutEffect } from "react";
 
-import {
-  applyTheme,
-  getSavedTheme,
-  getSystemTheme,
-  onSystemThemeChange,
-} from "@/lib/theme";
+import { applyTheme, getSavedTheme, getSystemTheme, onSystemThemeChange } from "@/lib/theme";
 
 /**
  * Keeps the `.dark` class in sync after hydration. In development, React Strict Mode

@@ -11,10 +11,9 @@ const asOfQuery = (asOf: string) => new URLSearchParams({ as_of: asOf }).toStrin
  * in the API's order (by internal id). Before 2010 it's `[]` with a `reason`.
  */
 export function getCatalogCompanies(asOf: string): Promise<V1Response<CatalogCompany[]>> {
-  return apiFetch<V1Response<CatalogCompany[]>>(
-    `/v1/catalog/companies?${asOfQuery(asOf)}`,
-    { cache: "no-store" },
-  );
+  return apiFetch<V1Response<CatalogCompany[]>>(`/v1/catalog/companies?${asOfQuery(asOf)}`, {
+    cache: "no-store",
+  });
 }
 
 /** Every series in the catalog, with how much of it was published by a moment. */

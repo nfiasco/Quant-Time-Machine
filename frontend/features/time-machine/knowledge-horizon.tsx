@@ -1,9 +1,4 @@
-import {
-  CheckIcon,
-  CircleDashedIcon,
-  ExternalLinkIcon,
-  TriangleAlertIcon,
-} from "lucide-react";
+import { CheckIcon, CircleDashedIcon, ExternalLinkIcon, TriangleAlertIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import type { MomentEvent } from "@/features/time-machine/moment-event";
@@ -101,11 +96,7 @@ export function KnowledgeHorizon({
             </Badge>
             <span className="text-xs text-muted-foreground">public after T</span>
           </Heading>
-          <EventList
-            events={notYetKnown}
-            empty={emptyNotYetKnown}
-            collapseAfter={collapseAfter}
-          />
+          <EventList events={notYetKnown} empty={emptyNotYetKnown} collapseAfter={collapseAfter} />
         </section>
       </div>
     </div>
@@ -164,13 +155,8 @@ function EventItem({ event }: { event: MomentEvent }) {
       )}
     >
       <time
-        dateTime={
-          event.timeNote ? toAsOfParam(event.at).slice(0, 10) : toAsOfParam(event.at)
-        }
-        className={cn(
-          "font-mono text-xs tabular-nums",
-          event.known ? "text-known" : "text-future",
-        )}
+        dateTime={event.timeNote ? toAsOfParam(event.at).slice(0, 10) : toAsOfParam(event.at)}
+        className={cn("font-mono text-xs tabular-nums", event.known ? "text-known" : "text-future")}
       >
         {formatEtShortDate(event.at)}
         {event.timeNote ? ` · ${event.timeNote}` : `, ${formatEtTime(event.at)}`}

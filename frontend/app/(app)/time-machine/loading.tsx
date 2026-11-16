@@ -18,7 +18,10 @@ export default function Loading() {
         <Skeleton className="h-4 w-full max-w-xs" />
       </div>
       {[0, 1].map((card) => (
-        <div key={card} className="flex flex-col gap-3 rounded-xl bg-card p-3 ring-1 ring-foreground/10">
+        <div
+          key={card}
+          className="flex flex-col gap-3 rounded-xl bg-card p-3 ring-1 ring-foreground/10"
+        >
           <Skeleton className="h-5 w-48" />
           <div className="@container">
             <div className="grid gap-3 @xl:grid-cols-2">

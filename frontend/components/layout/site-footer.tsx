@@ -4,8 +4,7 @@ import type { ReactNode } from "react";
 import { routes } from "@/config/navigation";
 import { siteConfig } from "@/config/site";
 
-const linkClass =
-  "rounded-sm underline-offset-4 hover:text-foreground hover:underline";
+const linkClass = "rounded-sm underline-offset-4 hover:text-foreground hover:underline";
 
 /** `note`: an extra line of fine print for one page, such as the landing page's. */
 export function SiteFooter({ note }: { note?: ReactNode }) {
@@ -29,12 +28,7 @@ export function SiteFooter({ note }: { note?: ReactNode }) {
                 </Link>
               </li>
               <li>
-                <a
-                  href={siteConfig.repoUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className={linkClass}
-                >
+                <a href={siteConfig.repoUrl} target="_blank" rel="noreferrer" className={linkClass}>
                   GitHub
                 </a>
               </li>

@@ -29,8 +29,7 @@ export const demoMomentEvents: readonly MomentEvent[] = [
     id: "aapl-q2-10q",
     at: { year: 2020, month: 4, day: 30, hour: 18, minute: 3 },
     label: "Apple's Q2 10-Q accepted by EDGAR",
-    detail:
-      "Usable from its acceptance time, not from the period end or the May 1 filing date.",
+    detail: "Usable from its acceptance time, not from the period end or the May 1 filing date.",
     known: true,
   },
   {

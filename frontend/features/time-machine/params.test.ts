@@ -16,8 +16,7 @@ import {
 } from "@/features/time-machine/params";
 import { snapshotPath } from "@/lib/api/snapshot";
 
-const DEMO_HREF =
-  "/time-machine?as_of=2020-06-05T09:30&tickers=AAPL,TSLA&series=UNRATE,FEDFUNDS";
+const DEMO_HREF = "/time-machine?as_of=2020-06-05T09:30&tickers=AAPL,TSLA&series=UNRATE,FEDFUNDS";
 
 function searchParamsOf(href: string): Record<string, string> {
   return Object.fromEntries(new URL(href, "http://localhost").searchParams);
@@ -42,7 +41,9 @@ describe("explorerHref", () => {
 
   it("reads the encoded form a GET form submits", () => {
     const parsed = parseExplorerUrl(
-      searchParamsOf("/time-machine?as_of=2020-06-05T09%3A30&tickers=AAPL%2CTSLA&series=UNRATE%2CFEDFUNDS"),
+      searchParamsOf(
+        "/time-machine?as_of=2020-06-05T09%3A30&tickers=AAPL%2CTSLA&series=UNRATE%2CFEDFUNDS",
+      ),
     );
     expect(parsed.query).toEqual(demoQuery);
   });
@@ -133,7 +134,11 @@ describe("parseExplorerUrl", () => {
   });
 
   it("flags characters a ticker or series ID can't have", () => {
-    const parsed = parseExplorerUrl({ as_of: "2020-06-05", tickers: "AAPL;X,BRK.B", series: "UN RATE" });
+    const parsed = parseExplorerUrl({
+      as_of: "2020-06-05",
+      tickers: "AAPL;X,BRK.B",
+      series: "UN RATE",
+    });
     expect(parsed.issues.tickers).toMatch(/^“AAPL;X” isn't a ticker/);
     expect(parsed.issues.series).toMatch(/^“UN RATE” isn't a series ID/);
   });
@@ -174,7 +179,11 @@ describe("valuesKey", () => {
   });
 
   it("matches what the URL parses to", () => {
-    const parsed = parseExplorerUrl({ as_of: "2020-06-05", tickers: "aapl, tsla", series: "UNRATE,FEDFUNDS" });
+    const parsed = parseExplorerUrl({
+      as_of: "2020-06-05",
+      tickers: "aapl, tsla",
+      series: "UNRATE,FEDFUNDS",
+    });
     expect(valuesKey(parsed.values)).toBe(valuesKey(valuesOf(demoQuery)));
   });
 
@@ -218,11 +227,23 @@ describe("fieldErrorsFromFailure", () => {
   it("puts an unknown ticker or series on its list", () => {
     const meta = "No security in our data used the ticker META as of June 5, 2020, 9:30 AM ET.";
     expect(
-      fieldErrorsFromFailure({ kind: "response", status: 404, code: "unknown_ticker", message: meta, details: [] }),
+      fieldErrorsFromFailure({
+        kind: "response",
+        status: 404,
+        code: "unknown_ticker",
+        message: meta,
+        details: [],
+      }),
     ).toEqual({ tickers: meta });
     const dgs10 = "DGS10 isn't a series in our catalog.";
     expect(
-      fieldErrorsFromFailure({ kind: "response", status: 404, code: "unknown_series", message: dgs10, details: [] }),
+      fieldErrorsFromFailure({
+        kind: "response",
+        status: 404,
+        code: "unknown_series",
+        message: dgs10,
+        details: [],
+      }),
     ).toEqual({ series: dgs10 });
   });
 
@@ -230,7 +251,13 @@ describe("fieldErrorsFromFailure", () => {
     expect(fieldErrorsFromFailure({ kind: "unreachable" })).toEqual({});
     expect(fieldErrorsFromFailure({ kind: "timeout" })).toEqual({});
     expect(
-      fieldErrorsFromFailure({ kind: "response", status: 500, code: "internal_error", message: "x", details: [] }),
+      fieldErrorsFromFailure({
+        kind: "response",
+        status: 500,
+        code: "internal_error",
+        message: "x",
+        details: [],
+      }),
     ).toEqual({});
   });
 });
@@ -246,6 +273,10 @@ describe("suggestedQuery", () => {
   it("uses the §2.3 selection on its moment, and the starter selection elsewhere", () => {
     expect(suggestedQuery(demoQuery.moment)).toEqual(demoQuery);
     const moment = { year: 1995, month: 3, day: 1, hour: 9, minute: 30 };
-    expect(suggestedQuery(moment)).toEqual({ moment, tickers: ["AAPL"], series: ["UNRATE", "FEDFUNDS"] });
+    expect(suggestedQuery(moment)).toEqual({
+      moment,
+      tickers: ["AAPL"],
+      series: ["UNRATE", "FEDFUNDS"],
+    });
   });
 });

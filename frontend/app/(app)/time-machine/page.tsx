@@ -48,18 +48,19 @@ export default async function TimeMachinePage(props: PageProps<"/time-machine">)
 
   let results: React.ReactNode;
   if (url.query && request && snapshot) {
-    results = snapshot.ok && view ? (
-      <SnapshotResults
-        view={view}
-        href={explorerHref(url.query)}
-        requestUrl={apiUrl(snapshotPath(request))}
-      />
-    ) : !snapshot.ok ? (
-      <SnapshotFailure
-        failure={snapshot.failure}
-        onField={Object.keys(apiFieldErrors).length > 0}
-      />
-    ) : null;
+    results =
+      snapshot.ok && view ? (
+        <SnapshotResults
+          view={view}
+          href={explorerHref(url.query)}
+          requestUrl={apiUrl(snapshotPath(request))}
+        />
+      ) : !snapshot.ok ? (
+        <SnapshotFailure
+          failure={snapshot.failure}
+          onField={Object.keys(apiFieldErrors).length > 0}
+        />
+      ) : null;
   } else if (url.state === "moment-only" && url.moment) {
     results = <ExplorerEmpty kind="moment-only" moment={url.moment} />;
   } else if (url.state === "invalid") {

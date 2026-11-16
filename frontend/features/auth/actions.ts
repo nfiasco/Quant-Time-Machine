@@ -6,10 +6,7 @@ import { validateCredentials, type AuthFormState } from "@/features/auth/validat
 // (decision D9). Until then these actions validate the form and say so. S16.3 replaces
 // the marked lines with Supabase Auth calls and a redirect to the dashboard.
 
-export async function signIn(
-  _previous: AuthFormState,
-  formData: FormData,
-): Promise<AuthFormState> {
+export async function signIn(_previous: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const { email, fieldErrors } = validateCredentials(formData, "sign-in");
   if (Object.keys(fieldErrors).length > 0) {
     return { status: "invalid", fieldErrors, values: { email } };
@@ -23,10 +20,7 @@ export async function signIn(
   };
 }
 
-export async function signUp(
-  _previous: AuthFormState,
-  formData: FormData,
-): Promise<AuthFormState> {
+export async function signUp(_previous: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const { email, fieldErrors } = validateCredentials(formData, "sign-up");
   if (Object.keys(fieldErrors).length > 0) {
     return { status: "invalid", fieldErrors, values: { email } };

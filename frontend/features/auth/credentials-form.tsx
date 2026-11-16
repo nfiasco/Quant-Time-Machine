@@ -6,13 +6,7 @@ import { InfoIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { routes } from "@/config/navigation";
@@ -51,8 +45,8 @@ export function CredentialsForm({ mode }: CredentialsFormProps) {
         <InfoIcon />
         <AlertTitle>Accounts are coming soon</AlertTitle>
         <AlertDescription>
-          You can use everything in the app without one. Once sign-in launches, your
-          account will keep your experiments and runs.
+          You can use everything in the app without one. Once sign-in launches, your account will
+          keep your experiments and runs.
         </AlertDescription>
       </Alert>
 
