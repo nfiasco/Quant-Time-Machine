@@ -7,12 +7,12 @@ Start with the [project README](../README.md#getting-started) to run the app, or
 - [Time model](reference/time-model.md): what was knowable at a given time, with worked examples.
 - [Data sources](reference/data-sources.md): coverage, publication times, usage limits, and terms.
 - [Storage](reference/storage.md): how Parquet, DuckDB, and Supabase fit together.
-- [API v1 contract](reference/api-v1.md): request conventions, errors, and example responses.
+- [API v1 contract](reference/api-v1.md): request conventions, errors, and example responses, for the as-of endpoints and for submitting and reading backtests.
 - [Experiment spec v1 schema](reference/experiment-spec-v1.schema.json): the generated JSON Schema for backtest inputs.
 - [Signal library](reference/signals.md): each backtest signal's formula, data, minimum history, and the reasons it can have no value.
 - [Portfolio construction and costs](reference/portfolio.md): how filters, a ranking, and weights turn signals into a portfolio, long only or long-short, and what trading it costs.
 - [Performance metrics and the benchmark](reference/metrics.md): each metric's formula, the risk-free rate a decision knew, when a metric has no value, and a run worked by hand.
-- [Run records, determinism, and the audit](reference/runs.md): the files a run saves, its run ID, canonical JSON, what each decision read, and how byte-identical results are checked.
+- [Run records, determinism, and the audit](reference/runs.md): the files a run saves, its run ID, canonical JSON, what each decision read, how byte-identical results are checked, and how the API runs one in the background.
 - [Hosting](reference/hosting.md): deployment steps and the evidence behind the hosting decision.
 
 ## Project workflow
