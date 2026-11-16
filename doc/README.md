@@ -21,9 +21,12 @@ Start with the [project README](../README.md#getting-started) to run the app, or
 - [GitHub settings](project/github-settings.md): repository checks and maintenance.
 - [Discussions](project/discussions.md): where to ask questions and propose changes.
 - [Contribution history](project/contribution-history.md): completed stories, contributors, and merged PR evidence.
+- [Planning record](project/planning.md): scope decisions, owners, and carry-over from each sprint planning.
 
 ## Research notes
 
 - [The canonical backtest, 2010 to 2025](research/canonical-backtest.md): the revenue-growth-plus-momentum question run end to end, its warnings and sanity checks, how far to trust the result, and the demo's middle section.
+- [How existing tools answer the canonical question](research/existing-tools.md): a pandas notebook and backtrader tried hands-on, QuantConnect and WRDS from their documentation, and what a naive notebook gets wrong.
+- [Success measures and evaluation plan](research/evaluation-plan.md): the project's success measures, the research-effort baseline, and the usability-test protocol.
 - [Market data exploration notebook](research/market-data-exploration.ipynb): early experiments with yfinance and FRED, with follow-up corrections.
 - [Database choice review](research/database-choice-review.md): alternatives considered and why the project kept its current storage design.
