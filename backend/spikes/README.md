@@ -1,6 +1,6 @@
 # Spikes
 
-Short, time-boxed experiments from Sprints 1 and 2 (milestones M1 and M2). Each script answers one question and prints a Markdown report; the findings and decisions are written up in [`doc/`](../../doc/). This is exploratory code, not part of the app: nothing in `app/` imports it, and the tests don't run it.
+Short, time-boxed experiments, mostly from Sprints 1 and 2 (milestones M1 and M2). Each script answers one question and prints a Markdown report; the findings and decisions are written up in [`doc/`](../../doc/). This is exploratory code, not part of the app: nothing in `app/` imports it, and the tests don't run it.
 
 Each script declares its own pinned dependencies ([PEP 723](https://peps.python.org/pep-0723/) inline metadata), so `uv run` builds a throwaway environment for it and the backend's dependencies stay untouched. Scripts read keys from `backend/.env` (copy [`.env.example`](../.env.example)), never write into the repository, and never print keys.
 
@@ -13,11 +13,13 @@ Run them from `backend/`:
 | [`prices.py`](prices.py) | S6.1 | Which daily price source gives raw prices, corporate actions, and delisted companies? | Optional: `TIINGO_API_KEY`, `ALPHAVANTAGE_API_KEY` | `uv run spikes/prices.py` |
 | [`storage_benchmark.py`](storage_benchmark.py) | S3.2 | Which storage engine makes as-of queries simple and fast? | Nothing | `uv run --python 3.12 spikes/storage_benchmark.py` |
 | [`hosting.py`](hosting.py) | S1.6 | How big is the real store, and how long does a backtest-shaped workload take on a host? | An ingested store | `uv run python -m spikes.hosting` |
+| [`tool_compare/`](tool_compare/) | S2.2 | How do a pandas notebook and backtrader answer the canonical question, and what do they get wrong? | The raw cache from an ingestion (no keys, no network) | `uv run spikes/tool_compare/notebook.py`, then `uv run spikes/tool_compare/backtrader_try.py` |
 | [`host_compare/`](host_compare/) | D4 | How do Railway and Cloud Run compare running the same image: cold starts, latency, load, time limits, recovery? | An ingested store, both hosts deployed, `BENCH_TOKEN` | `uv run spikes/host_compare/run.py probe --target NAME=URL ...` |
 
 Notes:
 
 - `host_compare/` has two halves. [`bench_app.py`](host_compare/bench_app.py) is the real API plus `/bench` timing routes, and [`Dockerfile`](host_compare/Dockerfile) builds it with the store baked in, from the context [`build_context.sh`](host_compare/build_context.sh) assembles, so both hosts run the same bytes. [`run.py`](host_compare/run.py) is the client: it declares its own dependencies and writes results outside the repository. The image holds Tiingo's internal-use prices, so push it only to a private registry.
+- `tool_compare/` reads Tiingo prices and SEC company facts straight from `DATA_DIR/raw`, as a researcher with their own downloads would. [`notebook.py`](tool_compare/notebook.py) runs four versions of the canonical backtest, from naive to careful, and `--compare-run DATA_DIR/runs/<run ID>` compares their holdings with a saved run's. [`backtrader_try.py`](tool_compare/backtrader_try.py) imports the notebook's careful signals and trades them in backtrader, whose last release prints `SyntaxWarning`s on Python 3.14. Results are in [`doc/research/existing-tools.md`](../../doc/research/existing-tools.md).
 - `hosting.py` is the exception to the self-contained rule. It measures the app's own read path, `PointInTimeView`, so it imports `app` and runs in the project's environment, as a module from `backend/`. The deployed image includes it, so it can run on the host too (see [`doc/reference/hosting.md`](../../doc/reference/hosting.md)).
 - `storage_benchmark.py` runs on Python 3.12 because [pgserver](https://github.com/orm011/pgserver), which gives it a throwaway PostgreSQL server with nothing to install, has no 3.14 wheels yet. The `--python 3.12` flag is needed because `backend/.python-version` says 3.14. Pass `--postgres-dsn` to benchmark another PostgreSQL server instead.
 - `prices.py` takes about two minutes because it waits between Alpha Vantage requests (the free tier allows 25 a day). Every script identifies itself honestly, and a source that blocks scripts is reported, not worked around.
