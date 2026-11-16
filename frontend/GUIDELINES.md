@@ -13,7 +13,7 @@ How we build the Quant Time Machine web app: the design system, where code goes,
 7. **Accessible by default.** Labels on every input, visible focus, keyboard support, AA contrast, and color is never the only signal.
 8. **Plain words, no advice.** Use the glossary terms; never phrase anything as an investment recommendation.
 9. **Check the states.** Loading, empty, and error states exist; pages work at 375 px, 768 px, and desktop widths, in light and dark.
-10. **CI must pass.** `npm run lint && npm test && npm run build`, plus a screenshot in the pull request for UI changes.
+10. **CI must pass.** `npm run lint && npm run format:check && npm test && npm run build`, plus a screenshot in the pull request for UI changes.
 
 ## 1. Principles
 
@@ -166,7 +166,7 @@ lib/            Framework-agnostic helpers: api/, time, format, theme, utils
 - One main component per file; small private helpers can sit below it.
 - Props are a `type` above the component. No `any`.
 - Import across folders with `@/`; relative imports only within the same folder.
-- No formatter is configured yet: match the surrounding file. Our files use double quotes and semicolons; generated shadcn files keep their own style.
+- Prettier formats the code: double quotes, semicolons, and lines of up to 100 characters (`.prettierrc.json`). Run `npm run format` before committing; CI runs `npm run format:check`. Generated shadcn files in `components/ui/` and Markdown are left out (`.prettierignore`), so the generated files keep their own style.
 
 ### Server and client
 
@@ -209,7 +209,7 @@ This version differs from older tutorials and training data. Before using an API
 2. Create `app/(app)/<path>/page.tsx`: export `metadata = routeMetadata(routes.<name>)` and render `PlannedPage` until the real UI exists.
 3. Build the UI in `features/<name>/`, composed from `components/ui` and the shared components.
 4. Design the loading, empty, and error states; check 375 px, 768 px, and desktop, in light and dark.
-5. Run `npm run lint && npm test && npm run build`, and attach a screenshot to the pull request (Definition of Done).
+5. Run `npm run lint && npm run format:check && npm test && npm run build`, and attach a screenshot to the pull request (Definition of Done).
 
 ## 12. Landing page
 
