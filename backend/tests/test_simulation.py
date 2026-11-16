@@ -27,7 +27,12 @@ from app.backtest.metrics import equity_curve, summarize
 from app.backtest.returns import PricePoint
 from app.backtest.schedule import rebalances
 from app.backtest.signals import SignalValue
-from app.backtest.simulation import Simulation, SimulationWarning, simulate
+from app.backtest.simulation import (
+    Simulation,
+    SimulationWarning,
+    check_runnable,
+    simulate,
+)
 from app.backtest.spec import ExperimentSpec, SpecError, parse_spec
 from app.data import calendar
 from app.data.records import UniverseMember
@@ -1237,6 +1242,40 @@ def test_what_the_engine_cant_run_is_rejected(
         run(store, CHOICES, spec)
 
     assert [(p.field, p.message) for p in raised.value.problems] == [(field, message)]
+
+
+@pytest.mark.parametrize(
+    ("field", "changes", "message"),
+    REJECTED[:4],
+    ids=["value weights", "long-only costs", "long-short costs", "no decision"],
+)
+def test_what_needs_no_data_to_reject_is_rejected_before_a_run(
+    field: str, changes: dict[str, Any], message: str
+) -> None:
+    # The API asks this before it queues a run (S8.4): no store, and no view.
+    with pytest.raises(SpecError) as raised:
+        check_runnable(toy_spec(**changes))
+
+    assert [(p.field, p.message) for p in raised.value.problems] == [(field, message)]
+
+
+def test_a_spec_only_the_data_can_refuse_passes_the_check() -> None:
+    check_runnable(toy_spec())
+    check_runnable(toy_spec(benchmark="NOPE"))  # only a view knows it isn't a ticker
+
+
+def test_each_decision_is_reported_as_its_done(store: Path) -> None:
+    seen = []
+
+    result = simulate(
+        toy_spec(),
+        partial(PointInTimeView, store=store),
+        signals={"momentum": Scripted(CHOICES)},
+        on_decision=lambda done, total: seen.append((done, total)),
+    )
+
+    assert seen == [(1, 4), (2, 4), (3, 4), (4, 4)]
+    assert result == run(store)  # watching a run doesn't change it
 
 
 def test_a_signal_the_engine_lacks_is_rejected(store: Path) -> None:
