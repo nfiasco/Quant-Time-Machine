@@ -227,8 +227,15 @@ On a new account, or after an accident, run these from the repository root, in t
 - [x] Run the server as a non-root user.
 - [x] Remove `backend/fly.toml` and the Fly steps.
 - [x] Delete the 2026-11-06 benchmark deployments (2026-11-07). Railway project `qtm-bench` went offline at once and is permanently deleted on 2026-11-09. Google Cloud project `qtm-bench-1106-hm6q` can be restored with `gcloud projects undelete` for 30 days.
-- [ ] **S8.4:** run background backtests in a thread in the API process. A redeploy stops the process and any run in it, so at startup, mark runs still `running` as failed.
-- [ ] **S8.4:** with its real timings, set the service's CPU and memory limits. Until then it has Hobby's defaults, and the $10 hard limit caps the bill.
+- [x] **S8.4:** run background backtests in a thread in the API process ([`app/run_queue.py`](../../backend/app/run_queue.py), 2026-11-15). A redeploy stops the process and any run in it, so as the server starts, it marks runs still `queued` or `running` as failed ([run records](runs.md#runs-from-the-api)).
+- [ ] **S8.4:** make `/data/runs` writable by the server's user. Until then `POST /v1/backtests` answers 503 `runs_unavailable` on the deployment, and everything else works. Railway mounts a volume as root, and the server runs as uid 10001, so it's a one-time change of owner. Not run yet, so check each step:
+  1. Set `RAILWAY_RUN_UID=0` on the service, which Railway's [volume docs](https://docs.railway.com/volumes/reference#caveats) give for images that don't run as root, and let it redeploy.
+  2. `railway ssh -- sh -c 'mkdir -p /data/runs && chown 10001 /data/runs'`.
+  3. Remove `RAILWAY_RUN_UID` and let it redeploy, so the server is back to its unprivileged user. Each redeploy is the usual outage of about 12 seconds.
+  4. Check it: `railway ssh -- touch /data/runs/.probe`, then submit the canonical spec and poll it to `succeeded`.
+
+  `upload_store.sh` swaps `/data/store` only, so `/data/runs` survives a store upload.
+- [ ] **S8.4:** set the service's CPU and memory limits. Until then it has Hobby's defaults, and the $10 hard limit caps the bill. Measured on a laptop (S7.7, S7.8): a whole canonical run uses one CPU for 196 to 216 seconds and peaks at about 340 MB, and the queue runs one at a time. So 2 vCPU, one for the run and one for requests, and 1 GB should do. Time a run on the host first (`POST` the canonical spec, and compare `started_at` with `finished_at`), since its CPUs aren't a laptop's.
 - [ ] Before graduation, change the Railway account's email to a personal address, since usage alerts go there. Two-factor sign-in is worth turning on too, given the incident.
 - [ ] Optionally, deploy the production image to Cloud Run too, as a free standby for demo days. It costs nothing while idle, and the frontend can point at it if Railway is down. Expect a cold start on its first request.
 
