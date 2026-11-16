@@ -11,7 +11,8 @@ toy securities are members of `starter_large_caps` in a store that holds nothing
     add_release(store, "UNRATE", date(2020, 5, 1), 13.3, vintage=date(2020, 6, 5))
 
 `canonical_market(store)` is a whole market that the canonical spec's own signals can
-run on, from January through April 2021 (S7.4, S7.7).
+run on, from January through April 2021 (S7.4, S7.7), and `canonical_spec_data()` is
+that spec over those months (S8.4).
 
 Each row becomes known as ingestion would make it known: a security's identity and a
 membership at 00:00 ET on their dates, a bar or an action at its session's close, a
@@ -20,9 +21,11 @@ on its vintage date (doc/reference/time-model.md, rules 4 to 8). Only poisoned-f
 tests move a bar or an action, with `known_at`, to a time after the one it describes.
 """
 
+import json
 from collections.abc import Mapping
 from datetime import UTC, date, datetime, time, timedelta
 from pathlib import Path
+from typing import Any
 
 from app.data import calendar
 from app.data.sources.alfred import SERIES, vintage_known_at
@@ -41,6 +44,9 @@ UNIVERSE = "starter_large_caps"
 
 INGESTED_AT = datetime(2026, 10, 19, 12, tzinfo=UTC)
 """When the toy rows count as ingested, as for the fixtures."""
+
+CANONICAL_SPEC = Path(__file__).parent / "fixtures" / "specs" / "canonical.json"
+"""The canonical experiment's spec (roadmap §3.4)."""
 
 Price = float | tuple[float, float]
 """A session's close, which is also its open, or its (open, close)."""
@@ -308,3 +314,11 @@ def canonical_market(store: Path) -> Path:
     add_revenue(store, 1, flat | dict(zip(a_year_later, [101.0, 103, 106, 110])))
     add_revenue(store, 2, flat | dict(zip(a_year_later, [110.0, 108, 105, 101])))
     return store
+
+
+def canonical_spec_data(**changes: Any) -> dict[str, Any]:
+    """The canonical spec over `canonical_market`'s four months, as parsed JSON, with
+    `changes` merged in."""
+    data = json.loads(CANONICAL_SPEC.read_text(encoding="utf-8"))
+    data["period"] = {"start": "2021-01-01", "end": "2021-04-30"}
+    return data | changes

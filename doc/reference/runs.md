@@ -1,6 +1,6 @@
 # Run records, determinism, and the audit
 
-> **Story S7.7.** Version 1, 2026-11-12. To change what a run saves, update [`app/backtest/records.py`](../../backend/app/backtest/records.py), [`app/backtest/audit.py`](../../backend/app/backtest/audit.py), [`app/backtest/canonical.py`](../../backend/app/backtest/canonical.py), their tests, and this page together.
+> **Stories S7.7 and S8.4.** Version 1, 2026-11-12; [runs from the API](#runs-from-the-api) added 2026-11-15. To change what a run saves, update [`app/backtest/records.py`](../../backend/app/backtest/records.py), [`app/backtest/audit.py`](../../backend/app/backtest/audit.py), [`app/backtest/canonical.py`](../../backend/app/backtest/canonical.py), their tests, and this page together.
 
 Every run saves a record: a folder of JSON files that say exactly what it used and what it produced. A reviewer can read them, check them, and run the same thing again.
 
@@ -37,7 +37,7 @@ Runs live in `DATA_DIR/runs/`, one folder for each run ID.
 | `warnings.json` | Each gap in the data, and what the run assumed instead |
 | `audit.json` | [What each view the run opened read](#the-audit), and when the newest of it became known |
 
-Every holding, trade, and warning carries `decision`, the New York day of its decision, so the files join on it. Times are in UTC, as `2020-06-01T13:30:00Z`. The API will show them in New York time, as it does everywhere (D12).
+Every holding, trade, and warning carries `decision`, the New York day of its decision, so the files join on it. Times are in UTC, as `2020-06-01T13:30:00Z`. The API shows them in New York time, as it does everywhere (D12).
 
 `run.json` for the canonical spec from 2020 to 2022, with the spec and four of the files left out:
 
@@ -63,7 +63,7 @@ Every holding, trade, and warning carries `decision`, the New York day of its de
 }
 ```
 
-**What isn't saved, on purpose:** when the run happened, and how long it took. Either would make two runs of the same inputs differ. The run registry will keep them beside the files (S13.1).
+**What isn't saved, on purpose:** when the run happened, and how long it took. Either would make two runs of the same inputs differ. A run submitted to the API has them in its [job file](#runs-from-the-api), beside the runs, until the run registry keeps them (S13.1).
 
 ## The run ID and the spec hash
 
@@ -205,6 +205,27 @@ A run ID names its inputs, so saving the same run again finds its folder there.
 
 A folder is written whole or not at all: the files are written beside it, then moved into place.
 
+## Runs from the API
+
+`POST /v1/backtests` runs a spec the same way the command does, through `run_backtest`, but in the background ([`app/run_queue.py`](../../backend/app/run_queue.py), S8.4; the contract is in [api-v1.md](api-v1.md#backtests)).
+
+- **The ID comes first.** A run ID needs only the spec, the data version, and the engine version, so the API answers with it before the run starts. The data version is the store's newest when the spec is submitted.
+- **A job file holds the status:** `DATA_DIR/runs/_jobs/<run ID>.json`, with the spec, the data version, the engine version, `status`, `submitted_at`, `started_at`, `finished_at` (UTC, to the second), and `error`.
+
+  | `status` | Meaning |
+  | --- | --- |
+  | `queued` | Waiting for the run ahead of it |
+  | `running` | In progress. How many decisions are done is kept in memory, not in the file |
+  | `succeeded` | Its folder is saved |
+  | `failed` | It stopped. `error` is a sentence that says why |
+
+- **One run at a time,** in a worker thread in the API's process, with up to five waiting. A whole canonical run peaks at about 340 MB and uses one CPU for over three minutes, and nobody signs in to start one yet.
+- **The saved folder decides.** A run whose folder is saved has succeeded, whatever its job file says, and even without one: a run saved by the command is served too. Submitting a saved run again answers with it and runs nothing. A job marked `succeeded` whose folder is gone is no run at all.
+- **A restart fails what was in progress.** A deploy stops the process, and the thread with it. As the server starts, it marks every job still `queued` or `running` as `failed`: "The server restarted before this run finished. Submit it again." Nothing half-written is left, because a run's folder is moved into place whole.
+- **A failed run can be submitted again.** Its job file is replaced.
+- **What a failed run says.** A spec the engine refuses gives the engine's sentence, which names the field. Anything else says only that the problem is on our side, and the server's log has the rest.
+- **`execute(run_id, settings)` is a plain function** that reads a job's file, runs it, and writes how it ended. A thread calls it now, and a task queue could call it the same way on a host without background threads ([hosting](hosting.md)).
+
 ## Known limitations
 
 - **Rounding can't cover every case.** If two machines' results straddle a rounding boundary, their 12th digits differ. None has been seen, and the pinned test would show one.
@@ -213,5 +234,7 @@ A folder is written whole or not at all: the files are written beside it, then m
 - **The audit covers what views returned.** The catalogs' coverage reads return date ranges, not rows, and aren't logged. The engine doesn't use them.
 - **A `-dirty` git SHA** says the code had uncommitted changes, not what they were.
 - **Runs aren't tied to a user yet,** and two people who run the same spec on the same data share one folder. Accounts and the run registry come with S13.1.
-- **The deployed server can't save runs yet.** Its user can only read the volume ([hosting](hosting.md)), so S8.4 needs a folder it can write to.
+- **The deployed server can't save runs yet.** Its user can only read the volume, so `POST /v1/backtests` answers 503 `runs_unavailable` there until `/data/runs` is made writable: a one-time step in [hosting](hosting.md#next-steps).
+- **One server runs the jobs.** The queue assumes it's the only process using its `_jobs` folder, which holds for one replica. Two servers on one folder could each run the same spec, and one's restart would fail the other's jobs.
+- **Job files are never cleaned up.** Each is a few kilobytes. The run registry replaces them (S13.1).
 - **Re-running needs the data version's files.** Deleting a table to rebuild it breaks every run pinned to a version that lists its files ([database choice review](../research/database-choice-review.md)).

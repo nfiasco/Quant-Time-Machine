@@ -14,6 +14,9 @@ From `backend/`, the same thing for a spec in a file:
 
 The same spec, data version, and engine version always give the same run ID and the
 same files, so running it again changes nothing.
+
+The API runs specs in the background through `run_backtest` too (app/run_queue.py,
+S8.4), and reads a saved run back with `saved_run` and `read_document`.
 """
 
 import argparse
@@ -21,12 +24,14 @@ import json
 import subprocess
 import sys
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
+from typing import Any
 
 from app.backtest.records import (
+    MANIFEST,
     RunConflictError,
     RunRecord,
     build_record,
@@ -62,11 +67,13 @@ def run_backtest(
     data_version: str | None = None,
     out: Path | None = None,
     overwrite: bool = False,
+    on_decision: Callable[[int, int], None] | None = None,
 ) -> SavedRun:
     """Run `spec` on the store, pinned to a data version, and save its record.
 
     `data_version` defaults to the store's newest, and `out`, the folder that holds
-    each run's own, to DATA_DIR/runs. Raises DataVersionError if the store has no data
+    each run's own, to DATA_DIR/runs. `on_decision` is `simulate`'s: it's called after
+    each decision with how many are done and how many there are. Raises DataVersionError if the store has no data
     version yet, or not the one named; SpecError or ScheduleError for a spec the engine
     can't run; and RunConflictError if the run is already saved with different
     results, unless `overwrite` (app/backtest/records.py).
@@ -80,11 +87,27 @@ def run_backtest(
                 "pinned to one: ingest a source first (python -m app.data.ingest)"
             )
     views = partial(PointInTimeView, data_version=data_version, store=store)
-    record = build_record(simulate(spec, views), git_sha=code_version(settings))
+    simulation = simulate(spec, views, on_decision=on_decision)
+    record = build_record(simulation, git_sha=code_version(settings))
     folder = write_run(
         record, runs_dir(settings.data_dir) if out is None else out, overwrite=overwrite
     )
     return SavedRun(record, folder)
+
+
+def saved_run(run_id: str, settings: Settings) -> Path | None:
+    """The folder a run is saved in, or None if DATA_DIR/runs has no such run.
+
+    A folder counts once it has its `run.json`: `write_run` moves a run's folder into
+    place whole, so one that's there is complete.
+    """
+    folder = runs_dir(settings.data_dir) / run_id
+    return folder if (folder / MANIFEST).is_file() else None
+
+
+def read_document(folder: Path, name: str) -> Any:
+    """One of a saved run's files, such as metrics.json, as parsed JSON."""
+    return json.loads((folder / name).read_bytes())
 
 
 def code_version(settings: Settings) -> str | None:

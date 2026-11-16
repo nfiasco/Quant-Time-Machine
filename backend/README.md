@@ -1,11 +1,12 @@
 # Quant Time Machine — Backend
 
-The Quant Time Machine API, built with [FastAPI](https://fastapi.tiangolo.com). It serves point-in-time data and will run backtests. So far it has:
+The Quant Time Machine API, built with [FastAPI](https://fastapi.tiangolo.com). It serves point-in-time data and runs backtests. So far it has:
 
 - the point-in-time data layer: the store and its writer, `PointInTimeView`, and the NYSE calendar;
 - the ingestion client and CLI;
 - the `/v1` as-of endpoints for macro series and their revisions, prices, filings, and fundamentals, with their conventions, plus the catalogs and the knowledge snapshot;
-- the start of the [backtest engine](#backtest-engine): total returns from raw prices, splits, and dividends, the experiment spec, the rebalance schedule, the simulation loop, the signal library, portfolios, metrics, and [run records](#run-records) that the same inputs always reproduce byte for byte (S7.7).
+- the [backtest engine](#backtest-engine): total returns from raw prices, splits, and dividends, the experiment spec, the rebalance schedule, the simulation loop, the signal library, portfolios, metrics, and [run records](#run-records) that the same inputs always reproduce byte for byte (S7.7);
+- the [backtest endpoints](#backtests-over-the-api), which run a submitted spec in the background and serve its status, results, and audit (S8.4).
 
 Three sources are in, each ingested and readable as of any moment:
 
@@ -83,6 +84,7 @@ backend/
 │   ├── main.py         # Creates the FastAPI app and registers routers
 │   ├── config.py       # Typed settings: API keys and paths from the environment or .env
 │   ├── runs.py         # Runs a spec on the store and saves its record (S7.7)
+│   ├── run_queue.py    # Runs submitted specs in the background, and tracks their status (S8.4)
 │   ├── api/            # HTTP route handlers (thin; they call into data/ and backtest/)
 │   │   ├── health.py   # GET /health
 │   │   ├── v1.py       # The /v1 router
@@ -95,7 +97,8 @@ backend/
 │   │   ├── filings.py        # GET /v1/filings/{ticker} and /latest
 │   │   ├── fundamentals.py   # GET /v1/fundamentals/{ticker}
 │   │   ├── catalog.py        # GET /v1/catalog/series, /companies, and /signals
-│   │   └── snapshot.py       # GET /v1/snapshot
+│   │   ├── snapshot.py       # GET /v1/snapshot
+│   │   └── backtests.py      # POST /v1/backtests, and GET /v1/backtests/{run_id} with /audit, /holdings, /trades
 │   ├── data/           # Point-in-time data layer (see below)
 │   └── backtest/       # The backtest engine (see below)
 ├── spikes/             # Experiments behind the data, storage, and hosting decisions (not app code)
@@ -130,7 +133,8 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
   | 422 | `invalid_request` | A missing or invalid parameter; `details` names each one |
   | 404 | `unknown_ticker`, `unknown_series` | Raise `NotFoundError` |
   | 403 | `prices_restricted` | `SERVE_RAW_PRICES` is off |
-  | 404, 405 | `not_found`, `method_not_allowed` | No such path or method |
+  | 404, 405 | `not_found`, `method_not_allowed` | No such path or method, or no run with that ID |
+  | 503 | `runs_unavailable` | `POST /v1/backtests` when the queue is full or the runs folder can't be written |
   | 500 | `internal_error` | A bug; the message is generic |
 
 - **CORS:** only the origins in `CORS_ORIGINS` may call the API from a browser. Errors carry the CORS headers too, so a page can read them.
@@ -141,6 +145,8 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 2. Take `view: View` to read the store: one `PointInTimeView` per request, bound to `as_of`.
 3. Return a named subclass of `DataResponse`, whose `data` is a model built on `Provenance`.
 4. Add its examples to `app/api/examples.py`, each labeled with the request that produces it. `tests/test_api_examples.py` replays every one against the fixtures.
+
+The backtest routes are the exception to steps 2 and 3: a run isn't an answer as of one moment, so they take no `as_of` and return their own models ([`app/api/backtests.py`](app/api/backtests.py)).
 
 ## Endpoints
 
@@ -157,6 +163,11 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | `GET /v1/catalog/companies?as_of` | Each universe's members then, under their tickers then, with the dates their prices, filings, and XBRL facts reach by then | `universe_coverage` |
 | `GET /v1/catalog/signals` | The signal types a spec can use, with their JSON Schemas; no `as_of`, since they don't depend on time or data | `signal_types` in [`spec.py`](app/backtest/spec.py) |
 | `GET /v1/snapshot?as_of&tickers&series` | What was known then, and what wasn't yet: the [June 5, 2020 table](../doc/reference/time-model.md#june-5-2020-at-0930-et-1330z). Prices follow `SERVE_RAW_PRICES`, but never with a 403: off, a bar keeps its date and loses its prices | Known: the view's reads. Not yet known: [`look_ahead.py`](app/data/look_ahead.py) |
+
+| `POST /v1/backtests` | A run's ID for the spec in the body, at once: 202 when it's queued, 200 when that run is already saved, 422 with the spec's own field paths | `parse_spec`, `check_runnable`, and `RunQueue.submit` |
+| `GET /v1/backtests/{run_id}` | The run's status and progress, and once it has succeeded, its metrics, holding periods, equity curve, and warnings | The run's job, and its saved files |
+| `GET /v1/backtests/{run_id}/audit?decision` | What each view the run opened read, for every decision or one | `audit.json` |
+| `GET /v1/backtests/{run_id}/holdings?decision` and `/trades?decision` | Each holding of each period, and each trade at each fill | `holdings.json`, `trades.json` |
 
 ## Point-in-time data layer
 
@@ -319,6 +330,25 @@ It prints the run ID, the headline metrics, and the folder. `--data-version` rea
 
 The files, the canonical JSON rules, how to check an audit hash, and the known limitations are in [`doc/reference/runs.md`](../doc/reference/runs.md).
 
+### Backtests over the API
+
+`POST /v1/backtests` takes a spec and answers with its run ID at once, and the run goes in the background (S8.4). With the dev server running:
+
+```bash
+curl -X POST localhost:8000/v1/backtests -H 'Content-Type: application/json' \
+  --data @tests/fixtures/specs/canonical.json
+curl localhost:8000/v1/backtests/<run ID>
+```
+
+- **[`app/run_queue.py`](app/run_queue.py) runs one spec at a time,** in a worker thread in the API's process, with up to five waiting. A sixth gets a 503. There's no other infrastructure: no broker and no second process.
+- **A run's status is a job file,** `DATA_DIR/runs/_jobs/<run ID>.json`: `queued`, `running`, `succeeded`, or `failed`, with when it was submitted, started, and finished. The run's own files stay free of clocks. Progress, decisions done out of the total, is kept in memory.
+- **A saved run has succeeded,** job file or not, so a run saved by `python -m app.runs` is served too, and submitting a saved run again answers 200 and runs nothing.
+- **A restart stops the run in progress.** As the server starts, it marks every job still queued or running as failed, with a sentence that says to submit it again. That's `RunQueue.recover()`, called from the app's lifespan in [`app/main.py`](app/main.py).
+- **The spec is checked before it's queued:** `parse_spec`, then `check_runnable` in [`simulation.py`](app/backtest/simulation.py), which is everything the engine can refuse without reading data. Both answer 422 with the spec's own field paths.
+- **`fastapi dev` reloads on every save,** which is a restart: a run in progress fails. Use `uv run fastapi run` to try a long run while you edit.
+
+The contract, with examples of every response, is in [`doc/reference/api-v1.md`](../doc/reference/api-v1.md#backtests).
+
 **Signals.** Each signal reads only through the view it's given, so it sees what was known at the decision, and gives every member a value or a reason it has none, which becomes a `missing_signal` warning. A signal can also be called on its own:
 
 ```python
@@ -439,6 +469,7 @@ The API runs on Railway's Hobby plan (D4) at <https://quant-time-machine-api.up.
 - **The store** lives on a Railway volume at `/data`, not in the image. After ingesting locally, the owner uploads it with `scripts/upload_store.sh`, which copies all of `DATA_DIR/store`, `_versions/` included, so the host reports the same data version as the machine that ingested. It swaps the new store in, keeps the old one as `store.previous`, and runs the smoke test.
 - **The smoke test**, `uv run scripts/smoke_test.py https://quant-time-machine-api.up.railway.app`, checks `/health`, CORS for the web app, a macro value, a filing, and that prices answer 403, all as of June 5, 2020, whose answers never change. GitHub Actions runs it after each deploy ([`smoke.yml`](../.github/workflows/smoke.yml)), and the upload script runs it with `--data-version`. [`tests/test_smoke_test.py`](tests/test_smoke_test.py) runs the same checks against the fixtures.
 - **CI builds and starts the image** on every pull request (the "Backend image" job), so a broken Dockerfile fails there rather than on Railway.
+- **Backtests can't be submitted there yet.** The server's user can't write to the volume, so `POST /v1/backtests` answers 503 until `/data/runs` is made writable, a one-time step in [`hosting.md`](../doc/reference/hosting.md#next-steps). The other endpoints aren't affected.
 
 `.dockerignore` keeps `data/` and `.env` out of the build, because a build from a local folder, such as `docker build` or `railway up`, sends whatever isn't excluded there, git-ignored or not. Keep it that way. Before Railway, the API ran on Fly.io on a free trial that lapsed on 2026-10-31.
 

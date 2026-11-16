@@ -206,31 +206,71 @@ class Simulation:
     """What each view the run opened read, in the order they were opened."""
 
 
+def check_runnable(
+    spec: ExperimentSpec, *, signals: Mapping[str, Signal] = SIGNALS
+) -> None:
+    """Raise for a spec `simulate` would refuse before it read any data (S8.4).
+
+    The API calls it before it queues a run, so these answer the request instead of
+    failing the run later. Raises SpecError, naming each field, for what the engine
+    can't run yet and for a period with no decision that fills before its last close,
+    and ScheduleError for a schedule whose fills can't follow their decisions. A
+    benchmark no security used is only found once the run reads the store.
+    """
+    _decisions(spec, signals)
+
+
 def simulate(
     spec: ExperimentSpec,
     views: ViewFactory,
     *,
     signals: Mapping[str, Signal] = SIGNALS,
+    on_decision: Callable[[int, int], None] | None = None,
 ) -> Simulation:
     """Run `spec`, reading data only through the views `views` opens.
 
     `signals` are the kinds of signal the run can evaluate, by `type`: the library's,
-    unless a test passes its own. A portfolio with nothing left ends the run early,
-    with a `wiped_out` warning. Raises SpecError, naming each field, for what the
-    engine can't run yet, such as value weights or a signal it doesn't have; for a
-    period with no decision that fills before its last close; and for a benchmark no
-    security used at the first decision. Raises ScheduleError for a schedule whose
-    fills can't follow their decisions (app/backtest/schedule.py).
+    unless a test passes its own. `on_decision`, if given, is called after each
+    decision with how many are done and how many the run has, so whoever started the
+    run can show its progress (S8.4). It can't change a result. A portfolio with
+    nothing left ends the run early, with a `wiped_out` warning. Raises SpecError,
+    naming each field, for what the engine can't run yet, such as value weights or a
+    signal it doesn't have; for a period with no decision that fills before its last
+    close; and for a benchmark no security used at the first decision. Raises
+    ScheduleError for a schedule whose fills can't follow their decisions
+    (app/backtest/schedule.py).
+    """
+    schedule, skipped, end = _decisions(spec, signals)
+    run = _Run(spec, views, signals)
+    for rebalance in skipped:
+        run.skip(rebalance, end)
+    for done, rebalance in enumerate(schedule, start=1):
+        run.step(rebalance)
+        if on_decision is not None:
+            on_decision(done, len(schedule))
+        if run.ended:
+            break
+    else:
+        run.finish(end)
+    return run.result()
+
+
+def _decisions(
+    spec: ExperimentSpec, signals: Mapping[str, Signal]
+) -> tuple[list[Rebalance], list[Rebalance], PricePoint]:
+    """The decisions a run makes, the ones it skips because their trades would fill
+    after the period's last close, and that close. It reads no data.
+
+    Raises SpecError and ScheduleError as `simulate` does.
     """
     _check_supported(spec, signals)
     end = _last_close(spec.period.end)
-    run = _Run(spec, views, signals)
-    schedule = []
+    schedule, skipped = [], []
     for rebalance in rebalances(spec):
         if _fill(rebalance).time < end.time:
             schedule.append(rebalance)
         else:
-            run.skip(rebalance, end)
+            skipped.append(rebalance)
     if not schedule:
         raise SpecError(
             [
@@ -241,13 +281,7 @@ def simulate(
                 )
             ]
         )
-    for rebalance in schedule:
-        run.step(rebalance)
-        if run.ended:
-            break
-    else:
-        run.finish(end)
-    return run.result()
+    return schedule, skipped, end
 
 
 @dataclass

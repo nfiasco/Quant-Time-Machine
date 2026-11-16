@@ -30,6 +30,7 @@ ErrorCode = Literal[
     "prices_restricted",
     "not_found",
     "method_not_allowed",
+    "runs_unavailable",
     "internal_error",
 ]
 
