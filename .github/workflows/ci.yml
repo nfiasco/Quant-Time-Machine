@@ -22,7 +22,8 @@ jobs:
   frontend:
     # This name is a required status check on main (doc/project/github-workflow.md). Rename the job
     # only together with the "Protect main" ruleset, or pull requests wait for a check that
-    # never reports.
+    # never reports. The job also runs the Prettier format check; its name predates that and stays
+    # for the same reason.
     name: Frontend (lint + test + build)
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -40,6 +41,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
+      - run: npm run format:check
       - run: npm test
       - run: npm run build
 
