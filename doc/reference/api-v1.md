@@ -1,11 +1,11 @@
 # Research API v1: response contract
 
-> **Stories S8.1, S8.2, S4.5, S8.5, and S8.3.** Drafted 2026-10-19 as the contract for S9.1's M2 demo page, and implemented in Sprint 2. Sprint 3 added [`GET /v1/fundamentals/{ticker}`](#get-v1fundamentalsticker) (S5.7, 2026-11-01), then [revision history](#get-v1macroseries_idrevisions) (S4.5), [the catalogs](#get-v1catalogseries) (S8.5), and [the snapshot](#get-v1snapshot) (S8.3) on 2026-11-02. The API's own docs at `/docs` show the examples below, each labeled with the request that produces it. A test replays every one against the test fixtures, so they can't drift. S8.6 will generate TypeScript types from the OpenAPI schema. To change the contract, update this file and the backend in the same pull request, and tell the frontend.
+> **Stories S8.1, S8.2, S4.5, S8.5, S8.3, and S8.4.** Drafted 2026-10-19 as the contract for S9.1's M2 demo page, and implemented in Sprint 2. Sprint 3 added [`GET /v1/fundamentals/{ticker}`](#get-v1fundamentalsticker) (S5.7, 2026-11-01), then [revision history](#get-v1macroseries_idrevisions) (S4.5), [the catalogs](#get-v1catalogseries) (S8.5), and [the snapshot](#get-v1snapshot) (S8.3) on 2026-11-02. Sprint 4 added [the backtest endpoints](#backtests) (S8.4, 2026-11-15). The API's own docs at `/docs` show the as-of examples below, each labeled with the request that produces it. A test replays every one against the test fixtures, so they can't drift. The backtest examples are from a real run, and its tests check the same shapes on a toy market. S8.6 will generate TypeScript types from the OpenAPI schema. To change the contract, update this file and the backend in the same pull request, and tell the frontend.
 
 ## Conventions
 
-- **Routes** live under `/v1`, return JSON, and use `GET` for every as-of query. Field names are `snake_case`.
-- **`as_of` is required** on every data endpoint. There is no default. A default of "now" is exactly the trap FRED's API sets (see the [time model](time-model.md#where-look-ahead-bias-creeps-in)).
+- **Routes** live under `/v1`, return JSON, and use `GET` for every as-of query. Submitting a backtest is the one `POST`. Field names are `snake_case`.
+- **`as_of` is required** on every data endpoint. The [backtest endpoints](#backtests) take none: a run makes its own decisions, each as of its own time. There is no default. A default of "now" is exactly the trap FRED's API sets (see the [time model](time-model.md#where-look-ahead-bias-creeps-in)).
 - **`as_of` input forms** ([time-model rule 3](time-model.md#3-a-bare-date-means-0930-et-and-a-time-without-an-offset-is-new-york-time), D12):
   - A bare date, such as `2020-06-05`, means 09:30 ET that day.
   - A time without an offset, such as `2020-06-05T08:00`, is New York time. Seconds are optional.
@@ -42,7 +42,7 @@ Every successful response has the same four fields:
 
 "Nothing was known yet" is not an error: it's a 200 with a reason.
 
-Two endpoints are exceptions:
+These are the exceptions:
 
 - `GET /v1/knowledge-time?as_of=…` only resolves an `as_of` value, so it returns just the first two fields, with the data version the data endpoints read now:
 
@@ -51,6 +51,7 @@ Two endpoints are exceptions:
   ```
 
 - [`GET /v1/catalog/signals`](#get-v1catalogsignals) depends on neither time nor data, so it takes no `as_of` and returns `spec_version` and `data`.
+- [The backtest endpoints](#backtests) return a run, which isn't an answer as of one moment. A run has its own `data_version`: the one it's pinned to, not the newest now.
 
 ## Fields on every record
 
@@ -754,6 +755,265 @@ What was known at a moment, and what wasn't yet, for chosen companies and series
 - **`revisions`** is `[]` when the observation shown was never revised later.
 - **"Not yet known" means public after the knowledge time, and by the time the response's `data_version` was cut.** So an answer never changes for a data version, and nothing dated after the cut shows.
 
+## Backtests
+
+Submit an experiment spec, poll its run, and read what the run produced (S8.4), for S9.5's builder and S9.6's results page.
+
+| Endpoint | Answers with |
+| --- | --- |
+| [`POST /v1/backtests`](#post-v1backtests) | The run's ID, at once. The run itself goes in the background. |
+| [`GET /v1/backtests/{run_id}`](#get-v1backtestsrun_id) | The run's status, and once it has succeeded, its metrics, holding periods, equity curve, and warnings |
+| [`GET /v1/backtests/{run_id}/audit`](#get-v1backtestsrun_idaudit) | What each view the run opened read, and when the newest of it became known |
+| [`GET /v1/backtests/{run_id}/holdings` and `/trades`](#get-v1backtestsrun_idholdings-and-trades) | Each holding of each period, and each trade at each fill |
+
+- **A run's ID names its inputs:** the SHA-256 of its spec, its data version, and the engine version, as 64 hex digits ([run records](runs.md#the-run-id-and-the-spec-hash)). The same spec on the same data is the same run, for everybody. Runs aren't tied to a user yet (S13.1).
+- **Runs take time.** The canonical spec takes about 35 seconds for 2020 to 2022, and over three minutes for 2010 to 2025. So no request waits for one: submit, then poll `GET /v1/backtests/{run_id}` every few seconds.
+- **One run at a time.** The server runs one and keeps up to five waiting. A sixth gets a 503 `runs_unavailable`.
+- **A run pins the store's newest data version** when it's submitted, and reads only that, however long it waits.
+- **Times are New York time,** as everywhere. The run's files hold the same instants in UTC ([run records](runs.md)).
+- **No response holds a price** (D2): there are weights, returns, and dates. A fill or a valuation says which session's open or close it used, as `{ "session": "2020-06-01", "price": "close" }`.
+
+### `POST /v1/backtests`
+
+The body is an experiment spec: the model in [`app/backtest/spec.py`](../../backend/app/backtest/spec.py), whose JSON Schema is [`experiment-spec-v1.schema.json`](experiment-spec-v1.schema.json) (S7.1), sent as `application/json`. The frontend's `ExperimentSpec` type is the same shape.
+
+```json
+{ "run_id": "9dfedcfa918368dcbd3d3af6d83abe4496f4ea6ed475303da691b5b1dcb2b30f", "status": "queued" }
+```
+
+| Status | When | `status` in the body |
+| --- | --- | --- |
+| 202 | The run was queued, or was already queued or running | `queued` or `running` |
+| 200 | This run is already saved, so nothing was started | `succeeded` |
+| 422 | The spec isn't valid, or the engine can't run it | (an [error](#errors)) |
+| 503 | The queue is full, or this server can't save runs | (an [error](#errors)) |
+
+- **Any 2xx means "go and read the run."** The page can treat 200 and 202 alike: open `GET /v1/backtests/{run_id}` and poll until it has finished.
+- **A 422 names each field by its path in the spec,** in `details`, with the sentence to show beside it. They're the paths the builder's own checks use, such as `costs.bps_per_trade`, `filters.1.signal`, and `signals.mom_12_1.lookback_months`:
+
+  ```json
+  {
+    "error": {
+      "code": "invalid_request",
+      "message": "benchmark must be a ticker in capitals, such as SPY. costs is required.",
+      "details": [
+        { "field": "benchmark", "message": "benchmark must be a ticker in capitals, such as SPY." },
+        { "field": "costs", "message": "costs is required." }
+      ]
+    }
+  }
+  ```
+
+  - A body that isn't JSON names the field `spec`.
+  - What the engine can't run yet is a 422 too: value weights (`portfolio.weighting`), costs high enough to use the whole portfolio (`costs.bps_per_trade`), and a period with no decision that fills before its last close (`period`).
+- **One thing only the data can refuse:** a benchmark no security used at the first decision. That run is queued, and [fails](#get-v1backtestsrun_id) with the sentence as its `error`.
+- **A failed run can be submitted again,** and runs again.
+
+### `GET /v1/backtests/{run_id}`
+
+A run: what it ran on, how far it has come, and its result once it has one. For the canonical spec from 2020 to 2022, with the spec and most of each list left out:
+
+```json
+{
+  "run_id": "9dfedcfa918368dcbd3d3af6d83abe4496f4ea6ed475303da691b5b1dcb2b30f",
+  "status": "succeeded",
+  "progress": null,
+  "submitted_at": "2026-11-15T21:52:39-05:00",
+  "started_at": "2026-11-15T21:52:39-05:00",
+  "finished_at": "2026-11-15T21:53:15-05:00",
+  "error": null,
+  "spec": {},
+  "spec_hash": "f62a573942cd9cea91535597a86307047874cf788c5639040e2e5b9ed7298102",
+  "data_version": "20261111T030742Z",
+  "engine_version": "1.0.0",
+  "git_sha": "b6e4d794dfbdccf4d9cb47f1399fa75d58ea5e99",
+  "result": {
+    "metrics": {
+      "periods": 36,
+      "start": { "session": "2020-01-02", "price": "close" },
+      "end": { "session": "2022-12-30", "price": "close" },
+      "years": 2.99247091034,
+      "total_return": 0.607593345045,
+      "cagr": 0.171920938402,
+      "volatility": 0.233107664009,
+      "sharpe": 0.76931736638,
+      "max_drawdown": -0.219983829601,
+      "turnover": 0.619317672375,
+      "hit_rate": 0.638888888889,
+      "benchmark_total_return": 0.235506339085,
+      "benchmark_cagr": 0.0732280633733,
+      "excess_return": 0.0986928750289,
+      "beta": 0.925349193036,
+      "alpha": 0.0964331018474,
+      "mean_excess_return": 0.00747906115565,
+      "excess_t_stat": 1.49991803288
+    },
+    "periods": [
+      {
+        "decision": "2020-06-01",
+        "decision_time": "2020-06-01T09:30:00-04:00",
+        "fill_time": "2020-06-01T16:00:00-04:00",
+        "fill": { "session": "2020-06-01", "price": "close" },
+        "end": { "session": "2020-07-01", "price": "close" },
+        "universe_size": 40,
+        "holdings": 10,
+        "trades": 11,
+        "turnover": 1.0,
+        "cost": 0.001,
+        "gross_return": 0.0412202997571,
+        "net_return": 0.0401790794573,
+        "benchmark_return": 0.0207644055197,
+        "risk_free_rate": 0.14,
+        "value": 1.03779739024
+      }
+    ],
+    "equity_curve": [
+      { "at": { "session": "2020-01-02", "price": "close" }, "value": 1.0, "benchmark": 1.0 },
+      { "at": { "session": "2020-02-03", "price": "close" }, "value": 1.01781499491, "benchmark": 0.997691384246 }
+    ],
+    "warnings": [
+      {
+        "kind": "missing_signal",
+        "decision": "2020-04-01",
+        "message": "KSS was left out at the 2020-04-01 decision, because rev_accel had no value. Revenue for the quarter a year before the one that ended on 2019-11-02 wasn't known.",
+        "ticker": "KSS",
+        "signal": "rev_accel"
+      }
+    ]
+  }
+}
+```
+
+| `status` | Meaning | What's set |
+| --- | --- | --- |
+| `queued` | Waiting for the run ahead of it | `submitted_at` |
+| `running` | In progress | `started_at`, and `progress` |
+| `succeeded` | Saved | `finished_at`, `git_sha`, and `result` |
+| `failed` | Stopped without a result | `finished_at`, and `error` |
+
+- **`progress`** is `{ "decisions_done": 13, "decisions_total": 36 }` while the run is running, and `null` otherwise. It can be `null` for a moment after the run starts.
+- **`error`** is a sentence the page can show as is. There are three kinds:
+  - what's wrong with the spec, starting with the field: "benchmark must be a ticker in our data, but no security used NOPE at the 2020-01-02 decision.";
+  - "The server restarted before this run finished. Submit it again." A deploy stops the run in progress and the ones waiting;
+  - a problem on our side, which says only that.
+- **`spec`** is the spec as it runs, with every default written out, such as `"rank": null`. `spec_hash` is its SHA-256.
+- **`submitted_at`, `started_at`, and `finished_at`** are `null` for a run saved from the command line, which nobody submitted. They're to the second.
+- **`result.metrics`** are the run's [metrics](metrics.md), after costs. Returns and rates are fractions: `0.05` is 5%. A metric the run can't give, such as a Sharpe ratio from one period, is `null`.
+- **`result.periods`** has one entry for each decision that traded, in order. `holdings` and `trades` are counts: the entries themselves are at [`/holdings` and `/trades`](#get-v1backtestsrun_idholdings-and-trades). `risk_free_rate` is in percent a year, so `0.14` is 0.14%.
+- **`result.equity_curve`** starts at the first fill, where both values are 1, and has a point at each period's end. The drawdown chart can be drawn from it. `benchmark` is `null` from the first period without a benchmark return on.
+- **`result.warnings`** are the gaps in the data, and what the run assumed instead. `kind` is one of `stopped_trading`, `missing_signal`, `empty_portfolio`, `thin_ranking`, `no_fill_price`, `delisted_exit`, `missing_price`, `missing_benchmark`, `missing_risk_free`, `fill_after_end`, and `wiped_out`. `ticker` and `signal` are `null` where they don't apply.
+- **An ID that names no run** gets a 404 `not_found`: "We have no run 0000…0000."
+
+### `GET /v1/backtests/{run_id}/audit`
+
+What each view the run opened read, and when the newest of it became known: the evidence that no decision used anything from its future ([the audit](runs.md#the-audit)).
+
+| Parameter | Required | Meaning |
+| --- | --- | --- |
+| `decision` | no | Only this decision's views: its New York day, as in `result.periods`. Left out, every view, in the order the run opened them. |
+
+`GET /v1/backtests/9dfe…b30f/audit?decision=2020-06-01`, with one of its two views, two of six tables, and most groups left out:
+
+```json
+{
+  "run_id": "9dfedcfa918368dcbd3d3af6d83abe4496f4ea6ed475303da691b5b1dcb2b30f",
+  "status": "succeeded",
+  "views": [
+    {
+      "purpose": "decision",
+      "decision": "2020-06-01",
+      "knowledge_time": "2020-06-01T09:30:00-04:00",
+      "rows": 17732,
+      "tables": [
+        {
+          "table": "macro_observations",
+          "rows": 1,
+          "earliest_available_at": "2020-05-01T16:15:00-04:00",
+          "latest_available_at": "2020-05-01T16:15:00-04:00",
+          "sha256": "…",
+          "groups": [
+            {
+              "key": "TB3MS",
+              "rows": 1,
+              "latest_available_at": "2020-05-01T16:15:00-04:00",
+              "latest_source_ref": "TB3MS vintage 2020-05-01"
+            }
+          ]
+        },
+        {
+          "table": "xbrl_facts",
+          "rows": 8249,
+          "earliest_available_at": "…",
+          "latest_available_at": "2020-05-26T19:59:23-04:00",
+          "sha256": "…",
+          "groups": [
+            {
+              "key": 320193,
+              "rows": 248,
+              "latest_available_at": "2020-04-30T18:03:10-04:00",
+              "latest_source_ref": "0000320193-20-000052"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
+
+- **`purpose`** says what the view was for: `decision` (bound to the decision's time: the universe, the signals' inputs, and the risk-free rate), `fill` (bound to the close of its fill session: the bars that value the period ending there), or `end` (the run's last close).
+- **What to check:** each table's `latest_available_at` is at or before its view's `knowledge_time`. A fill's view is bound after its decision, because a fill's price isn't known until then.
+- **`groups`** are a table's rows by its first key column, each with its newest row's `available_at` and `source_ref`. `key` is a CIK in `xbrl_facts`, a series ID in `macro_observations`, and a universe's name in `universe_members`. In `price_bars`, `corporate_actions`, and `securities` it's our own ID for a security, the one place an internal ID shows.
+- **`views` is `null`** until the run has succeeded. Its `status` says why.
+- **It's large without `decision`:** about 1 MB for 2020 to 2022, and 6 MB for 2010 to 2025. A drill-down by rebalance date should pass `decision`, which answers with about 30 KB.
+
+### `GET /v1/backtests/{run_id}/holdings` and `/trades`
+
+Each holding of each period, and each trade at each fill, in decision order. Both take the same optional `decision` as the audit, and are `null` until the run has succeeded.
+
+`GET /v1/backtests/9dfe…b30f/holdings?decision=2020-06-01`, with one of ten holdings:
+
+```json
+{
+  "run_id": "9dfedcfa918368dcbd3d3af6d83abe4496f4ea6ed475303da691b5b1dcb2b30f",
+  "status": "succeeded",
+  "holdings": [
+    {
+      "decision": "2020-06-01",
+      "ticker": "ABBV",
+      "weight": 0.1,
+      "signals": { "mom_12_1": 0.134527265701, "rev_accel": 0.0530041743358 },
+      "period_return": 0.0930540242558,
+      "exit": { "session": "2020-07-01", "price": "close" }
+    }
+  ]
+}
+```
+
+`GET /v1/backtests/9dfe…b30f/trades?decision=2020-06-01`, with one of eleven trades:
+
+```json
+{
+  "run_id": "9dfedcfa918368dcbd3d3af6d83abe4496f4ea6ed475303da691b5b1dcb2b30f",
+  "status": "succeeded",
+  "trades": [
+    {
+      "decision": "2020-06-01",
+      "ticker": "ABBV",
+      "fill": { "session": "2020-06-01", "price": "close" },
+      "weight_before": 0.167131629103,
+      "weight_after": 0.1,
+      "traded": 0.0671316291031,
+      "cost": 0.0000671316291031
+    }
+  ]
+}
+```
+
+- **A holding's `ticker`** is the one it had at the decision that chose it. `weight` is its share of the portfolio after the fill, negative for a short. `signals` has its signals' values at the decision, by their IDs in the spec. `exit` is where it was valued: the period's end, or its last close if its bars ended first.
+- **A trade's weights** are before and after the fill, and `weight_after` is 0 for a position that's closed. `traded` and `cost` are fractions of the portfolio's value before trading. Its `ticker` can be `null` for a position being closed.
+- **A day with no decision** answers with `[]`.
+
 ## Errors
 
 Every error has the same shape, which replaces FastAPI's default `{"detail": ...}`:
@@ -774,16 +1034,17 @@ Every error has the same shape, which replaces FastAPI's default `{"detail": ...
 | --- | --- | --- |
 | 404 | `unknown_ticker` | No security in our data used the ticker at the knowledge time |
 | 404 | `unknown_series` | The series isn't in our catalog |
-| 404 | `not_found` | No endpoint has that path |
+| 404 | `not_found` | No endpoint has that path, or no run has that ID |
 | 405 | `method_not_allowed` | The endpoint doesn't accept that method |
-| 422 | `invalid_request` | A parameter is missing or invalid, including `as_of` (bad format, or a time that never happened or happened twice). `details` lists each field. |
+| 422 | `invalid_request` | A parameter is missing or invalid, including `as_of` (bad format, or a time that never happened or happened twice), or a submitted spec is. `details` lists each field. |
 | 403 | `prices_restricted` | Raw prices are turned off on this deployment (D2) |
+| 503 | `runs_unavailable` | [`POST /v1/backtests`](#post-v1backtests) can't take a run now: its queue is full, or this server can't save runs. The message says which. |
 | 500 | `internal_error` | A bug. The message is generic and never includes internals. |
 
 - **`message`** is a sentence the page can show as is.
   - An unknown ticker names the moment: "No security in our data used the ticker META as of June 5, 2020, 9:30 AM ET." Facebook traded as FB until June 2022.
   - For several invalid fields, it joins their messages.
-- **`details`** is `[]` except for `invalid_request`, where each entry names a parameter, such as `as_of`, `form`, or `limit`.
+- **`details`** is `[]` except for `invalid_request`, where each entry names a parameter, such as `as_of`, `form`, or `limit`, or a field of a submitted spec by its path, such as `schedule.fill`.
 - **Every error carries the CORS headers**, a 500 included, so the browser can read the body.
 
 ## TypeScript types
@@ -939,6 +1200,152 @@ export type Snapshot = {
 // GET /v1/catalog/series V1Response<CatalogSeries[]>, GET /v1/catalog/companies
 // V1Response<CatalogCompany[]>, and GET /v1/snapshot V1Response<Snapshot>.
 
+// Backtests (S8.4). ExperimentSpec is in frontend/features/backtests/types.ts.
+export type RunStatus = "queued" | "running" | "succeeded" | "failed";
+
+// One session's open or close: which price, never what it was.
+export type PricePoint = { session: string; price: "open" | "close" };
+
+// POST /v1/backtests answers with this: 202, or 200 for a run that's already saved.
+export type BacktestSubmitted = { run_id: string; status: RunStatus };
+
+export type BacktestMetrics = {
+  periods: number;
+  start: PricePoint;
+  end: PricePoint;
+  years: number;
+  total_return: number;
+  cagr: number | null;
+  volatility: number | null;
+  sharpe: number | null;
+  max_drawdown: number;
+  turnover: number | null;
+  hit_rate: number | null;
+  benchmark_total_return: number | null;
+  benchmark_cagr: number | null;
+  excess_return: number | null;
+  beta: number | null;
+  alpha: number | null;
+  mean_excess_return: number | null;
+  excess_t_stat: number | null;
+};
+
+export type BacktestPeriod = {
+  decision: string;
+  decision_time: string;
+  fill_time: string;
+  fill: PricePoint;
+  end: PricePoint;
+  universe_size: number;
+  holdings: number;
+  trades: number;
+  turnover: number;
+  cost: number;
+  gross_return: number;
+  net_return: number;
+  benchmark_return: number | null;
+  risk_free_rate: number | null;
+  value: number;
+};
+
+export type BacktestWarning = {
+  kind:
+    | "stopped_trading"
+    | "missing_signal"
+    | "empty_portfolio"
+    | "thin_ranking"
+    | "no_fill_price"
+    | "delisted_exit"
+    | "missing_price"
+    | "missing_benchmark"
+    | "missing_risk_free"
+    | "fill_after_end"
+    | "wiped_out";
+  decision: string;
+  message: string;
+  ticker: string | null;
+  signal: string | null;
+};
+
+export type BacktestResult = {
+  metrics: BacktestMetrics;
+  periods: BacktestPeriod[];
+  equity_curve: { at: PricePoint; value: number; benchmark: number | null }[];
+  warnings: BacktestWarning[];
+};
+
+// GET /v1/backtests/{run_id}
+export type BacktestRun = {
+  run_id: string;
+  status: RunStatus;
+  progress: { decisions_done: number; decisions_total: number } | null;
+  submitted_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  error: string | null;
+  spec: ExperimentSpec;
+  spec_hash: string;
+  data_version: string;
+  engine_version: string;
+  git_sha: string | null;
+  result: BacktestResult | null; // null until status is "succeeded"
+};
+
+export type AuditTable = {
+  table: string;
+  rows: number;
+  earliest_available_at: string;
+  latest_available_at: string;
+  sha256: string;
+  groups: {
+    key: string | number | boolean | null;
+    rows: number;
+    latest_available_at: string;
+    latest_source_ref: string;
+  }[];
+};
+
+export type AuditView = {
+  purpose: "decision" | "fill" | "end";
+  decision: string;
+  knowledge_time: string;
+  rows: number;
+  tables: AuditTable[];
+};
+
+export type BacktestHolding = {
+  decision: string;
+  ticker: string;
+  weight: number;
+  signals: Record<string, number>;
+  period_return: number;
+  exit: PricePoint;
+};
+
+export type BacktestTrade = {
+  decision: string;
+  ticker: string | null;
+  fill: PricePoint;
+  weight_before: number;
+  weight_after: number;
+  traded: number;
+  cost: number;
+};
+
+// GET /v1/backtests/{run_id}/audit, /holdings, and /trades. Each list is null until
+// status is "succeeded".
+export type BacktestAudit = { run_id: string; status: RunStatus; views: AuditView[] | null };
+export type BacktestHoldings = {
+  run_id: string;
+  status: RunStatus;
+  holdings: BacktestHolding[] | null;
+};
+export type BacktestTrades = {
+  run_id: string;
+  status: RunStatus;
+  trades: BacktestTrade[] | null;
+};
+
 export type V1Error = {
   error: {
     code:
@@ -948,6 +1355,7 @@ export type V1Error = {
       | "prices_restricted"
       | "not_found"
       | "method_not_allowed"
+      | "runs_unavailable"
       | "internal_error";
     message: string;
     details: { field: string; message: string }[];
@@ -963,10 +1371,7 @@ The backend allows requests from the origins in its `CORS_ORIGINS` setting: by d
 
 ## Coming next
 
-| Endpoint | Story | Sprint |
-| --- | --- | --- |
-| `POST /v1/backtests`, `GET /v1/backtests/{id}`, `GET /v1/backtests/{id}/audit` | S8.4 | 4 |
-
-`POST /v1/backtests` will take an experiment spec as its body: the model in [`app/backtest/spec.py`](../../backend/app/backtest/spec.py), whose JSON Schema is [`experiment-spec-v1.schema.json`](experiment-spec-v1.schema.json) (S7.1).
+- **Listing runs** waits for accounts and the run registry (S13.1, S16.5). Until then a run is reached by its ID.
+- **Generated TypeScript types** come with S8.6.
 
 A price history and a whole macro series as known at a time (`get_price_history_as_of` and `get_macro_series_as_of`) will get endpoints when a page needs them, using the same envelope.
