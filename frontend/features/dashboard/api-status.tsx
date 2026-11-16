@@ -51,8 +51,8 @@ export async function ApiOfflineHint() {
     <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
       <TerminalIcon className="mt-px size-3.5 shrink-0" aria-hidden />
       <p className="text-pretty">
-        The backend isn&apos;t running at <code className="font-mono">{API_URL}</code>.
-        Start it with{" "}
+        The backend isn&apos;t running at <code className="font-mono">{API_URL}</code>. Start it
+        with{" "}
         <code className="rounded bg-muted px-1 py-0.5 font-mono">
           cd backend && uv run fastapi dev
         </code>{" "}

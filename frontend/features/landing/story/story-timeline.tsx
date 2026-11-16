@@ -1,9 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import {
-  formatEtDateTime,
-  formatEtShortDate,
-  formatEtTime,
-} from "@/lib/time";
+import { formatEtDateTime, formatEtShortDate, formatEtTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 import { SLOT } from "./beats";
@@ -48,11 +44,7 @@ export function StoryTimeline() {
       className="mx-auto max-w-2xl px-6 pb-8 md:max-w-4xl story-animated:m-0 story-animated:max-w-none story-animated:p-0"
     >
       {STORY_STOPS.map((event, index) => (
-        <TimelineEvent
-          key={event.id}
-          event={event}
-          slot={SLOT.firstStop + index}
-        />
+        <TimelineEvent key={event.id} event={event} slot={SLOT.firstStop + index} />
       ))}
       <KnowledgeTimeRow />
       {STORY_LATER.map((event, index) => (
@@ -121,19 +113,12 @@ function TimelineEvent({
           {event.value}
         </p>
       ) : null}
-      <p
-        className={cn(
-          "mt-2 max-w-prose text-sm text-pretty text-muted-foreground",
-          pendingFade,
-        )}
-      >
+      <p className={cn("mt-2 max-w-prose text-sm text-pretty text-muted-foreground", pendingFade)}>
         {event.detail}
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
         <StateBadge kind={event.kind} />
-        <span className="font-mono text-xs text-muted-foreground">
-          {event.lesson}
-        </span>
+        <span className="font-mono text-xs text-muted-foreground">{event.lesson}</span>
       </div>
     </li>
   );
@@ -149,8 +134,7 @@ function Marker({ kind }: { kind: StoryEvent["kind"] }) {
         "absolute top-1.5 left-0 z-10 size-3 -translate-x-1/2 ring-4 ring-background",
         kind === "known" &&
           "rounded-full bg-foreground group-data-[state=pending]/stop:border group-data-[state=pending]/stop:border-foreground group-data-[state=pending]/stop:bg-background",
-        kind === "period" &&
-          "rounded-[3px] border border-muted-foreground bg-background",
+        kind === "period" && "rounded-[3px] border border-muted-foreground bg-background",
         kind === "later" &&
           "rounded-full border border-dashed border-muted-foreground bg-background",
       )}
@@ -170,10 +154,7 @@ function StateBadge({ kind }: { kind: StoryEvent["kind"] }) {
       <Badge variant="known" className="group-data-[state=pending]/stop:hidden">
         Known
       </Badge>
-      <Badge
-        variant="future"
-        className="hidden group-data-[state=pending]/stop:inline-flex"
-      >
+      <Badge variant="future" className="hidden group-data-[state=pending]/stop:inline-flex">
         Not yet known
       </Badge>
     </>
@@ -205,9 +186,7 @@ function KnowledgeTimeRow() {
             <span className="md:block">{formatEtTime(KNOWLEDGE_TIME)}</span>
           </time>
         </p>
-        <h3 className="mt-1 text-lg font-semibold tracking-tight md:mt-0">
-          Knowledge time
-        </h3>
+        <h3 className="mt-1 text-lg font-semibold tracking-tight md:mt-0">Knowledge time</h3>
         <p className="mt-1 text-sm text-pretty text-muted-foreground">
           Everything above this line was public. Nothing below it was.
         </p>
@@ -226,16 +205,11 @@ function SnapshotCard() {
       <h4 className="mt-1 font-semibold">What was known</h4>
       <dl className="mt-3 divide-y">
         {SNAPSHOT_KNOWN.map((row) => (
-          <div
-            key={row.label}
-            className="flex items-baseline justify-between gap-4 py-2.5"
-          >
+          <div key={row.label} className="flex items-baseline justify-between gap-4 py-2.5">
             <dt className="min-w-0">
               <span className="block text-sm">{row.label}</span>
               <span className="block font-mono text-xs text-muted-foreground">
-                {row.at
-                  ? `Public ${formatEtShortDate(row.at)}, ${formatEtTime(row.at)}`
-                  : row.note}
+                {row.at ? `Public ${formatEtShortDate(row.at)}, ${formatEtTime(row.at)}` : row.note}
               </span>
             </dt>
             <dd className="shrink-0 text-right font-mono text-sm font-medium tabular-nums">

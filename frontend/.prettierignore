@@ -1,0 +1,12 @@
+# Prettier also skips everything in .gitignore (.next/, node_modules/, ...).
+
+# shadcn/ui generates these (npx shadcn@latest add <name>); they keep the generator's style, so an
+# update can replace them cleanly (GUIDELINES.md).
+components/ui/
+
+# Prose is wrapped by hand, and next dev rewrites part of AGENTS.md.
+*.md
+
+# Written by tools.
+package-lock.json
+next-env.d.ts

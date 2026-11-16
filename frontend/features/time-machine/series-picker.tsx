@@ -45,8 +45,8 @@ export function SeriesPicker({ id, value, onChange, series, error, errorId }: Se
     <FieldSet id={id} aria-describedby={error ? errorId : undefined}>
       <FieldLegend variant="label">Economic series</FieldLegend>
       <FieldDescription className="text-xs">
-        Each value counts from its release time. A revision is a later vintage, so it
-        shows as not yet known.
+        Each value counts from its release time. A revision is a later vintage, so it shows as not
+        yet known.
       </FieldDescription>
       <FieldGroup data-slot="checkbox-group" className="gap-3">
         {[...series.options, ...unlisted].map((option) => {

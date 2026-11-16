@@ -5,13 +5,7 @@ import { useRouter } from "next/navigation";
 import { HistoryIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Field,
   FieldDescription,
@@ -141,8 +135,8 @@ export function ExplorerForm({
           <h2>Look back from a moment</h2>
         </CardTitle>
         <CardDescription className="text-pretty">
-          Choose a knowledge time, then companies or economic series. The address updates,
-          so the link always reproduces what you see.
+          Choose a knowledge time, then companies or economic series. The address updates, so the
+          link always reproduces what you see.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -190,9 +184,7 @@ export function ExplorerForm({
                 <FieldDescription id="tm-time-help" className="text-xs">
                   New York time. A blank time means 09:30 ET, the market open.
                 </FieldDescription>
-                {errors.as_of ? (
-                  <FieldError id={ERROR_ID.as_of}>{errors.as_of}</FieldError>
-                ) : null}
+                {errors.as_of ? <FieldError id={ERROR_ID.as_of}>{errors.as_of}</FieldError> : null}
               </FieldSet>
 
               <Field data-invalid={errors.tickers ? true : undefined}>
@@ -207,8 +199,8 @@ export function ExplorerForm({
                   describedBy={errors.tickers ? ERROR_ID.tickers : "tm-tickers-help"}
                 />
                 <FieldDescription id="tm-tickers-help" className="text-xs">
-                  Up to 10. A ticker means the company that used it at the knowledge time,
-                  so FB is Facebook in 2020.
+                  Up to 10. A ticker means the company that used it at the knowledge time, so FB is
+                  Facebook in 2020.
                 </FieldDescription>
                 {errors.tickers ? (
                   <FieldError id={ERROR_ID.tickers}>{errors.tickers}</FieldError>

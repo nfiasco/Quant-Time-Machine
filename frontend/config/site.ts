@@ -7,12 +7,10 @@ export const siteConfig = {
     "Test investment ideas using only the information that was actually available on each historical date.",
   course: "CISC 498/499 capstone · University of Delaware",
   repoUrl: "https://github.com/nfiasco/Quant-Time-Machine",
-  roadmapUrl:
-    "https://github.com/nfiasco/Quant-Time-Machine/blob/main/doc/roadmap.md",
+  roadmapUrl: "https://github.com/nfiasco/Quant-Time-Machine/blob/main/doc/roadmap.md",
   timeModelUrl:
     "https://github.com/nfiasco/Quant-Time-Machine/blob/main/doc/reference/time-model.md",
-  apiDocUrl:
-    "https://github.com/nfiasco/Quant-Time-Machine/blob/main/doc/reference/api-v1.md",
+  apiDocUrl: "https://github.com/nfiasco/Quant-Time-Machine/blob/main/doc/reference/api-v1.md",
   disclaimer: "For research and education. Not investment advice.",
   // Required by the FRED API terms of use wherever FRED data appears.
   fredNotice:

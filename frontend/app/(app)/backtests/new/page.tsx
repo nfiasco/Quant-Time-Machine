@@ -1,4 +1,3 @@
-
 import { CircleDashedIcon } from "lucide-react";
 
 import { PageHeader } from "@/components/layout/page-header";
@@ -9,9 +8,7 @@ import { findPreset } from "@/features/backtests/presets";
 
 export const metadata = routeMetadata(routes.backtestBuilder);
 
-export default async function NewBacktestPage(
-  props: PageProps<"/backtests/new">
-) {
+export default async function NewBacktestPage(props: PageProps<"/backtests/new">) {
   const { preset: presetId } = await props.searchParams;
   const preset = findPreset(presetId);
 
@@ -34,10 +31,7 @@ export default async function NewBacktestPage(
         </blockquote>
       ) : null}
 
-      <BacktestBuilder
-        key={preset?.id ?? "default"}
-        initialSpec={preset?.spec}
-      />
+      <BacktestBuilder key={preset?.id ?? "default"} initialSpec={preset?.spec} />
     </div>
   );
 }

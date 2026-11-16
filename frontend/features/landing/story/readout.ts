@@ -2,11 +2,7 @@
 // the engine can tween between them. Wall-clock arithmetic only (no time zones), and
 // all formatting goes through lib/time.ts.
 
-import {
-  formatEtShortDate,
-  formatEtTime,
-  type EtDateTime,
-} from "@/lib/time";
+import { formatEtShortDate, formatEtTime, type EtDateTime } from "@/lib/time";
 
 /** Minutes from 1970-01-01 00:00 to a wall-clock moment. */
 export function toMinutes(t: EtDateTime): number {

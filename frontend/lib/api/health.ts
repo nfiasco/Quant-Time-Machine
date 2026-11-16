@@ -2,9 +2,7 @@ import { cache } from "react";
 
 import { apiFetch } from "@/lib/api/client";
 
-export type ApiHealth =
-  | { status: "online" }
-  | { status: "offline"; reason: string };
+export type ApiHealth = { status: "online" } | { status: "offline"; reason: string };
 
 /**
  * Checks `GET /health` on the backend. Never throws: an unreachable or unhealthy API

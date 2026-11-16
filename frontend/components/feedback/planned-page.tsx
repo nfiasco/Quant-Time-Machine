@@ -66,8 +66,8 @@ export function PlannedPage({ route, actions, children }: PlannedPageProps) {
         <CardHeader>
           <CardTitle>What this page will do</CardTitle>
           <CardDescription>
-            This page isn&apos;t built yet. Here&apos;s what the finished version is
-            planned to include.
+            This page isn&apos;t built yet. Here&apos;s what the finished version is planned to
+            include.
           </CardDescription>
         </CardHeader>
         {highlights.length > 0 ? (

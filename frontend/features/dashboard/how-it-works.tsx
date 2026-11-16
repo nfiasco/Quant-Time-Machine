@@ -16,8 +16,7 @@ const steps: { title: string; body: React.ReactNode; route: AppRoute; cta: strin
     body: (
       <>
         Each monthly decision sees only data whose{" "}
-        <code className="font-mono text-xs">available_at</code> is at or before that
-        decision.
+        <code className="font-mono text-xs">available_at</code> is at or before that decision.
       </>
     ),
     route: routes.backtests,

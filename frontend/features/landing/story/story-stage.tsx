@@ -9,10 +9,9 @@ import { STORY_SCREENS } from "./beats";
 
 // The engine (GSAP, Lenis, the drawing, the ticker wall) is its own chunk, loaded only
 // in the browser and only when motion is allowed.
-const StoryEngine = dynamic(
-  () => import("./story-engine").then((mod) => mod.StoryEngine),
-  { ssr: false },
-);
+const StoryEngine = dynamic(() => import("./story-engine").then((mod) => mod.StoryEngine), {
+  ssr: false,
+});
 
 type StoryStageProps = {
   hero: ReactNode;

@@ -28,11 +28,7 @@ export function LogoMark({ className }: { className?: string }) {
       className={cn("size-6 shrink-0", className)}
     >
       <path d={ARC} />
-      <path
-        d={ARROWHEAD}
-        transform={ARROWHEAD_TRANSFORM}
-        className="stroke-primary"
-      />
+      <path d={ARROWHEAD} transform={ARROWHEAD_TRANSFORM} className="stroke-primary" />
     </svg>
   );
 }

@@ -14,9 +14,9 @@ export default function PrivacyPage() {
         <AlertTitle>Today, the app stores no personal data</AlertTitle>
         <AlertDescription>
           <p>
-            There are no accounts yet. Your theme choice is saved in your browser, and
-            whether the sidebar is open in a cookie; neither identifies you. This page
-            will be updated before accounts launch.
+            There are no accounts yet. Your theme choice is saved in your browser, and whether the
+            sidebar is open in a cookie; neither identifies you. This page will be updated before
+            accounts launch.
           </p>
         </AlertDescription>
       </Alert>

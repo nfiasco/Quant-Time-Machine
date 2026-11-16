@@ -13,11 +13,7 @@ export type SnapshotParams = {
  * the API reads only the last of repeated keys. Empty lists are left out. Commas and
  * colons stay readable, since they're allowed in a query string.
  */
-export function snapshotPath({
-  asOf,
-  tickers,
-  series,
-}: SnapshotParams): `/v1/snapshot?${string}` {
+export function snapshotPath({ asOf, tickers, series }: SnapshotParams): `/v1/snapshot?${string}` {
   const query = new URLSearchParams({ as_of: asOf });
   if (tickers.length > 0) query.set("tickers", tickers.join(","));
   if (series.length > 0) query.set("series", series.join(","));

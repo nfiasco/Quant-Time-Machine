@@ -11,9 +11,7 @@ import { applyTheme, saveTheme } from "@/lib/theme";
  */
 export function ThemeToggle({ className }: { className?: string }) {
   function toggle() {
-    const next = document.documentElement.classList.contains("dark")
-      ? "light"
-      : "dark";
+    const next = document.documentElement.classList.contains("dark") ? "light" : "dark";
     applyTheme(next);
     saveTheme(next);
   }

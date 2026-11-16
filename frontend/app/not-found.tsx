@@ -22,8 +22,8 @@ export default function NotFound() {
           This page doesn&apos;t exist
         </h1>
         <p className="text-sm text-pretty text-muted-foreground">
-          Either the link is wrong, or the page hasn&apos;t been published yet. Nothing
-          here was known at this moment.
+          Either the link is wrong, or the page hasn&apos;t been published yet. Nothing here was
+          known at this moment.
         </p>
         <Button asChild>
           <Link href={routes.dashboard.href}>Back to the dashboard</Link>

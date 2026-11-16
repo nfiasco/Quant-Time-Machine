@@ -50,13 +50,15 @@ Read it only through [`lib/api/client.ts`](lib/api/client.ts) (`API_URL`, `apiUr
 
 ## Scripts
 
-| Command         | What it does                                          |
-| --------------- | ----------------------------------------------------- |
-| `npm run dev`   | Start the dev server on port 3000                     |
-| `npm run build` | Production build (also type-checks the project)       |
-| `npm run start` | Serve the production build (run `build` first)        |
-| `npm run lint`  | Lint with ESLint                                      |
-| `npm test`      | Run the unit tests once with Vitest                   |
+| Command                | What it does                                             |
+| ---------------------- | -------------------------------------------------------- |
+| `npm run dev`          | Start the dev server on port 3000                        |
+| `npm run build`        | Production build (also type-checks the project)          |
+| `npm run start`        | Serve the production build (run `build` first)           |
+| `npm run lint`         | Lint with ESLint                                         |
+| `npm run format`       | Format the code with Prettier                            |
+| `npm run format:check` | Check the formatting without changing files (CI runs it) |
+| `npm test`             | Run the unit tests once with Vitest                      |
 
 ## Project structure
 
