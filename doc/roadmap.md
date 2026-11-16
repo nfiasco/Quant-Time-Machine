@@ -688,7 +688,7 @@ Every story in one table. Verified contributors are listed for completed stories
 | [S8.1](#s81-api-conventions) | API conventions | E8 | P0 | S | 2 | M2 | ✅ Done | [#23](https://github.com/nfiasco/Quant-Time-Machine/issues/23) | [nfiasco](https://github.com/nfiasco) |
 | [S8.2](#s82-as-of-data-endpoints) | As-of data endpoints | E8 | P0 | M | 2–3 | M3 | ✅ Done | [#24](https://github.com/nfiasco/Quant-Time-Machine/issues/24) | [nfiasco](https://github.com/nfiasco) |
 | [S8.3](#s83-knowledge-snapshot-endpoint) | Knowledge snapshot endpoint | E8 | P0 | M | 3 | M3 | ✅ Done | [#145](https://github.com/nfiasco/Quant-Time-Machine/issues/145) | [nfiasco](https://github.com/nfiasco) |
-| [S8.4](#s84-backtest-endpoints) | Backtest endpoints | E8 | P0 | M | 4 | M4 | Backlog | [#25](https://github.com/nfiasco/Quant-Time-Machine/issues/25) | See issue |
+| [S8.4](#s84-backtest-endpoints) | Backtest endpoints | E8 | P0 | M | 4 | M4 | In review | [#25](https://github.com/nfiasco/Quant-Time-Machine/issues/25) | See issue |
 | [S8.5](#s85-catalog-endpoints) | Catalog endpoints | E8 | P0 | S | 3 | M3 | ✅ Done | [#146](https://github.com/nfiasco/Quant-Time-Machine/issues/146) | [nfiasco](https://github.com/nfiasco) |
 | [S8.6](#s86-typed-client-and-response-caching) | Typed client and response caching | E8 | P2 | S | 5 | M5 | Backlog | [#147](https://github.com/nfiasco/Quant-Time-Machine/issues/147) | See issue |
 | [S9.1](#s91-app-shell-and-api-client) | App shell and API client | E9 | P0 | S | 2 | M2 | In review | [#148](https://github.com/nfiasco/Quant-Time-Machine/issues/148) | See issue |
@@ -2121,7 +2121,7 @@ Evidence: `doc/research/canonical-backtest.md`, `backend/tests/test_benchmark_vs
 
 #### S8.4 Backtest endpoints
 
-**Priority:** P0 · **Size:** M · **Sprint:** 4 · **Milestone:** M4 · **Area:** api · **Depends on:** S7.7, S8.1 · **Reqs:** FR-A3 · **Status:** Backlog
+**Priority:** P0 · **Size:** M · **Sprint:** 4 · **Milestone:** M4 · **Area:** api · **Depends on:** S7.7, S8.1 · **Reqs:** FR-A3 · **Status:** In review
 
 **Story:** As a frontend developer, I want to submit a spec and get results back, so that users can run backtests from the browser.
 
@@ -2133,12 +2133,40 @@ Evidence: `doc/research/canonical-backtest.md`, `backend/tests/test_benchmark_vs
 
 **Tasks**
 
-- [ ] Write the endpoints and models
-- [ ] Add background execution if needed
-- [ ] Write the tests
+- [x] Write the endpoints and models: [`app/api/backtests.py`](../backend/app/api/backtests.py), with the contract in [`api-v1.md`](reference/api-v1.md#backtests).
+  - `POST /v1/backtests` answers with the run's ID at once: 202 when it's queued or already in progress, and 200 when that run is already saved, since a run ID names its inputs.
+  - A 422 names each field by its path in the spec, with the spec's own sentences (`parse_spec`). It also covers what the engine can refuse before it reads any data, such as value weights or a period with no decision: `check_runnable` in [`simulation.py`](../backend/app/backtest/simulation.py).
+  - `GET /v1/backtests/{run_id}` has the status, the progress, the spec as it runs, the versions, and once the run has succeeded, its metrics, holding periods, equity curve, and warnings.
+  - `GET /v1/backtests/{run_id}/audit` has what each view read, for every decision or one (`?decision=2020-06-01`). `/holdings` and `/trades` serve those files the same way, for S9.6's tables.
+  - Times are in New York time (D12), internal security IDs are left out of holdings, trades, and warnings, and no response holds a price (D2).
+- [x] Add background execution if needed: [`app/run_queue.py`](../backend/app/run_queue.py). It's needed: the whole canonical period takes over three minutes.
+  - One worker thread in the API's process runs one spec at a time, with up to five waiting. A sixth gets a 503 `runs_unavailable`. There's no broker and no second process.
+  - A run's status is a job file, `DATA_DIR/runs/_jobs/<run ID>.json`, so the run's own files stay free of clocks (S7.7). A saved run has succeeded with or without one, so runs saved by `python -m app.runs` are served too.
+  - `simulate` takes an optional `on_decision` hook, which the queue uses to report decisions done out of the total. It doesn't change a result, so `ENGINE_VERSION` stays 1.0.0, and the pinned-hash test agrees.
+  - `execute(run_id, settings)` is a plain function that reads a job, runs it, and writes how it ended, so a task queue could call it on a host without background threads ([hosting](reference/hosting.md)).
+- [x] Write the tests: [`tests/test_api_backtests.py`](../backend/tests/test_api_backtests.py) and [`tests/test_run_queue.py`](../backend/tests/test_run_queue.py), on the toy market, in CI's `uv run pytest`.
+  - A submitted run's result equals its saved files, with the same instants in New York time, and no toy price in any response.
+  - 422s for the spec's rules and the engine's, with their field paths, and nothing queued.
+  - A run held in progress reports its progress, isn't queued twice, and fills the queue at five waiting.
+  - A failed run says what's wrong with the spec, or only that the problem is ours, and can be submitted again.
+  - The response models carry every field of the engine's records but internal IDs, so a new field can't be missed.
 - [ ] Mark interrupted background runs failed after restart, and set Railway CPU/memory limits from real run measurements (deployment follow-up from S15.1)
+  - Done: as the server starts, `RunQueue.recover()` marks every job still `queued` or `running` as failed, with "The server restarted before this run finished. Submit it again." It runs from the app's lifespan in [`app/main.py`](../backend/app/main.py), so building an app in a test can't fail a run a server has going.
+  - Not done: the Railway steps. The deployed server's user can't write to its volume, so `POST /v1/backtests` answers 503 there until `/data/runs` is made writable, and the CPU and memory limits aren't set. Both are written out, with suggested limits, in [`hosting.md`](reference/hosting.md#next-steps).
 
-**Progress evidence (2026-11-08):** No implementation or completion evidence for these acceptance criteria is present in the audited commit. This remains planned work.
+**Progress evidence (2026-11-15):** The endpoints run a submitted spec in the background and serve its status, results, and audit. Checked against a local server on the real store (data version 20261111T030742Z):
+- **A saved run answers at once.** Submitting the canonical spec for 2010 to 2025 answered 200 with run `ffe49fd67e83…`, S7.8's, and its result has the same CAGR of 18.5% against SPY's 13.9%, a Sharpe ratio of 1.06, and 340 warnings.
+- **A new run goes in the background.** The same spec for 2020 to 2022 answered 202 with run `9dfedcfa9183…`, the ID S7.7 measured. Polling showed `running` with 6, 10, 13, and on to 34 of 36 decisions, then `succeeded` after 36 seconds, with a CAGR of 17.2% against 7.3%. While it ran, `/health` answered in 1 to 5 ms, and the polls in 2 to 61 ms.
+- **The audit by decision.** `?decision=2020-06-01` gave two views in 29 KB. The decision's read 17,732 rows, and Apple's newest facts came from `0000320193-20-000052`, known at 18:03 ET on April 30, as in S7.7. The whole audit is 1.1 MB for that run and 5.9 MB for 2010 to 2025, which took 0.1 seconds to serve.
+- **A restart.** Stopping the server 5 decisions into a 48-decision run and starting it again left that run `failed` with the restart sentence, no result, and no half-written folder.
+- **Refusals.** Value weights answered 422 naming `portfolio.weighting`, and an unknown ID 404.
+- **Not done.** The Railway steps above, so the deployed API can't take a run yet. Nothing was changed on Railway.
+- **Not built.** Listing runs, and tying a run to a user, wait for S13.1 and S16.5. Nobody signs in to submit one (S16.4), so the queue's limit of one running and five waiting is the only guard.
+- **For S9.5.** Any 2xx from `POST /v1/backtests` means "read the run": poll `GET /v1/backtests/{run_id}` every few seconds until `status` is `succeeded` or `failed`, and show `progress`. A 422's `details[].field` uses the builder's own paths, such as `costs.bps_per_trade`. The TypeScript types are in [`api-v1.md`](reference/api-v1.md#typescript-types), and `runs_unavailable` joins the error codes.
+- **For S9.6.** The equity curve, and the drawdown drawn from it, are in `result.equity_curve`. The assumptions are in `spec` and `data_version`, the warnings in `result.warnings`, the holdings at each rebalance at `/holdings?decision=`, and the audit drill-down at `/audit?decision=`. The run ID in the path is the permanent link. In the audit, a group of price bars is keyed by our own security ID, not a ticker.
+- **For S10.4.** `RunQueue.submit` and `RunQueue.get` are what `run_backtest(spec)` and `get_backtest_result(run_id)` need.
+
+Evidence: `backend/app/api/backtests.py`, `backend/app/run_queue.py`, `backend/app/runs.py`, `backend/app/backtest/simulation.py`, `backend/app/main.py`, `backend/app/api/examples.py`, `backend/app/api/errors.py`, `doc/reference/api-v1.md`, `doc/reference/runs.md`, `doc/reference/hosting.md`, `backend/tests/test_api_backtests.py`, `backend/tests/test_run_queue.py`, `backend/tests/test_simulation.py`.
 
 **GitHub:** [#25](https://github.com/nfiasco/Quant-Time-Machine/issues/25) · **Parent epic:** [#102](https://github.com/nfiasco/Quant-Time-Machine/issues/102)
 
