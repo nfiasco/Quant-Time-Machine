@@ -978,6 +978,7 @@ BACKTEST = _no_such_run()
 BACKTEST_AUDIT = _no_such_run("/audit")
 BACKTEST_HOLDINGS = _no_such_run("/holdings")
 BACKTEST_TRADES = _no_such_run("/trades")
+BACKTEST_COVERAGE = _no_such_run("/coverage")
 
 WITHOUT_RAW_PRICES = frozenset({SNAPSHOT_JUNE_5})
 """Requests whose examples show a server with raw prices off, as deployed (D2), so
@@ -1009,6 +1010,7 @@ def keep_nulls(app: FastAPI) -> None:
             BACKTEST_AUDIT,
             BACKTEST_HOLDINGS,
             BACKTEST_TRADES,
+            BACKTEST_COVERAGE,
         )
         for status, response in responses.items()
         for example in _examples_in(response).values()
