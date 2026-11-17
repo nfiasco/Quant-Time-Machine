@@ -300,6 +300,17 @@ class CostsSpec(_Part):
     """Basis points of the value traded, charged on every trade: 10 is 0.1%."""
 
 
+class DelistingSpec(_Part):
+    """What a holding is worth once it stops trading (S6.7): its last close that
+    traded, after `assumed_return`. It's closed at the next fill, unless it was written
+    off."""
+
+    assumed_return: float = Field(default=0.0, ge=-1, le=0, allow_inf_nan=False)
+    """The return assumed after its last close: 0, the default, keeps that close's
+    value; -0.3 assumes it lost 30% more, as stocks delisted for poor performance did
+    on average (Shumway, 1997); -1 writes it off. A short gains what the stock loses."""
+
+
 class ExperimentSpec(_Part):
     """Experiment spec version 1: everything that defines a backtest."""
 
@@ -320,6 +331,8 @@ class ExperimentSpec(_Part):
     benchmark: str = Field(json_schema_extra={"pattern": f"^{TICKER.pattern}$"})
     """The ticker the results are compared with, such as "SPY"."""
     costs: CostsSpec
+    delisting: DelistingSpec = DelistingSpec()
+    """How a holding that stops trading is valued. Without it, at its last close."""
 
     @field_validator("name")
     @classmethod
@@ -482,12 +495,9 @@ def _explain(field: str, kind: str, context: Mapping[str, Any], message: str) ->
             tags = [tag.strip("'") for tag in context["expected_tags"].split(", ")]
             return f"{field} must be {_one_of(tags)}."
         case "greater_than_equal":
-            bound = context["ge"]  # 0.0 for a float field
-            if isinstance(bound, float) and bound.is_integer():
-                bound = int(bound)
-            return f"{field} must be at least {bound}."
+            return f"{field} must be at least {_bound(context['ge'])}."
         case "less_than_equal":
-            return f"{field} must be at most {context['le']}."
+            return f"{field} must be at most {_bound(context['le'])}."
         case "int_parsing" | "int_from_float" | "int_type":
             return f"{field} must be a whole number."
         case "float_parsing" | "float_type":
@@ -507,6 +517,13 @@ def _explain(field: str, kind: str, context: Mapping[str, Any], message: str) ->
     if kind.startswith("date"):
         return f"{field} must be a date such as 2020-04-01."
     return f"{field} is invalid: {message.rstrip('.')}."
+
+
+def _bound(bound: float) -> float:
+    """A field's limit as its message writes it: a float field's 0.0 as 0."""
+    if isinstance(bound, float) and bound.is_integer():
+        return int(bound)
+    return bound
 
 
 if __name__ == "__main__":

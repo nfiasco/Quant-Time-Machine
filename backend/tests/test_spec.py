@@ -68,9 +68,10 @@ def test_the_canonical_spec_is_valid() -> None:
     assert spec.schedule.decision_time == time(9, 30)
     assert spec.signals["mom_12_1"].type == "momentum"
     # Nothing is lost on the way back to JSON, and a saved spec states that it had no
-    # ranking.
+    # ranking and kept each delisted holding's last close.
     saved = canonical()
     saved["portfolio"]["rank"] = None
+    saved["delisting"] = {"assumed_return": 0.0}
     assert spec.model_dump(mode="json") == saved
 
 
@@ -106,6 +107,9 @@ def test_the_canonical_spec_is_valid() -> None:
             },
         ),
         ("costs.bps_per_trade", 2.5),
+        ("delisting", {"assumed_return": -0.3}),
+        ("delisting", {"assumed_return": -1}),
+        ("delisting", {}),
         ("benchmark", "BRK.B"),
     ],
 )
@@ -140,7 +144,18 @@ def test_a_ranking_is_saved_as_it_was_written() -> None:
 
     assert spec.portfolio.rank is not None
     assert spec.portfolio.rank.quantiles == 5
-    assert spec.model_dump(mode="json") == changed("portfolio.rank", rank)
+    assert spec.model_dump(mode="json") == changed("portfolio.rank", rank) | {
+        "delisting": {"assumed_return": 0.0}  # a default, written out
+    }
+
+
+def test_a_delisting_return_is_saved_as_it_was_written() -> None:
+    spec = parse_spec(changed("delisting", {"assumed_return": -0.3}))
+
+    assert spec.delisting.assumed_return == -0.3
+    assert spec.model_dump(mode="json")["delisting"] == {"assumed_return": -0.3}
+    # Left out, it's 0: a holding that stops trading keeps its last close's value.
+    assert parse_spec(canonical()).delisting.assumed_return == 0.0
 
 
 def test_a_1600_decision_fills_at_the_next_open() -> None:
@@ -425,6 +440,32 @@ INVALID = [
         "costs.bps_per_trade",
         "costs.bps_per_trade must be at least 0.",
     ),
+    # The canonical spec has no delisting section, so each change sets all of it.
+    (
+        "delisting",
+        {"assumed_return": -1.5},
+        "delisting.assumed_return",
+        "delisting.assumed_return must be at least -1.",
+    ),
+    (
+        "delisting",
+        {"assumed_return": 0.1},
+        "delisting.assumed_return",
+        "delisting.assumed_return must be at most 0.",
+    ),
+    (
+        "delisting",
+        {"assumed_return": "-0.3%"},
+        "delisting.assumed_return",
+        "delisting.assumed_return must be a number.",
+    ),
+    (
+        "delisting",
+        {"rule": "last_close"},
+        "delisting.rule",
+        "delisting.rule isn't part of experiment spec version 1.",
+    ),
+    ("delisting", -0.3, "delisting", "delisting must be an object."),
 ]
 """A change to the canonical spec, and the one problem it should report."""
 

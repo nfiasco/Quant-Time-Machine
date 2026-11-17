@@ -49,4 +49,9 @@ export type ExperimentSpec = {
   };
   benchmark: string;
   costs: { bps_per_trade: number };
+  /**
+   * The return assumed after a holding's last close once it stops trading, from -1
+   * (written off) to 0, the default (its last close): doc/reference/portfolio.md (S6.7).
+   */
+  delisting?: { assumed_return: number };
 };

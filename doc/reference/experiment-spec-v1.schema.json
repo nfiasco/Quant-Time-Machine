@@ -18,6 +18,22 @@
       "title": "CostsSpec",
       "type": "object"
     },
+    "DelistingSpec": {
+      "additionalProperties": false,
+      "description": "What a holding is worth once it stops trading (S6.7): its last close that\ntraded, after `assumed_return`. It's closed at the next fill, unless it was written\noff.",
+      "properties": {
+        "assumed_return": {
+          "default": 0.0,
+          "description": "The return assumed after its last close: 0, the default, keeps that close's\nvalue; -0.3 assumes it lost 30% more, as stocks delisted for poor performance did\non average (Shumway, 1997); -1 writes it off. A short gains what the stock loses.",
+          "maximum": 0,
+          "minimum": -1,
+          "title": "Assumed Return",
+          "type": "number"
+        }
+      },
+      "title": "DelistingSpec",
+      "type": "object"
+    },
     "FilterSpec": {
       "additionalProperties": false,
       "description": "A condition every holding must meet at a decision, such as rev_accel > 0.",
@@ -393,6 +409,13 @@
     },
     "costs": {
       "$ref": "#/$defs/CostsSpec"
+    },
+    "delisting": {
+      "$ref": "#/$defs/DelistingSpec",
+      "default": {
+        "assumed_return": 0.0
+      },
+      "description": "How a holding that stops trading is valued. Without it, at its last close."
     }
   },
   "required": [
