@@ -1,6 +1,6 @@
 # Portfolio construction and costs
 
-> **Story S7.5.** Version 1, 2026-11-12. To change a rule, update [`app/backtest/portfolio.py`](../../backend/app/backtest/portfolio.py), the loop in [`app/backtest/simulation.py`](../../backend/app/backtest/simulation.py), the `portfolio` model in [`app/backtest/spec.py`](../../backend/app/backtest/spec.py), their tests, and this page together.
+> **Story S7.5.** Version 1, 2026-11-12; [delistings](#6-delistings) added 2026-11-17 (S6.7). To change a rule, update [`app/backtest/portfolio.py`](../../backend/app/backtest/portfolio.py), the loop in [`app/backtest/simulation.py`](../../backend/app/backtest/simulation.py), the `portfolio` model in [`app/backtest/spec.py`](../../backend/app/backtest/spec.py), their tests, and this page together.
 
 A portfolio is a weight for each stock held, set at each decision from the signals' values then ([signal library](signals.md)). Three parts of a spec decide it:
 
@@ -108,6 +108,27 @@ net      = (1 + gross) × (1 − cost) − 1
 - **Weights drift.** Before a fill, a holding's weight is its target moved by its return, w(1 + r), over the portfolio's growth, 1 + R. After a loss the same positions are a bigger share of a smaller portfolio, so a long-short portfolio's weights have no limit, and neither does its turnover.
 - **A portfolio can run out.** Long-only portfolios can't lose more than they hold. A short can: if a period ends with nothing left, the period is recorded with a value of 0 and returns of −100%, and the run ends there (`wiped_out`). So does a run whose next trades would cost as much as the portfolio is worth; no trade is made, and the last period's value stands.
 
+## 6. Delistings
+
+A stock that stops trading while it's held, because its company was acquired, taken private, or went bankrupt, has no price at the next fill. The loop values it at its last close that traded, holds that value until the next fill, and closes it there, at a cost like any trade (S7.3). A bar without volume doesn't count, nor does a vendor's bar from the day the curated history says the stock stopped trading on, such as Xilinx's 353 shares on February 14, 2022 ([data sources](data-sources.md#universe-v1-starter_large_caps-decision-d3)).
+
+What the stock was worth after that close isn't in our data. A cash acquisition pays about the last close; a bankruptcy pays far less. The spec says what to assume (S6.7):
+
+```json
+"delisting": { "assumed_return": -0.3 }
+```
+
+| `assumed_return` | The holding is worth | The `delisted_exit` warning |
+| --- | --- | --- |
+| `0`, the default | Its last close | CCC stopped trading after 2021-03-10, so it was valued at that day's close, and sold at the next fill, on 2021-04-01. |
+| `-0.3` | Its last close less 30%: the average Shumway found for stocks delisted for poor performance ("The Delisting Bias in CRSP Data", *Journal of Finance*, 1997) | CCC stopped trading after 2021-03-10, so it was valued at that day's close less 30%, the spec's assumed delisting return, and sold at the next fill, on 2021-04-01. |
+| `-1` | Nothing: it's written off, and there's nothing to sell at the next fill | CCC stopped trading after 2021-03-10, so it was written off after that day's close: the spec assumes a delisting return of -100%. |
+
+- **It must be from −1 to 0.** A spec without it keeps the last close.
+- **A short gains what the stock loses:** at −0.3 it's bought back for 30% less, and at −1 for nothing. A long portfolio that held only a stock that's written off ends the run (`wiped_out`).
+- **The holding's `period_return` includes the assumption.** Its `exit` is still its last close, and the run's [coverage report](runs.md#the-coverage-report) lists each exit.
+- **A missing bar isn't a delisting.** A holding that still trades but has no bar at the period's end is valued at its last close without the assumption (`missing_price`).
+
 ## Worked example
 
 Three made-up stocks, a ranking in thirds, long the top and short the bottom, at 10 bps. `test_a_hand_checked_long_short_run` checks every number.
@@ -141,7 +162,7 @@ A run doesn't stop for these. Each says what was assumed:
 | `thin_ranking` | Fewer members were ranked than the ranking has quantiles | Only 3 members of starter_large_caps could be ranked by mom at the 2021-01-04 decision, fewer than the ranking's 5 quantiles, so the top one was held. |
 | `empty_portfolio` | No member was chosen, or a long-short portfolio had one to rank | Only 1 member of starter_large_caps could be ranked by mom at the 2021-02-01 decision, and a long-short portfolio needs 2, so the portfolio held cash. |
 | `no_fill_price` | A chosen stock had no price at the fill | BBB had no price at the close on 2021-02-01, so it wasn't sold short, and the portfolio went without it until the next fill. |
-| `delisted_exit` | A holding stopped trading before its period ended | CCC stopped trading after 2021-03-10, so it was valued at that day's close, and bought back at the next fill, on 2021-04-01. |
+| `delisted_exit` | A holding stopped trading before its period ended. It's valued at its last close, after the spec's [assumed delisting return](#6-delistings), which the warning names unless it's 0 | CCC stopped trading after 2021-03-10, so it was valued at that day's close, and bought back at the next fill, on 2021-04-01. |
 | `wiped_out` | The portfolio had nothing left, or couldn't pay for its trades. The run ends | The portfolio had nothing left at the close on 2021-02-01: what it held since the 2021-01-04 decision lost all of its value, so the run ended there. |
 
 ## Known limitations
@@ -157,6 +178,7 @@ A run doesn't stop for these. Each says what was assumed:
 9. **The cost is charged on the value traded before costs.** The exact trades, on the slightly smaller portfolio, differ by about the cost times itself.
 10. **The long-short cost ceiling isn't a guarantee.** After a loss, turnover can pass 4, as in March above. Each fill checks that the portfolio can pay for its trades.
 11. **A portfolio is valued only at fills.** One whose shorts would have wiped it out mid-month, then recovered, carries on. Nothing forces a short to close between fills.
+12. **One delisting return for every delisting.** Our data doesn't say why a stock stopped trading, so a spec can't treat an acquisition differently from a bankruptcy. The default, 0, fits acquisitions, and the canonical run's three delistings, Celgene, Xilinx, and Pioneer, were all acquired. A harsher assumption shows how much a result depends on what its delisted holdings were worth.
 
 ## Named tests
 
@@ -174,6 +196,12 @@ A run doesn't stop for these. Each says what was assumed:
 | `test_a_long_short_portfolio_needs_two_members_to_rank` | Cash, with its own `empty_portfolio` sentence |
 | `test_a_short_without_a_fill_price_isnt_opened` | `no_fill_price` for a short |
 | `test_a_delisted_short_is_bought_back_at_its_last_close` | A short's `delisted_exit` |
+| `test_an_assumed_delisting_return_follows_the_last_close` | A long valued 30% below its last close, and the warning's wording |
+| `test_a_delisted_short_gains_what_the_assumed_return_takes` | The same for a short |
+| `test_a_delisted_holding_can_be_written_off` | −1, with nothing to sell at the next fill |
+| `test_a_written_off_short_isnt_traded` | −1 for a short: nothing to buy back |
+| `test_writing_off_all_a_portfolio_held_ends_the_run` | `wiped_out` after a write-off |
+| `test_a_missing_price_isnt_a_delisting` | `missing_price` exits get no assumption |
 | `test_a_short_that_loses_everything_ends_the_run` | `wiped_out` at a period's end, past zero and exactly at it |
 | `test_trades_the_portfolio_cant_pay_for_end_the_run` | `wiped_out` at a fill, at 2,400 bps |
 | `test_a_macro_change_cant_rank_securities` | The spec rejects a ranking by a macro change |
