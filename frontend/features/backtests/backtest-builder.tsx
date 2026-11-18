@@ -20,6 +20,8 @@ import type { ExperimentSpec } from "@/features/backtests/types";
 import {
   decisionFromTime,
   decisionTime,
+  delistingFromLoss,
+  delistingLoss,
   validateSpec,
   //from "@/features/backtests/validation";
 } from "./validation";
@@ -39,6 +41,9 @@ export function BacktestBuilder({ initialSpec = canonicalPreset.spec }: Backtest
   const [spec, setSpec] = useState<ExperimentSpec>(initialSpec);
   // The cost field's text, so clearing it shows an error instead of silently becoming 0.
   const [costText, setCostText] = useState(String(initialSpec.costs.bps_per_trade));
+  // The delisting loss's text, likewise. The spec gets a delisting section only once
+  // it's edited: without one, a holding that stops trading keeps its last close.
+  const [lossText, setLossText] = useState(delistingLoss(initialSpec.delisting));
 
   const errors = validateSpec(spec);
   const isValid = Object.keys(errors).length === 0;
@@ -214,6 +219,32 @@ export function BacktestBuilder({ initialSpec = canonicalPreset.spec }: Backtest
                     {...invalidProps("costs.bps_per_trade")}
                   />
                   {fieldError("costs.bps_per_trade")}
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="delisting">Delisting loss (%)</FieldLabel>
+                  <Input
+                    id="delisting"
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    max={100}
+                    step="any"
+                    className="font-mono tabular-nums"
+                    value={lossText}
+                    onChange={(e) => {
+                      const text = e.target.value;
+                      setLossText(text);
+                      setSpec((s) => ({ ...s, delisting: delistingFromLoss(text) }));
+                    }}
+                    {...invalidProps("delisting.assumed_return")}
+                  />
+                  {errors["delisting.assumed_return"] ? (
+                    fieldError("delisting.assumed_return")
+                  ) : (
+                    <FieldDescription>
+                      If a holding stops trading: 0 keeps its last close, 100 writes it off.
+                    </FieldDescription>
+                  )}
                 </Field>
               </div>
             </FieldGroup>
