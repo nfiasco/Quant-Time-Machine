@@ -17,7 +17,9 @@ CRSP-based source would only implement the fetch:
   never rely on adjusted prices. Total returns round split factors such as 7.000007
   (app/backtest/returns.py).
 - **Missing sessions.** Sessions inside a fetched range that came back without a bar
-  are logged and returned in each security's summary; S6.7 reports coverage.
+  are logged and returned in each security's summary. `python -m app.data.coverage`
+  reports every universe member's missing sessions, and those without trades, while it
+  was a member (S6.7).
 """
 
 import logging
