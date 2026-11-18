@@ -226,6 +226,32 @@ class FundamentalsCoverage:
 
 
 @dataclass(frozen=True)
+class PriceCoverage:
+    """How one company's daily bars cover the sessions it should have traded in as a
+    universe member (S6.7): while it was a member, until it stopped trading, and
+    through the last session closed by the knowledge time."""
+
+    security_id: str
+    name: str
+    """The company's name at the knowledge time."""
+    spells: tuple[tuple[date, date | None], ...]
+    """Each membership's first day and the first day it wasn't a member any more, None
+    if it hadn't left by the knowledge time. In order."""
+    stopped_trading: date | None
+    """The first day it didn't trade, if it had stopped by the knowledge time
+    (app/data/sources/securities.toml)."""
+    sessions: int
+    """The sessions it should have traded in."""
+    missing: tuple[date, ...]
+    """Those without a bar, or whose bar has no close above zero."""
+    no_trades: tuple[date, ...]
+    """Those whose bar has no volume: nothing traded, as when trading was halted."""
+    last_traded: date | None
+    """Its last session with volume from its first membership on, before any day it
+    stopped trading: the close a delisting exit values it at. None if there's none."""
+
+
+@dataclass(frozen=True)
 class DateRange:
     """The first and last dates of something in our data, both included."""
 

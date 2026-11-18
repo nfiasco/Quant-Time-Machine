@@ -33,6 +33,8 @@ app/data/records.py:
   by then (S5.7)
 - `fundamentals_coverage`: how a standard metric's XBRL concepts cover each universe
   member's filings (S5.6)
+- `price_coverage`: how each universe member's daily bars cover the sessions it should
+  have traded in (S6.7)
 
 Callers use one view per request or backtest decision, and close it when done:
 
@@ -44,9 +46,10 @@ A view isn't thread-safe: never use one from two threads at once. Handing it fro
 thread to the next, as the API's worker threads do within a request, is fine.
 """
 
+from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Self
 
@@ -62,6 +65,7 @@ from app.data.records import (
     FundamentalsCoverage,
     MacroObservation,
     PriceBar,
+    PriceCoverage,
     Security,
     SeriesCoverage,
     UniverseMember,
@@ -864,6 +868,102 @@ class PointInTimeView:
             ambiguous=found.ambiguous,
         )
 
+    def price_coverage(self, universe: str) -> list[PriceCoverage]:
+        """How the daily bars of every company that was in a universe by the knowledge
+        time, those that left included, cover the sessions it should have traded in
+        (S6.7).
+
+        For each company, by security ID: the NYSE sessions from each membership's
+        first day until it left, it stopped trading, or the last session closed by the
+        knowledge time, whichever comes first; those without a bar with a close; those
+        whose bar has no volume; and its last session with volume, the close a
+        delisting exit values it at. A bar from the day it stopped trading on, such as
+        Twitter's on October 28, 2022, isn't counted: it's a vendor's leftover, which
+        the engine ignores too (app/backtest/returns.py). Raises NotFoundError for a
+        universe that isn't in app/data/sources/universes.toml.
+        """
+        name = _universe(universe).name
+        spells = self._select(
+            "universe_members",
+            where="universe = ?",
+            params=[name],
+            latest_per_key=True,
+            order_by="security_id, added",
+        )
+        if not spells:
+            return []
+        ids = sorted({row["security_id"] for row in spells})
+        in_ids = f"security_id IN ({', '.join('?' * len(ids))})"
+        identities = {
+            row["security_id"]: row
+            for row in self._select(
+                "securities", where=in_ids, params=ids, latest_per_key=True
+            )
+        }
+        # Each bar with a positive close, by its volume: as for total returns, a bar
+        # without a close counts as missing (app/backtest/returns.py).
+        volumes: defaultdict[str, dict[date, int | None]] = defaultdict(dict)
+        for row in self._select(
+            "price_bars",
+            where=f"{in_ids} AND session_date >= ?",
+            params=[*ids, min(row["added"] for row in spells)],
+            latest_per_key=True,
+            order_by="security_id, session_date",
+        ):
+            if row["close"] is not None and row["close"] > 0:
+                volumes[row["security_id"]][row["session_date"]] = row["volume"]
+        last_closed = self._last_closed_session()
+
+        found = []
+        for security_id in ids:
+            identity = identities.get(security_id)
+            stopped = None
+            if identity is not None and identity["ticker"] is None:
+                stopped = identity["effective_date"]
+            own = [
+                (row["added"], row["removed"])
+                for row in spells
+                if row["security_id"] == security_id
+            ]
+            bars = volumes.get(security_id, {})
+            due = sorted(
+                {
+                    session
+                    for added, removed in own
+                    for session in _sessions(added, removed, stopped, last_closed)
+                }
+            )
+            # As the engine does, a bar from the day it stopped trading on doesn't
+            # count, whatever its volume.
+            traded = [
+                day
+                for day, volume in bars.items()
+                if volume != 0 and (stopped is None or day < stopped)
+            ]
+            found.append(
+                PriceCoverage(
+                    security_id=security_id,
+                    name=identity["name"] if identity is not None else security_id,
+                    spells=tuple(own),
+                    stopped_trading=stopped,
+                    sessions=len(due),
+                    missing=tuple(day for day in due if day not in bars),
+                    no_trades=tuple(day for day in due if bars.get(day, 1) == 0),
+                    last_traded=max(traded, default=None),
+                )
+            )
+        return found
+
+    def _last_closed_session(self) -> date:
+        """The last session whose close came by the knowledge time."""
+        today = self.knowledge_time.astimezone(ET).date()
+        if (
+            calendar.is_session(today)
+            and calendar.session_close(today) <= self.knowledge_time
+        ):
+            return today
+        return calendar.previous_session(today)
+
     def close(self) -> None:
         """Close the view's DuckDB connection."""
         self._connection.close()
@@ -879,6 +979,19 @@ class PointInTimeView:
             f"PointInTimeView(knowledge_time={self.knowledge_time.isoformat()}, "
             f"data_version={self.data_version!r})"
         )
+
+
+def _sessions(
+    added: date, removed: date | None, stopped: date | None, last_closed: date
+) -> list[date]:
+    """The sessions a member should have traded in during one membership: from
+    `added` until the day before it left or it stopped trading, through
+    `last_closed`."""
+    last = last_closed
+    for end in (removed, stopped):
+        if end is not None:
+            last = min(last, end - timedelta(days=1))
+    return calendar.sessions_between(added, last) if added <= last else []
 
 
 def _date_range(span: tuple[date, date] | None) -> DateRange | None:
