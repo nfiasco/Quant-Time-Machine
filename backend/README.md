@@ -98,7 +98,7 @@ backend/
 │   │   ├── fundamentals.py   # GET /v1/fundamentals/{ticker}
 │   │   ├── catalog.py        # GET /v1/catalog/series, /companies, and /signals
 │   │   ├── snapshot.py       # GET /v1/snapshot
-│   │   └── backtests.py      # POST /v1/backtests, and GET /v1/backtests/{run_id} with /audit, /holdings, /trades
+│   │   └── backtests.py      # POST /v1/backtests, and GET /v1/backtests/{run_id} with /audit, /holdings, /trades, /coverage
 │   ├── data/           # Point-in-time data layer (see below)
 │   └── backtest/       # The backtest engine (see below)
 ├── spikes/             # Experiments behind the data, storage, and hosting decisions (not app code)
@@ -168,6 +168,7 @@ The backtest routes are the exception to steps 2 and 3: a run isn't an answer as
 | `GET /v1/backtests/{run_id}` | The run's status and progress, and once it has succeeded, its metrics, holding periods, equity curve, and warnings | The run's job, and its saved files |
 | `GET /v1/backtests/{run_id}/audit?decision` | What each view the run opened read, for every decision or one | `audit.json` |
 | `GET /v1/backtests/{run_id}/holdings?decision` and `/trades?decision` | Each holding of each period, and each trade at each fill | `holdings.json`, `trades.json` |
+| `GET /v1/backtests/{run_id}/coverage` | What data the run's decisions lacked, by security and year, and the holdings it valued at their last close (S6.7) | `coverage.json` |
 
 ## Point-in-time data layer
 
@@ -182,7 +183,7 @@ The backtest routes are the exception to steps 2 and 3: a run isn't an answer as
 | [`records.py`](app/data/records.py) | What the view's reads return, with the field names of the API contract |
 | [`look_ahead.py`](app/data/look_ahead.py) | What became public after a knowledge time, only for the snapshot's "not yet known" half (S8.3). See [Look-ahead](#look-ahead) |
 | [`fundamentals.py`](app/data/fundamentals.py) | Standard metrics from XBRL facts: each concept's latest value per period, the concept order, and coverage (S5.6) |
-| [`coverage.py`](app/data/coverage.py) | The coverage report for the standard metrics (S5.6) |
+| [`coverage.py`](app/data/coverage.py) | The coverage report: each universe member's price gaps beside the standard metrics' missing periods, by company and year (S5.6, S6.7) |
 | [`raw_cache.py`](app/data/raw_cache.py) and [`http.py`](app/data/http.py) | Downloads, with rate limits, retries, and a cache of every response |
 | [`ingest.py`](app/data/ingest.py) | The ingestion command |
 | [`sources/`](app/data/sources/) | One ingester per source, with its config files |
@@ -213,6 +214,7 @@ The backtest routes are the exception to steps 2 and 3: a run isn't an answer as
 | `universe_as_of(name)` | The `UniverseMember`s of a universe in [`universes.toml`](app/data/sources/universes.toml), such as `starter_large_caps`, each with its ticker, name, and CIK then. A company counts from 00:00 ET on the effective date it joined until the date it left: Tesla is in from December 21, 2020 (S6.5) |
 | `universe_coverage(name)` | The members `universe_as_of` gives, each with the dates its prices, filings, and XBRL facts reach by then, across every CIK it had (S8.5) |
 | `fundamentals_coverage(universe, metric)` | For every company in the universe by then, those that left included: how many of its 10-Qs and 10-Ks reported one of the metric's concepts for their own period, which concepts they used, and the periods none covered (S5.6) |
+| `price_coverage(universe)` | For every company in the universe by then, those that left included: the sessions it should have traded in, while a member and until it stopped trading, those without a bar or without trades, and its last trade (S6.7) |
 
 ```python
 from app.data.timeutil import parse_knowledge_time
@@ -262,10 +264,11 @@ The engine in [`app/backtest/`](app/backtest/) reads data only through `PointInT
 | [`schedule.py`](app/backtest/schedule.py) | A spec's decisions, on the first trading day of each month, and their fills (S7.2). A fill is at the same day's close (13:00 ET on an early close) or the next session's open, always strictly after its decision; `ScheduleError` names any day it can't be |
 | [`signals/`](app/backtest/signals/) | What the loop asks of a signal: each member's `SignalValue` at a decision, or the reason it has none (S7.3). `SIGNALS` is the library, by spec `type` (S7.4): `momentum` over whole months, 12-1 by default; `revenue_growth` and `revenue_growth_acceleration` from the quarters filed by then; and `macro_change`, a macro series' change over its latest releases. [`doc/reference/signals.md`](../doc/reference/signals.md) has their formulas |
 | [`portfolio.py`](app/backtest/portfolio.py) | The filters, equal weights, and the trades that reach them. Costs are `bps_per_trade` of the value traded, which is the sum of each weight's change, and come out of the portfolio (S7.3). A ranking holds only its ends, each a quantile of the members that pass the filters, rounded down and at least one; a long-short portfolio is long one end and short the other (S7.5). [`doc/reference/portfolio.md`](../doc/reference/portfolio.md) has the rules and a worked example |
-| [`simulation.py`](app/backtest/simulation.py) | The loop (S7.3). `simulate(spec, views)` steps through a spec's decisions, each with a view bound to its time, then values the holdings and trades at a view bound to the fill session's close. It returns each holding period's holdings, trades, costs, and returns, the benchmark's, the risk-free rate its decision knew, and warnings for the data it did without |
+| [`simulation.py`](app/backtest/simulation.py) | The loop (S7.3). `simulate(spec, views)` steps through a spec's decisions, each with a view bound to its time, then values the holdings and trades at a view bound to the fill session's close. It returns each holding period's holdings, trades, costs, and returns, the benchmark's, the risk-free rate its decision knew, and warnings for the data it did without. A holding that stops trading is valued at its last close, after the spec's assumed delisting return (S6.7) |
 | [`metrics.py`](app/backtest/metrics.py) | A run's metrics, from its holding periods (S7.6). `summarize(result)` gives CAGR, volatility, the Sharpe ratio, maximum drawdown, and turnover, and against the benchmark, excess return, hit rate, beta, alpha, and the t-statistic of the mean monthly excess return. `equity_curve(result)` gives the portfolio's value beside the benchmark's. Both only do arithmetic, and a metric that can't be computed is `None`. [`doc/reference/metrics.md`](../doc/reference/metrics.md) has the formulas and a run worked by hand |
 | [`canonical.py`](app/backtest/canonical.py) | Canonical JSON (S7.7): sorted keys, one way to write each number, and `rounded`, which keeps 12 significant digits of a computed result. Equal values give equal bytes, so equal hashes |
 | [`audit.py`](app/backtest/audit.py) | A run's audit (S7.7). As each view closes, the loop summarizes its access log: for each table, the distinct rows, the earliest and latest `available_at`, a SHA-256 of them all, and each company's or series' newest source |
+| [`coverage.py`](app/backtest/coverage.py) | A run's coverage report (S6.7). `summarize(result)` counts its member-decisions by security and year, those left out for lack of data and what they lacked (prices, fundamentals, or macro data), and its exits at a last close. Like the metrics, it only does arithmetic on what the run recorded |
 | [`records.py`](app/backtest/records.py) | A run's record (S7.7). `build_record` turns a finished run into its files, and `write_run` saves them under its run ID, the SHA-256 of the spec, the data version, and `ENGINE_VERSION`. Saving different results for a saved run raises `RunConflictError`. [`doc/reference/runs.md`](../doc/reference/runs.md) has the files and the rules |
 
 ```python
@@ -320,9 +323,9 @@ equity_curve(result)  # the portfolio's value and the benchmark's, period by per
 uv run python -m app.runs tests/fixtures/specs/canonical.json
 ```
 
-It prints the run ID, the headline metrics, and the folder. `--data-version` reads an older data version, `--out` saves somewhere else, and `--overwrite` replaces a saved run whose results differ.
+It prints the run ID, the headline metrics, the member-decisions left out for lack of data and the holdings exited at a last close, and the folder. `--data-version` reads an older data version, `--out` saves somewhere else, and `--overwrite` replaces a saved run whose results differ.
 
-- **A record is seven JSON files:** `run.json` (the spec as it ran, its hash, the data version, the engine version, the git SHA, and each other file's hash), `returns.json`, `holdings.json`, `trades.json`, `metrics.json`, `warnings.json`, and `audit.json`.
+- **A record is eight JSON files:** `run.json` (the spec as it ran, its hash, the data version, the engine version, the git SHA, and each other file's hash), `returns.json`, `holdings.json`, `trades.json`, `metrics.json`, `warnings.json`, `coverage.json` (S6.7), and `audit.json`.
 - **The run ID** is the SHA-256 of the spec, the data version, and the engine version, so the same inputs always have the same ID.
 - **The same inputs give the same bytes.** The files are canonical JSON, computed numbers keep 12 significant digits, and no file has a time of day in it. CI runs a spec twice, in one process and in two, and compares every byte.
 - **The audit** has an entry for each view the run opened: what it read from each table, when the newest row became known, and a hash of every row. A decision of the canonical spec reads about 17,700 rows, so the rows themselves aren't kept.
@@ -392,7 +395,11 @@ Each command loads its whole catalog: there's no option for a single series or t
 
 Each ingester lives in [`app/data/sources/`](app/data/sources/) and is listed in `INGESTERS` in [`app/data/ingest.py`](app/data/ingest.py).
 
-**Coverage of the standard metrics.** After `ingest sec`, run `uv run python -m app.data.coverage`. It reads the store as the API does, pinned to the newest data version, and prints Markdown. For each metric in [`sources/metrics.toml`](app/data/sources/metrics.toml), and each company that was ever in the universe, it shows how many of the company's 10-Qs and 10-Ks reported one of the metric's concepts for their own period, which concepts they used, and which periods none covered.
+**Coverage of prices and the standard metrics.** After ingesting, run `uv run python -m app.data.coverage`. It reads the store as the API does, pinned to the newest data version, and prints Markdown about each company that was ever in the universe (S5.6, S6.7):
+
+- **Gaps by company and year:** the sessions it had no bar for, or a bar without trades, beside each metric's periods that no concept covered.
+- **Prices:** its memberships, the sessions it should have traded in (while a member, until it stopped trading), how many were missing or had no trades, its last trade, and the day it stopped trading. A vendor's bar from that day on doesn't count, as it doesn't for the engine.
+- **One section for each metric** in [`sources/metrics.toml`](app/data/sources/metrics.toml): how many of the company's 10-Qs and 10-Ks reported one of the metric's concepts for their own period, which concepts they used, and which periods none covered.
 
 - **Options:** `--as-of` for an earlier knowledge time, and `--metric` (repeatable) for fewer metrics.
 - **What to look for:** a company that misses periods, or whose concept switches to one with different values for the same period. Either may need an override in `metrics.toml`, with its reason and source.
