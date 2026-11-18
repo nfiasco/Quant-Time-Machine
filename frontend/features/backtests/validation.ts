@@ -23,6 +23,25 @@ export function decisionFromTime(time: string): string {
   return `first_trading_day ${time} America/New_York`;
 }
 
+/**
+ * A spec's assumed delisting return as the builder's loss field shows it, in percent:
+ * -0.3 → "30". The field asks for a loss so that a phone's number pad, which often has
+ * no minus key, can enter it.
+ */
+export function delistingLoss(delisting: ExperimentSpec["delisting"]): string {
+  const loss = -(delisting?.assumed_return ?? 0) * 100;
+  // Rounding drops floating-point noise (-0.07 * 100 is 7.000000000000001), and
+  // `|| 0` writes -0 as 0.
+  return String(Number(loss.toPrecision(12)) || 0);
+}
+
+/** The loss field's text as a spec's delisting section: "30" → -0.3. A blank field is
+ * NaN, so it shows an error instead of becoming 0. */
+export function delistingFromLoss(text: string): NonNullable<ExperimentSpec["delisting"]> {
+  const loss = text.trim() === "" ? Number.NaN : Number(text);
+  return { assumed_return: -loss / 100 };
+}
+
 export function validateSpec(spec: ExperimentSpec): SpecErrors {
   const errors: SpecErrors = {};
 
@@ -56,6 +75,13 @@ export function validateSpec(spec: ExperimentSpec): SpecErrors {
     errors["costs.bps_per_trade"] = "Enter a number of basis points.";
   } else if (bps < 0) {
     errors["costs.bps_per_trade"] = "Costs must be at least 0.";
+  }
+
+  const assumed = spec.delisting?.assumed_return ?? 0;
+  if (!Number.isFinite(assumed)) {
+    errors["delisting.assumed_return"] = "Enter a loss from 0 to 100%.";
+  } else if (assumed < -1 || assumed > 0) {
+    errors["delisting.assumed_return"] = "The loss must be from 0 to 100%.";
   }
 
   return errors;
