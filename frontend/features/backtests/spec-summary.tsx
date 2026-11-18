@@ -1,3 +1,4 @@
+import { describeDelisting } from "@/features/backtests/describe-delisting";
 import { describePortfolio } from "@/features/backtests/describe-portfolio";
 import { describeSignal } from "@/features/backtests/describe-signal";
 import type { ExperimentSpec } from "@/features/backtests/types";
@@ -19,7 +20,7 @@ function describeDecision(decision: string): string {
 
 /**
  * An experiment spec in plain language, with the exact JSON one click away.
- * Assumptions (decision time, fill, costs) are always visible (NFR-3).
+ * Assumptions (decision time, fill, costs, delistings) are always visible (NFR-3).
  */
 export function SpecSummary({
   spec,
@@ -76,6 +77,7 @@ export function SpecSummary({
         ? `${spec.costs.bps_per_trade} bps per trade`
         : "—",
     },
+    { term: "Delistings", detail: describeDelisting(spec.delisting) },
   ];
 
   return (
