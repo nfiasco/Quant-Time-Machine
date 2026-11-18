@@ -233,6 +233,8 @@ Retrieved 2026-10-11: Apple's revenue for the quarter ended March 28, 2020 (`Rev
   - which concepts they used;
   - which periods none of them covered.
 
+  Since S6.7 it puts those periods beside each member's price gaps, by company and year ([universe v1](#universe-v1-starter_large_caps-decision-d3)).
+
 **What the first full load showed (2026-11-01).**
 
 - **The load.** `ingest sec --refresh` made 364 requests in 79 seconds: 311 for submissions, 52 for company facts, and SEC's ticker file. Every member's CIK has company facts; SPY has none.
@@ -322,10 +324,10 @@ What the test pull showed, and what follows:
    - Store the raw fields and the split and dividend events. Never feed adjusted price levels into signals.
    - S6.4 rounds split ratios (AAPL's 2014 split arrives as 7.000007) and reconciles computed returns against `adjClose`. They agree to within 10⁻⁶ ([time model, rule 4](time-model.md#4-a-daily-price-bar-is-known-at-its-sessions-close)).
 2. **Delisted companies: only partly covered.**
-   - Recent delistings are there: Twitter's data runs to its last trading day. Its final bar, for October 28, 2022, the day the NYSE suspended trading before the open, has zero volume and repeats the previous close. It's a placeholder, not a trade, and delisting exits (S6.7) must treat it that way.
+   - Recent delistings are there: Twitter's data runs to its last trading day. Its final bar, for October 28, 2022, the day the NYSE suspended trading before the open, has zero volume and repeats the previous close. It's a placeholder, not a trade, and delisting exits treat it that way (S7.3).
    - Coverage thins out before 2015 and is nearly absent before 2010; Lehman Brothers has no prices.
-   - So for universe v1 (D3, S6.5), check each member's Tiingo coverage before including it, and report gaps in every run (S6.7).
-   - WRDS access was denied (2026-11-16), so CRSP can't measure what's missing (R1). The gaps are reported, run by run, instead (S6.7).
+   - So for universe v1 (D3, S6.5), check each member's Tiingo coverage before including it. Every run reports the gaps it met in its [coverage report](runs.md#the-coverage-report) (S6.7).
+   - WRDS access was denied (2026-11-16), so CRSP can't measure what's missing (R1). The gaps are reported, run by run, instead (S6.7), and a spec can assume a holding that stopped trading lost more after its last close ([portfolio](portfolio.md#6-delistings)).
 3. **Settle display rights before M5.** Tiingo's free and Power plans are "internal use only". Before the deployed demo shows prices to the public:
    - (a) ask Tiingo whether a non-commercial university project may display charts;
    - (b) or keep raw prices off public pages, show only derived results, and put the demo behind access control (D9);
@@ -479,7 +481,13 @@ Like Twitter's, most acquired companies' last bars are placeholders, not trades.
 - Pioneer on May 3, 2024;
 - Marathon Oil on November 22, 2024.
 
-Discover's last bar, May 16, 2025, is a real session. Delisting exits (S6.7) must skip the placeholders.
+Discover's last bar, May 16, 2025, is a real session. Delisting exits skip the placeholders (S7.3).
+
+**What the price coverage report showed (2026-11-17, S6.7).** `uv run python -m app.data.coverage --as-of 2026-11-01` on data version `20261111T030742Z` checked the 165,729 sessions the 50 members should have traded in, while members and until they stopped trading. None was missing a bar, and none had a bar without trades.
+
+- **Celgene's missing session isn't a gap.** November 21, 2019, the session the first load had no bar for, is the day its curated history says it stopped trading, so it isn't one it should have traded in.
+- **Eight members stopped trading.** Each one's last trade is the session before the day it stopped, where the engine values a holding: Time Warner on June 14, 2018, Celgene on November 20, 2019, Xilinx on February 11, 2022, Twitter on October 27, 2022, Activision Blizzard on October 12, 2023, Pioneer on May 2, 2024, Marathon Oil on November 21, 2024, and Discover on May 16, 2025. The placeholders above fall on or after the day each stopped, so none counts, even those with a few shares traded.
+- **So every gap left is in fundamentals:** 131 company-years, at 23 companies, all from the metrics' missing periods above.
 
 The list can grow toward 100 members on the same rules.
 
@@ -493,7 +501,7 @@ Ingestion and the walking skeleton (M2) loaded these five companies plus the ben
 | MSFT | Microsoft | 789019 | 1986-03-13 on | Its fiscal year ends June 30, which exercises fiscal-quarter logic (S5.7). Regular dividends. |
 | JPM | JPMorgan Chase | 19617 | 1983-12-30 on | A bank, whose revenue tags differ from other companies' (S5.6). Its EDGAR history is huge: 26,395 filings in the `recent` block and 71 older pages, mostly structured-note prospectuses. That stress-tests pagination and form filtering (S5.3). |
 | META | Meta Platforms (Facebook until June 2022) | 1326801 | 2012-05-18 on, under `META` | The FB → META ticker change (S5.2 overrides). Tiingo files Facebook's whole history under `META`, and Tiingo's `FB` today is an unrelated ETF (listed 2025-06-26). So the price fetcher must look prices up by security, not by the ticker a user typed. |
-| TWTR | Twitter, taken private in October 2022 | 1418091 | 2013-11-07 to 2022-10-28 | A delisted company. SEC's current ticker file doesn't list TWTR, and its submissions show no tickers, so it needs an override entry (S5.2). Its last bar later tests delisting exits (S6.7). |
+| TWTR | Twitter, taken private in October 2022 | 1418091 | 2013-11-07 to 2022-10-28 | A delisted company. SEC's current ticker file doesn't list TWTR, and its submissions show no tickers, so it needs an override entry (S5.2). Its last bar, a placeholder, is the case delisting exits skip (S7.3, S6.7). |
 | SPY | SPDR S&P 500 ETF Trust (benchmark) | 884394 | 1993-01-29 on | The default benchmark (S6.2). It files no 10-K or 10-Q, so the filing endpoints should return an empty result with a reason, not an error. |
 
 Loading all six takes six Tiingo requests, against the free plan's 50 per hour and 500 symbols per month. Universe v1 and SPY take 51, so a first load needs two runs an hour apart.
@@ -502,7 +510,7 @@ Loading all six takes six Tiingo requests, against the free plan's 50 per hour a
 
 | Gap | Effect | Mitigation |
 | --- | --- | --- |
-| **Delisted companies.** Yahoo has none. Tiingo has recent ones (Twitter) but few before 2010 (no Lehman). CRSP has them all, but for internal use only. | Survivorship bias: results look better than reality, especially in the early years | Check each universe member's coverage (S6.5). Include delisted companies the data covers. Report coverage gaps in every run (S6.7, R1). CRSP could have measured the gap, but WRDS access was denied. |
+| **Delisted companies.** Yahoo has none. Tiingo has recent ones (Twitter) but few before 2010 (no Lehman). CRSP has them all, but for internal use only. | Survivorship bias: results look better than reality, especially in the early years | Check each universe member's coverage (S6.5). Include delisted companies the data covers. Every run reports its coverage gaps, and a spec can assume delisted holdings lost more (S6.7, R1). CRSP could have measured the gap, but WRDS access was denied. |
 | **Historical index membership.** It's proprietary. | Today's index members applied to the past | A curated universe with sources (S6.5, D3); a rules-based universe later (S6.6). |
 | **Fundamentals before XBRL** (before 2009 to 2011, depending on company size). | No machine-readable fundamentals for those years | The engine rejects or warns when a spec needs them (§3.4); expect thin data in 2010 and 2011 (R3). |
 | **Ticker history.** SEC's ticker file lists only current tickers. | Old or reused tickers resolve to the wrong company | A curated, cited history for the starter universe and reused tickers, in [`securities.toml`](../../backend/app/data/sources/securities.toml) (S5.2). A ticker only in SEC's file resolves only from when the file was downloaded. |
