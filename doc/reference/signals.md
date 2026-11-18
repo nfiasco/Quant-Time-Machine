@@ -17,6 +17,8 @@ A signal is a number for each stock at each decision. The engine evaluates every
 | [`revenue_growth_acceleration`](#3-revenue-growth-acceleration) | That growth minus the previous quarter's | `basis`: `"yoy_quarterly"` | The same | The latest quarter, the one before it, and the quarter a year before each |
 | [`macro_change`](#4-macro-change) | A macro series' change over its latest releases | `series`, `releases`, and `change`: `"absolute"` or `"relative"` | Two observations of the series | The latest observation and the one `releases` periods before it |
 
+A run's [coverage report](runs.md#the-coverage-report) sorts the stocks a signal left out by what it reads: prices for `momentum`, fundamentals for the two revenue signals, and macro data for `macro_change` (`DATA` in [`signals/__init__.py`](../../backend/app/backtest/signals/__init__.py), S6.7).
+
 ## 1. Momentum
 
 ```json
