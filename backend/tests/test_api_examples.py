@@ -119,7 +119,13 @@ def test_response_models_have_readable_names() -> None:
         "BacktestHolding",
         "BacktestTrades",
         "BacktestTrade",
+        "BacktestCoverage",
+        "CoverageReport",
+        "CoverageCounts",
+        "CoverageRow",
+        "CoverageExit",
         "ExperimentSpec",
+        "DelistingSpec",
         "ErrorResponse",
     } <= set(SPEC["components"]["schemas"])
 

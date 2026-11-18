@@ -1,5 +1,6 @@
-"""POST /v1/backtests, and GET /v1/backtests/{run_id} with its /audit, /holdings, and
-/trades: submit an experiment spec, and read the run it names (S8.4).
+"""POST /v1/backtests, and GET /v1/backtests/{run_id} with its /audit, /holdings,
+/trades, and /coverage: submit an experiment spec, and read the run it names (S8.4,
+S6.7).
 
 - **Submitting** validates the spec the way `parse_spec` does, so a 422 names each
   field as the spec's own errors do ("signals.mom_12_1.lookback_months"), and adds
@@ -11,8 +12,11 @@
   the same data answers 200 with the saved run, and runs nothing.
 - **Reading** serves a saved run's files (doc/reference/runs.md) as they are, with
   two changes every /v1 response makes: times are written in New York time (D12), and
-  internal security IDs are left out of holdings, trades, and warnings. As in the
-  files, there are weights, returns, and dates, and never a price (D2).
+  internal security IDs are left out of holdings, trades, warnings, and coverage. As in
+  the files, there are weights, returns, and dates, and never a price (D2).
+- **A run saved before engine 1.1.0** (record version 1) has no coverage report, so
+  its `coverage` is null. Its spec reads back with the `delisting` section it didn't
+  have, at the default it ran with, so its `spec_hash` comes from its run.json.
 
 These responses have no `knowledge_time`: a run isn't an answer as of one moment. Its
 `data_version` is the one the run is pinned to, not the newest now.
@@ -31,8 +35,10 @@ from app.api import examples
 from app.api.conventions import AppSettings, NewYorkTime
 from app.api.errors import ApiError, ErrorResponse
 from app.backtest.audit import Purpose
+from app.backtest.coverage import ExitKind
 from app.backtest.records import MANIFEST, spec_hash
 from app.backtest.schedule import ScheduleError
+from app.backtest.signals import DataKind
 from app.backtest.simulation import WarningKind, check_runnable
 from app.backtest.spec import ExperimentSpec, SpecError, SpecProblem, parse_spec
 from app.config import Settings
@@ -332,6 +338,102 @@ class BacktestTrades(_Model):
     )
 
 
+class CoverageCounts(_Model):
+    """Member-decisions, a member of the universe at a decision each, and the gaps in
+    their data."""
+
+    member_decisions: int
+    left_out: int = Field(
+        description=(
+            "Member-decisions left out for lack of data: the member had stopped "
+            "trading, or a signal a filter or the ranking needs had no value. A "
+            "member without two signals counts once."
+        )
+    )
+    stopped_trading: int
+    missing: dict[DataKind, int] = Field(
+        description=(
+            "Member-decisions left out because a signal reading this data had no "
+            'value: "prices", "fundamentals", or "macro", for each kind the needed '
+            "signals read. A member without two kinds counts once in each."
+        )
+    )
+    signals: dict[str, int] = Field(
+        description=(
+            "Member-decisions at which each needed signal had no value, by its ID in "
+            "the spec."
+        )
+    )
+    no_fill_price: int = Field(
+        description="Chosen members whose trade had no price at the fill."
+    )
+    exits: int = Field(
+        description="Holdings valued at their last close before their period ended."
+    )
+
+
+class CoverageRow(CoverageCounts):
+    """A security's member-decisions in one year."""
+
+    ticker: str | None = Field(
+        description=(
+            "Its ticker at its last decision that year that had one: null if it had "
+            "stopped trading at every one."
+        )
+    )
+    name: str
+    year: int = Field(description="The New York calendar year of the decisions.")
+
+
+class CoverageExit(_Model):
+    """A holding valued at its last close before its period ended."""
+
+    decision: date = Field(
+        description="The New York day of the decision that chose it."
+    )
+    ticker: str = Field(description="Its ticker at that decision.")
+    kind: ExitKind = Field(
+        description=(
+            '"delisted_exit" if it had stopped trading, after the spec\'s assumed '
+            'delisting return, and "missing_price" if its bar at the period\'s end was '
+            "missing."
+        )
+    )
+    valued_at: PricePoint = Field(description="Its last close.")
+    end: PricePoint = Field(
+        description=(
+            "Where its period ended: the next fill, where it was closed, or the run's "
+            "last close."
+        )
+    )
+
+
+class CoverageReport(_Model):
+    """What data a run's decisions lacked, by security and year, and which holdings it
+    valued at their last close (doc/reference/runs.md)."""
+
+    decisions: int
+    totals: CoverageCounts = Field(description="The rows added up.")
+    rows: list[CoverageRow] = Field(
+        description=(
+            "One for each security and year it was a member at a decision, by "
+            "security, then year."
+        )
+    )
+    exits: list[CoverageExit] = Field(description="In decision order.")
+
+
+class BacktestCoverage(_Model):
+    run_id: str
+    status: RunStatus
+    coverage: CoverageReport | None = Field(
+        description=(
+            "Null until the run has succeeded, and for a run saved before engine "
+            "1.1.0, which kept no coverage report."
+        )
+    )
+
+
 def run_queue(request: Request) -> RunQueue:
     """The app's runs (see `create_app`)."""
     return request.app.state.run_queue
@@ -440,10 +542,13 @@ def submit_backtest(
 def get_backtest(job: KnownJob, settings: AppSettings) -> BacktestRun:
     """A run's status, and once it has succeeded, its metrics, its holding periods,
     its equity curve beside the benchmark's, and its warnings."""
-    git_sha, result = None, None
+    git_sha, result, hashed = None, None, spec_hash(job.spec)
     folder = saved_run(job.run_id, settings) if job.status == "succeeded" else None
     if folder is not None:
-        git_sha = read_document(folder, MANIFEST)["git_sha"]
+        manifest = read_document(folder, MANIFEST)
+        # A run saved before engine 1.1.0 reads back with a delisting section its
+        # spec didn't have, so its hash is the one it was saved with.
+        git_sha, hashed = manifest["git_sha"], manifest["spec_hash"]
         returns = read_document(folder, "returns.json")
         result = BacktestResult(
             metrics=read_document(folder, "metrics.json"),
@@ -468,7 +573,7 @@ def get_backtest(job: KnownJob, settings: AppSettings) -> BacktestRun:
         finished_at=job.finished_at,
         error=job.error,
         spec=job.spec,
-        spec_hash=spec_hash(job.spec),
+        spec_hash=hashed,
         data_version=job.data_version,
         engine_version=job.engine_version,
         git_sha=git_sha,
@@ -503,6 +608,17 @@ def get_backtest_trades(
     """Each trade at each fill: its weight before and after, and what it cost."""
     trades = _entries(job, settings, "trades.json", decision)
     return BacktestTrades(run_id=job.run_id, status=job.status, trades=trades)
+
+
+@router.get("/{run_id}/coverage", responses=examples.BACKTEST_COVERAGE)
+def get_backtest_coverage(job: KnownJob, settings: AppSettings) -> BacktestCoverage:
+    """What data the run's decisions lacked, by security and year, and which holdings
+    it valued at their last close: how far to trust its result (S6.7)."""
+    folder = saved_run(job.run_id, settings) if job.status == "succeeded" else None
+    coverage = None
+    if folder is not None and (folder / "coverage.json").is_file():
+        coverage = read_document(folder, "coverage.json")
+    return BacktestCoverage(run_id=job.run_id, status=job.status, coverage=coverage)
 
 
 def _entries(

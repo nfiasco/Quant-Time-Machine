@@ -765,6 +765,7 @@ Submit an experiment spec, poll its run, and read what the run produced (S8.4), 
 | [`GET /v1/backtests/{run_id}`](#get-v1backtestsrun_id) | The run's status, and once it has succeeded, its metrics, holding periods, equity curve, and warnings |
 | [`GET /v1/backtests/{run_id}/audit`](#get-v1backtestsrun_idaudit) | What each view the run opened read, and when the newest of it became known |
 | [`GET /v1/backtests/{run_id}/holdings` and `/trades`](#get-v1backtestsrun_idholdings-and-trades) | Each holding of each period, and each trade at each fill |
+| [`GET /v1/backtests/{run_id}/coverage`](#get-v1backtestsrun_idcoverage) | What data the run's decisions lacked, by security and year, and the holdings it valued at their last close (S6.7) |
 
 - **A run's ID names its inputs:** the SHA-256 of its spec, its data version, and the engine version, as 64 hex digits ([run records](runs.md#the-run-id-and-the-spec-hash)). The same spec on the same data is the same run, for everybody. Runs aren't tied to a user yet (S13.1).
 - **Runs take time.** The canonical spec takes about 35 seconds for 2020 to 2022, and over three minutes for 2010 to 2025. So no request waits for one: submit, then poll `GET /v1/backtests/{run_id}` every few seconds.
@@ -896,12 +897,12 @@ A run: what it ran on, how far it has come, and its result once it has one. For 
   - what's wrong with the spec, starting with the field: "benchmark must be a ticker in our data, but no security used NOPE at the 2020-01-02 decision.";
   - "The server restarted before this run finished. Submit it again." A deploy stops the run in progress and the ones waiting;
   - a problem on our side, which says only that.
-- **`spec`** is the spec as it runs, with every default written out, such as `"rank": null`. `spec_hash` is its SHA-256.
+- **`spec`** is the spec as it runs, with every default written out, such as `"rank": null` and `"delisting": { "assumed_return": 0.0 }`. `spec_hash` is the SHA-256 its `run.json` saved. A run saved before engine 1.1.0 had no `delisting` section: its spec reads back with the default it ran with, and keeps the hash it was saved with.
 - **`submitted_at`, `started_at`, and `finished_at`** are `null` for a run saved from the command line, which nobody submitted. They're to the second.
 - **`result.metrics`** are the run's [metrics](metrics.md), after costs. Returns and rates are fractions: `0.05` is 5%. A metric the run can't give, such as a Sharpe ratio from one period, is `null`.
 - **`result.periods`** has one entry for each decision that traded, in order. `holdings` and `trades` are counts: the entries themselves are at [`/holdings` and `/trades`](#get-v1backtestsrun_idholdings-and-trades). `risk_free_rate` is in percent a year, so `0.14` is 0.14%.
 - **`result.equity_curve`** starts at the first fill, where both values are 1, and has a point at each period's end. The drawdown chart can be drawn from it. `benchmark` is `null` from the first period without a benchmark return on.
-- **`result.warnings`** are the gaps in the data, and what the run assumed instead. `kind` is one of `stopped_trading`, `missing_signal`, `empty_portfolio`, `thin_ranking`, `no_fill_price`, `delisted_exit`, `missing_price`, `missing_benchmark`, `missing_risk_free`, `fill_after_end`, and `wiped_out`. `ticker` and `signal` are `null` where they don't apply.
+- **`result.warnings`** are the gaps in the data, and what the run assumed instead. `kind` is one of `stopped_trading`, `missing_signal`, `empty_portfolio`, `thin_ranking`, `no_fill_price`, `delisted_exit`, `missing_price`, `missing_benchmark`, `missing_risk_free`, `fill_after_end`, and `wiped_out`. `ticker` and `signal` are `null` where they don't apply. A `delisted_exit` names the spec's [assumed delisting return](portfolio.md#6-delistings) unless it's 0.
 - **An ID that names no run** gets a 404 `not_found`: "We have no run 0000…0000."
 
 ### `GET /v1/backtests/{run_id}/audit`
@@ -1013,6 +1014,60 @@ Each holding of each period, and each trade at each fill, in decision order. Bot
 - **A holding's `ticker`** is the one it had at the decision that chose it. `weight` is its share of the portfolio after the fill, negative for a short. `signals` has its signals' values at the decision, by their IDs in the spec. `exit` is where it was valued: the period's end, or its last close if its bars ended first.
 - **A trade's weights** are before and after the fill, and `weight_after` is 0 for a position that's closed. `traded` and `cost` are fractions of the portfolio's value before trading. Its `ticker` can be `null` for a position being closed.
 - **A day with no decision** answers with `[]`.
+
+### `GET /v1/backtests/{run_id}/coverage`
+
+What data the run's decisions lacked, by security and year, and which holdings it valued at their last close: how far to trust the result ([the coverage report](runs.md#the-coverage-report), S6.7). It's the run's `coverage.json` without internal security IDs, and `coverage` is `null` until the run has succeeded. A run saved before engine 1.1.0 kept no coverage report, so its `coverage` stays `null`.
+
+`GET /v1/backtests/4036…fed2/coverage`, the canonical spec from 2010 to 2025, with one of 637 rows and one of three exits:
+
+```json
+{
+  "run_id": "40365a9a819b04a02bfb31d1e915ff4127fa1ac830959b4b62eaf6f45a0afed2",
+  "status": "succeeded",
+  "coverage": {
+    "decisions": 192,
+    "totals": {
+      "member_decisions": 7529,
+      "left_out": 326,
+      "stopped_trading": 0,
+      "missing": { "fundamentals": 312, "prices": 25 },
+      "signals": { "mom_12_1": 25, "rev_accel": 312 },
+      "no_fill_price": 0,
+      "exits": 3
+    },
+    "rows": [
+      {
+        "ticker": "XOM",
+        "name": "Exxon Mobil Corporation",
+        "year": 2010,
+        "member_decisions": 12,
+        "left_out": 12,
+        "stopped_trading": 0,
+        "missing": { "fundamentals": 12, "prices": 0 },
+        "signals": { "mom_12_1": 0, "rev_accel": 12 },
+        "no_fill_price": 0,
+        "exits": 0
+      }
+    ],
+    "exits": [
+      {
+        "decision": "2019-11-01",
+        "ticker": "CELG",
+        "kind": "delisted_exit",
+        "valued_at": { "session": "2019-11-20", "price": "close" },
+        "end": { "session": "2019-12-02", "price": "close" }
+      }
+    ]
+  }
+}
+```
+
+- **A member-decision** is a member of the universe at a decision. `left_out` counts those left out for lack of data: the member had stopped trading, or a signal a filter or the ranking needs had no value. A member without two signals counts once.
+- **`missing`** sorts them by what the signals read: `prices`, `fundamentals`, or `macro`, for each kind the spec's needed signals read. A member without two kinds counts once in each. `signals` counts each needed signal's gaps by its ID.
+- **`no_fill_price`** counts chosen members whose trade had no price at the fill, and **`exits`** the holdings valued at their last close before their period ended.
+- **`rows`** has one entry for each security and New York calendar year in which it was a member at a decision, with its last ticker and name that year. `totals` adds them up.
+- **Each exit** has the decision that chose it, `kind` (`delisted_exit` if it stopped trading, after the spec's assumed delisting return, or `missing_price`), `valued_at`, its last close, and `end`, where its period ended.
 
 ## Errors
 
@@ -1332,8 +1387,40 @@ export type BacktestTrade = {
   cost: number;
 };
 
-// GET /v1/backtests/{run_id}/audit, /holdings, and /trades. Each list is null until
-// status is "succeeded".
+export type CoverageCounts = {
+  member_decisions: number;
+  left_out: number;
+  stopped_trading: number;
+  // For each kind the spec's needed signals read: "prices", "fundamentals", or "macro".
+  missing: Partial<Record<"prices" | "fundamentals" | "macro", number>>;
+  signals: Record<string, number>;
+  no_fill_price: number;
+  exits: number;
+};
+
+export type CoverageRow = CoverageCounts & {
+  ticker: string | null;
+  name: string;
+  year: number;
+};
+
+export type CoverageExit = {
+  decision: string;
+  ticker: string;
+  kind: "delisted_exit" | "missing_price";
+  valued_at: PricePoint;
+  end: PricePoint;
+};
+
+export type CoverageReport = {
+  decisions: number;
+  totals: CoverageCounts;
+  rows: CoverageRow[];
+  exits: CoverageExit[];
+};
+
+// GET /v1/backtests/{run_id}/audit, /holdings, /trades, and /coverage. Each is null
+// until status is "succeeded", and coverage also for a run saved before engine 1.1.0.
 export type BacktestAudit = { run_id: string; status: RunStatus; views: AuditView[] | null };
 export type BacktestHoldings = {
   run_id: string;
@@ -1344,6 +1431,11 @@ export type BacktestTrades = {
   run_id: string;
   status: RunStatus;
   trades: BacktestTrade[] | null;
+};
+export type BacktestCoverage = {
+  run_id: string;
+  status: RunStatus;
+  coverage: CoverageReport | null;
 };
 
 export type V1Error = {

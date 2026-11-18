@@ -23,6 +23,7 @@ from typing import Any
 
 import pytest
 
+from app.backtest import coverage
 from app.backtest.metrics import equity_curve, summarize
 from app.backtest.returns import PricePoint
 from app.backtest.schedule import rebalances
@@ -138,7 +139,8 @@ def toy_spec(**changes: Any) -> ExperimentSpec:
     }
     data["filters"] = [{"signal": "mom", "op": ">", "value": 0}]
     for key, value in changes.items():
-        data[key] = data[key] | value if isinstance(value, dict) else value
+        # A part the canonical spec leaves out, such as `delisting`, starts empty.
+        data[key] = data.get(key, {}) | value if isinstance(value, dict) else value
     return parse_spec(data)
 
 
@@ -477,6 +479,105 @@ ALPHA_THEN_BETA: Script = {
 }
 
 
+GAMMA_STOPS = {START: 50.0, date(2021, 2, 16): 55.0, date(2021, 3, 8): 60.5}
+"""Gamma's closes when it stops trading on March 11: 55 at March's fill, and 60.5 on
+its last day, March 10."""
+
+
+def stops_trading(store_dir: Path) -> None:
+    """The toy market, with gamma stopping on March 11 but staying in the universe."""
+    toy(
+        store_dir,
+        levels={**LEVELS, "gamma": GAMMA_STOPS},
+        stopped={"gamma": date(2021, 3, 11)},
+    )
+
+
+HELD_IN_MARCH = {
+    JAN_4: {"alpha": 1.0},
+    FEB_1: {"alpha": 1.0},
+    MAR_1: {"alpha": 1.0, "gamma": 1.0},
+    APR_1: {"alpha": 1.0, "gamma": 1.0},
+}
+"""Alpha throughout, and gamma beside it from March, when it stops trading."""
+
+
+def test_an_assumed_delisting_return_follows_the_last_close(store_dir: Path) -> None:
+    # As in test_a_delisted_holding_is_exited_at_its_last_close, but the spec assumes
+    # a stock lost 30% more after its last close.
+    stops_trading(store_dir)
+    spec = toy_spec(delisting={"assumed_return": -0.3})
+
+    result = run(store_dir, HELD_IN_MARCH, spec)
+    _, _, mar, apr = result.periods
+
+    _, gamma = mar.holdings
+    assert gamma.exit == PricePoint(date(2021, 3, 10), "close")
+    assert gamma.period_return == pytest.approx(1.1 * 0.7 - 1)  # -23%
+    assert mar.gross_return == pytest.approx(-0.115)
+    # What's left of it, 0.385 of the 0.885 the portfolio is worth, is sold at April's
+    # fill.
+    assert [(t.security_id, t.weight_before, t.weight_after) for t in apr.trades] == [
+        ("alpha", pytest.approx(0.5 / 0.885), 1.0),
+        ("gamma", pytest.approx(0.385 / 0.885), 0.0),
+    ]
+    assert result.warnings[0] == SimulationWarning(
+        "delisted_exit",
+        MAR_1,
+        "CCC stopped trading after 2021-03-10, so it was valued at that day's close "
+        "less 30%, the spec's assumed delisting return, and sold at the next fill, on "
+        "2021-04-01.",
+        "gamma",
+        "CCC",
+    )
+
+
+def test_a_delisted_holding_can_be_written_off(store_dir: Path) -> None:
+    stops_trading(store_dir)
+    spec = toy_spec(delisting={"assumed_return": -1})
+
+    result = run(store_dir, HELD_IN_MARCH, spec)
+    _, _, mar, apr = result.periods
+
+    _, gamma = mar.holdings
+    assert gamma.exit == PricePoint(date(2021, 3, 10), "close")
+    assert gamma.period_return == -1.0
+    assert mar.gross_return == pytest.approx(-0.5)
+    # Nothing is left of it to sell, and alpha is already the whole portfolio.
+    assert (apr.trades, apr.turnover, apr.cost) == ((), 0, 0)
+    assert result.warnings[0] == SimulationWarning(
+        "delisted_exit",
+        MAR_1,
+        "CCC stopped trading after 2021-03-10, so it was written off after that day's "
+        "close: the spec assumes a delisting return of -100%.",
+        "gamma",
+        "CCC",
+    )
+
+
+def test_writing_off_all_a_portfolio_held_ends_the_run(store_dir: Path) -> None:
+    stops_trading(store_dir)
+    script = {
+        JAN_4: {"alpha": 1.0},
+        FEB_1: {"alpha": 1.0},
+        MAR_1: {"gamma": 1.0},
+        APR_1: {"alpha": 1.0},
+    }
+
+    result = run(store_dir, script, toy_spec(delisting={"assumed_return": -1}))
+
+    assert len(result.periods) == 3  # April's decision chose alpha, but never filled
+    mar = result.periods[-1]
+    assert (mar.gross_return, mar.value) == (-1.0, 0.0)
+    # April's decision was made, so its members count in the run's coverage report.
+    assert [entry.decision for entry in result.members] == [JAN_4, FEB_1, MAR_1, APR_1]
+    assert [(w.kind, w.decision) for w in result.warnings] == [
+        ("delisted_exit", MAR_1),
+        ("wiped_out", MAR_1),
+        ("stopped_trading", APR_1),
+    ]
+
+
 def test_a_missing_exit_price_values_a_holding_at_its_last_close(
     store_dir: Path,
 ) -> None:
@@ -519,6 +620,56 @@ def test_a_missing_exit_price_is_warned_about(store_dir: Path) -> None:
             "AAA",
         ),
     )
+
+
+@pytest.mark.parametrize(
+    ("setup", "script"),
+    [
+        ("stops", HELD_IN_MARCH),
+        ("skips", ALPHA_THEN_BETA),
+        ("plain", {JAN_4: {"alpha": "Fewer than 2 months of prices were known."}}),
+    ],
+)
+def test_the_coverage_report_agrees_with_the_warnings(
+    store_dir: Path, setup: str, script: Script
+) -> None:
+    # The report counts what the warnings say, member-decision by member-decision.
+    if setup == "stops":
+        stops_trading(store_dir)
+    else:
+        toy(store_dir, skip={"alpha": [FEB_1]} if setup == "skips" else None)
+    result = run(store_dir, script)
+
+    report = coverage.summarize(result)
+
+    def kinds(*names: str) -> list[SimulationWarning]:
+        return [w for w in result.warnings if w.kind in names]
+
+    left_out = {
+        (w.decision, w.security_id) for w in kinds("stopped_trading", "missing_signal")
+    }
+    assert report.totals.left_out == len(left_out)
+    assert report.totals.stopped_trading == len(kinds("stopped_trading"))
+    assert report.totals.no_fill_price == len(kinds("no_fill_price"))
+    assert [(e.decision, e.security_id, e.kind) for e in report.exits] == [
+        (w.decision, w.security_id, w.kind)
+        for w in kinds("delisted_exit", "missing_price")
+    ]
+    assert report.totals.member_decisions == sum(len(m.members) for m in result.members)
+    assert report.decisions == len(result.members) == 4
+
+
+def test_a_missing_price_isnt_a_delisting(store_dir: Path) -> None:
+    # The assumed delisting return is for a stock that stopped trading, not for one
+    # whose bar is missing.
+    toy(store_dir, skip={"alpha": [FEB_1]})
+    spec = toy_spec(delisting={"assumed_return": -0.3})
+
+    result = run(store_dir, ALPHA_THEN_BETA, spec)
+
+    (alpha,) = result.periods[0].holdings
+    assert alpha.period_return == pytest.approx(0.1)
+    assert result.warnings == run(store_dir, ALPHA_THEN_BETA).warnings
 
 
 @pytest.mark.parametrize("bar", [False, True])
@@ -967,6 +1118,66 @@ def test_a_delisted_short_is_bought_back_at_its_last_close(store_dir: Path) -> N
             "out.",
             "gamma",
         ),
+    )
+
+
+def test_a_delisted_short_gains_what_the_assumed_return_takes(store_dir: Path) -> None:
+    # As above, but the spec assumes gamma lost 30% more after its last close: -23%
+    # from the fill, which the short gains.
+    stops_trading(store_dir)
+    script = {
+        JAN_4: order("alpha", "gamma", "beta"),
+        FEB_1: order("alpha", "gamma", "beta"),
+        MAR_1: order("alpha", "beta", "gamma"),
+        APR_1: order("alpha", "beta"),
+    }
+    spec = ranked_spec(quantiles=2, long_only=False, delisting={"assumed_return": -0.3})
+
+    result = run(store_dir, script, spec)
+    _, _, mar, apr = result.periods
+
+    _, short = mar.holdings
+    assert (short.security_id, short.weight) == ("gamma", -1.0)
+    assert short.period_return == pytest.approx(-0.23)
+    assert mar.gross_return == pytest.approx(0.23)
+    # The portfolio is worth 1.23, so alpha is 1 / 1.23 of it and gamma -0.77 / 1.23.
+    assert [(t.security_id, t.weight_before, t.weight_after) for t in apr.trades] == [
+        ("alpha", pytest.approx(1 / 1.23), 1.0),
+        ("beta", 0.0, -1.0),
+        ("gamma", pytest.approx(-0.77 / 1.23), 0.0),
+    ]
+    assert result.warnings[0].message == (
+        "CCC stopped trading after 2021-03-10, so it was valued at that day's close "
+        "less 30%, the spec's assumed delisting return, and bought back at the next "
+        "fill, on 2021-04-01."
+    )
+
+
+def test_a_written_off_short_isnt_traded(store_dir: Path) -> None:
+    # Gamma's whole value is gained: the portfolio doubles, and nothing is owed on it.
+    stops_trading(store_dir)
+    script = {
+        JAN_4: order("alpha", "gamma", "beta"),
+        FEB_1: order("alpha", "gamma", "beta"),
+        MAR_1: order("alpha", "beta", "gamma"),
+        APR_1: order("alpha", "beta"),
+    }
+    spec = ranked_spec(quantiles=2, long_only=False, delisting={"assumed_return": -1})
+
+    result = run(store_dir, script, spec)
+    _, _, mar, apr = result.periods
+
+    _, short = mar.holdings
+    assert (short.security_id, short.period_return) == ("gamma", -1.0)
+    assert mar.gross_return == pytest.approx(1.0)
+    # Nothing is bought back: only alpha is topped up, and beta sold short.
+    assert [(t.security_id, t.weight_before, t.weight_after) for t in apr.trades] == [
+        ("alpha", pytest.approx(0.5), 1.0),
+        ("beta", 0.0, -1.0),
+    ]
+    assert result.warnings[0].message == (
+        "CCC stopped trading after 2021-03-10, so it was written off after that day's "
+        "close: the spec assumes a delisting return of -100%."
     )
 
 

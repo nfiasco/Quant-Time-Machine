@@ -112,6 +112,8 @@ The run reported 340 warnings: 337 `missing_signal` and 3 `delisted_exit`. A mem
 
 No decision lacked a benchmark return or a risk-free rate, and none left the portfolio empty.
 
+**Update (2026-11-17, S6.7).** Every run now saves these counts in `coverage.json` ([run records](../reference/runs.md#the-coverage-report)). Re-run on engine 1.1.0 and the same data version, the spec gave run `40365a9a…`, whose results are byte for byte the ones above, and whose report has their counts: 326 of 7,529 member-decisions left out for lack of data, 312 without revenue acceleration and 25 without momentum, and the three exits. Valuing the three delisted holdings 30% below their last close (`"delisting": { "assumed_return": -0.3 }`, [portfolio](../reference/portfolio.md#6-delistings)) lowers the CAGR from 18.5% to 18.0%, and $1 becomes $14.10 instead of $15.04.
+
 ## Sanity checks
 
 **The benchmark matches published returns.** SPY's total return for each calendar year from 2010 to 2025, worked out from the store, is within 0.005 points of the figure Yahoo Finance lists, in every year: that's the rounding of two decimals. [`test_benchmark_vs_published.py`](../../backend/tests/test_benchmark_vs_published.py) checks it, with `uv run pytest -m local_data`.

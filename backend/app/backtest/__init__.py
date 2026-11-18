@@ -20,6 +20,8 @@ itself. So far it has:
 - `metrics`: a run's CAGR, volatility, Sharpe ratio, drawdown, and turnover, and its
   excess return, hit rate, beta, alpha, and t-statistic against the benchmark, with
   the risk-free rate each decision knew (S7.6; doc/reference/metrics.md)
+- `coverage`: what data a run's decisions lacked, by security and year, and the
+  holdings it valued at their last close (S6.7; doc/reference/runs.md)
 - `canonical`: canonical JSON, so equal values give equal bytes and hashes (S7.7)
 - `audit`: what each view a run opened read, summarized from its access log, with
   each row's `available_at` (S7.7)
@@ -31,7 +33,7 @@ Running a spec against the store and saving its record is app/runs.py's job: the
 engine itself never learns where the store is.
 """
 
-ENGINE_VERSION = "1.0.0"
+ENGINE_VERSION = "1.1.0"
 """The version of the code that turns a spec and a data version into results. It's
 part of every run ID (app/backtest/records.py), so two runs with the same ID must have
 the same results.

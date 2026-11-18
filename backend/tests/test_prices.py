@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, time
 from pathlib import Path
 
 import pytest
@@ -6,11 +6,12 @@ import pytest
 from app.data import calendar
 from app.data.calendar import CalendarError
 from app.data.errors import LookAheadError, NotFoundError
-from app.data.records import CorporateAction, PriceBar
+from app.data.records import CorporateAction, PriceBar, PriceCoverage
 from app.data.store import write_rows
 from app.data.tables import PRICE_BARS
-from app.data.timeutil import parse_knowledge_time
+from app.data.timeutil import market_time, parse_knowledge_time
 from app.data.view import AccessRecord, PointInTimeView
+from tests.toy_market import add_bars, add_member, add_security, steps
 
 # The fixture bars are made up (tests/fixtures/price_bars.csv): Tiingo's terms don't
 # allow sharing its data.
@@ -299,3 +300,102 @@ def test_a_corporate_action_comes_back_under_the_tickers_identity(
         source="tiingo",
         source_ref="Apple's announced dividend (not Tiingo's data)",
     )
+
+
+MARCH = steps(date(2021, 3, 1), date(2021, 3, 31), {date(2021, 3, 1): 50.0})
+"""A close for each of March 2021's 23 sessions."""
+
+
+def a_month_of_members(store: Path) -> Path:
+    """Four members over March 2021, each with a gap of its own (S6.7):
+
+    - alpha has no bar on March 10, one without trades on March 11, and one with no
+      close above zero on March 12;
+    - beta leaves on March 15 and joins again on March 22;
+    - gamma stops trading on March 18, after which its vendor still has a bar without
+      trades, then one with 353 shares, as Twitter's and Xilinx's did;
+    - delta joins on March 22 with no bars at all.
+    """
+    for security_id, ticker in (("alpha", "AAA"), ("beta", "BBB"), ("delta", "DDD")):
+        add_security(store, security_id, ticker)
+    add_security(store, "gamma", "CCC", stopped=date(2021, 3, 18))
+    add_member(store, "alpha", added=date(2021, 3, 1))
+    add_member(store, "beta", added=date(2021, 3, 1), removed=date(2021, 3, 15))
+    add_member(store, "beta", added=date(2021, 3, 22))
+    add_member(store, "gamma", added=date(2021, 3, 1))
+    add_member(store, "delta", added=date(2021, 3, 22))
+    add_bars(
+        store, "alpha", {d: p for d, p in MARCH.items() if d.day not in (10, 11, 12)}
+    )
+    add_bars(store, "alpha", {date(2021, 3, 11): 50.0}, volume=0)
+    add_bars(store, "alpha", {date(2021, 3, 12): 0.0})
+    add_bars(store, "beta", MARCH)
+    add_bars(store, "gamma", {d: p for d, p in MARCH.items() if d.day < 18})
+    add_bars(store, "gamma", {date(2021, 3, 18): 50.0}, volume=0)
+    add_bars(store, "gamma", {date(2021, 3, 19): 51.0}, volume=353)
+    return store
+
+
+def test_price_coverage_counts_the_sessions_each_member_should_have_traded(
+    store_dir: Path,
+) -> None:
+    # At noon on March 24, the last session that had closed was March 23's: 17 of
+    # March's sessions.
+    a_month_of_members(store_dir)
+
+    with PointInTimeView(
+        market_time(date(2021, 3, 24), time(12)), store=store_dir
+    ) as view:
+        found = {c.security_id: c for c in view.price_coverage("starter_large_caps")}
+
+    assert list(found) == ["alpha", "beta", "delta", "gamma"]
+    assert found["alpha"] == PriceCoverage(
+        security_id="alpha",
+        name="AAA Corp.",
+        spells=((date(2021, 3, 1), None),),
+        stopped_trading=None,
+        sessions=17,
+        missing=(date(2021, 3, 10), date(2021, 3, 12)),  # 0 isn't a price
+        no_trades=(date(2021, 3, 11),),
+        last_traded=date(2021, 3, 23),  # March 24's bar isn't known yet
+    )
+    # Ten sessions to March 12, and two from March 22.
+    assert found["beta"].spells == (
+        (date(2021, 3, 1), date(2021, 3, 15)),
+        (date(2021, 3, 22), None),
+    )
+    assert (found["beta"].sessions, found["beta"].missing) == (12, ())
+    # Thirteen sessions to March 17. The vendor's bars from the day it stopped trading
+    # on are neither gaps nor trades.
+    gamma = found["gamma"]
+    assert (gamma.stopped_trading, gamma.sessions) == (date(2021, 3, 18), 13)
+    assert (gamma.missing, gamma.no_trades) == ((), ())
+    assert gamma.last_traded == date(2021, 3, 17)
+    # A member without a single bar misses every session.
+    assert found["delta"].missing == (date(2021, 3, 22), date(2021, 3, 23))
+    assert found["delta"].last_traded is None
+
+
+def test_price_coverage_knows_a_departure_only_from_its_day(store_dir: Path) -> None:
+    # On March 12, beta hadn't left yet, and nobody knew it would come back.
+    a_month_of_members(store_dir)
+
+    with PointInTimeView(
+        market_time(date(2021, 3, 12), time(12)), store=store_dir
+    ) as view:
+        found = {c.security_id: c for c in view.price_coverage("starter_large_caps")}
+
+    assert list(found) == ["alpha", "beta", "gamma"]  # delta joins on March 22
+    assert found["beta"].spells == ((date(2021, 3, 1), None),)
+    assert found["beta"].sessions == 9  # March 1 to 11
+    assert found["gamma"].stopped_trading is None
+
+
+def test_price_coverage_needs_a_known_universe(store_dir: Path) -> None:
+    with (
+        PointInTimeView(utc(2021, 3, 24, 16), store=store_dir) as view,
+        pytest.raises(NotFoundError),
+    ):
+        view.price_coverage("sp500")
+    with PointInTimeView(utc(2021, 3, 24, 16), store=store_dir) as view:
+        assert view.price_coverage("starter_large_caps") == []

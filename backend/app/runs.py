@@ -220,12 +220,54 @@ def _report(saved: SavedRun, seconds: float) -> str:
             f"{_percent(metrics['max_drawdown'])}"
         ),
         "warnings": f"{len(files['warnings.json']):,}",
+        "coverage": _coverage(files["coverage.json"]),
+        "exits": _exits(
+            files["coverage.json"]["exits"],
+            files["run.json"]["spec"]["delisting"]["assumed_return"],
+        ),
         "audit": f"{rows:,} rows read through {len(audit):,} views",
         "took": f"{seconds:.1f} seconds",
         "saved in": str(saved.folder),
     }
     lines = [f"  {label:<13} {fact}" for label, fact in facts.items()]
     return "\n".join([f"Run {record.run_id}", *lines])
+
+
+def _coverage(coverage: dict[str, Any]) -> str:
+    """The run's member-decisions, and how many it left out for lack of data, by what
+    they lacked (app/backtest/coverage.py)."""
+    totals = coverage["totals"]
+    found = f"{totals['member_decisions']:,} member-decisions"
+    if not totals["left_out"]:
+        return f"{found}, none left out for lack of data"
+    lacked = [
+        f"{count:,} without {kind}"
+        for kind, count in totals["missing"].items()
+        if count
+    ]
+    if totals["stopped_trading"]:
+        lacked.append(f"{totals['stopped_trading']:,} had stopped trading")
+    return (
+        f"{found}, {totals['left_out']:,} left out for lack of data: "
+        f"{', '.join(lacked)}"
+    )
+
+
+def _exits(exits: list[dict[str, Any]], assumed_return: float) -> str:
+    """The holdings valued at their last close, and why: those that stopped trading
+    after the spec's assumed delisting return, if it has one."""
+    if not exits:
+        return "none"
+    stopped = "stopped trading"
+    if assumed_return <= -1:
+        stopped += ", written off"
+    elif assumed_return:
+        stopped += f", less {-assumed_return * 100:.4g}%"
+    groups = []
+    for kind, why in (("delisted_exit", stopped), ("missing_price", "a missing price")):
+        if tickers := [entry["ticker"] for entry in exits if entry["kind"] == kind]:
+            groups.append(f"{', '.join(tickers)} ({why})")
+    return f"{len(exits):,} at their last close: {'; '.join(groups)}"
 
 
 def _percent(value: float | None) -> str:

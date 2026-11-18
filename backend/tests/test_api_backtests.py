@@ -21,8 +21,17 @@ from pydantic import BaseModel
 
 from app.api import backtests
 from app.api.examples import CANONICAL_SPEC
-from app.backtest import ENGINE_VERSION, audit, metrics, portfolio, returns, simulation
-from app.backtest.records import run_id, spec_hash
+from app.backtest import (
+    ENGINE_VERSION,
+    audit,
+    coverage,
+    metrics,
+    portfolio,
+    returns,
+    simulation,
+)
+from app.backtest.canonical import sha256_hex
+from app.backtest.records import MANIFEST, run_id, spec_hash
 from app.backtest.spec import ExperimentSpec, parse_spec
 from app.config import Settings
 from app.data.tables import TABLES
@@ -284,7 +293,12 @@ def test_a_run_in_progress_says_how_far_it_is(client: TestClient, held: Held) ->
 
 @pytest.mark.parametrize(
     ("part", "key"),
-    [("audit", "views"), ("holdings", "holdings"), ("trades", "trades")],
+    [
+        ("audit", "views"),
+        ("holdings", "holdings"),
+        ("trades", "trades"),
+        ("coverage", "coverage"),
+    ],
 )
 def test_a_run_in_progress_has_no_files_to_serve_yet(
     client: TestClient, held: Held, part: str, key: str
@@ -492,7 +506,7 @@ def test_building_an_app_doesnt_fail_another_servers_run(settings: Settings) -> 
     assert built.get(f"/v1/backtests/{RUN_ID}").json()["status"] == "running"
 
 
-@pytest.mark.parametrize("part", ["", "/audit", "/holdings", "/trades"])
+@pytest.mark.parametrize("part", ["", "/audit", "/holdings", "/trades", "/coverage"])
 @pytest.mark.parametrize(
     "identifier",
     ["0" * 64, "abc", RUN_ID.upper(), "_jobs", RUN_ID + "0", "%2E%2E"],
@@ -579,6 +593,57 @@ def test_holdings_and_trades_are_served_without_internal_ids(
     assert "security_id" not in json.dumps([holdings, trades])
 
 
+def test_a_runs_coverage_is_served_without_internal_ids(
+    client: TestClient, settings: Settings
+) -> None:
+    submit(client)
+    finished(client)
+
+    found = client.get(f"/v1/backtests/{RUN_ID}/coverage").json()
+
+    report = saved(settings, "coverage.json")
+    assert (found["run_id"], found["status"]) == (RUN_ID, "succeeded")
+    assert found["coverage"] == report | {
+        "rows": [without_security_id(row) for row in report["rows"]],
+        "exits": [without_security_id(entry) for entry in report["exits"]],
+    }
+    # CCC had no rev_accel at any decision of the toy market's four.
+    assert found["coverage"]["totals"]["left_out"] == 4
+    assert found["coverage"]["totals"]["missing"] == {"fundamentals": 4, "prices": 0}
+    assert "security_id" not in json.dumps(found)
+
+
+def test_a_run_saved_before_engine_1_1_is_still_served(
+    client: TestClient, settings: Settings
+) -> None:
+    # Engine 1.0.0's runs had no coverage.json, and their specs no delisting section.
+    run_backtest(parse_spec(canonical_spec_data()), settings)
+    folder = settings.data_dir / "runs" / RUN_ID
+    (folder / "coverage.json").unlink()
+    manifest = json.loads((folder / MANIFEST).read_bytes())
+    del manifest["spec"]["delisting"]
+    manifest |= {
+        "spec_hash": sha256_hex(manifest["spec"]),
+        "engine_version": "1.0.0",
+        "record_version": 1,
+    }
+    (folder / MANIFEST).write_text(json.dumps(manifest), encoding="utf-8")
+
+    run = client.get(f"/v1/backtests/{RUN_ID}").json()
+    found = client.get(f"/v1/backtests/{RUN_ID}/coverage").json()
+
+    # Its spec reads back with the default it ran with, and the hash it was saved with.
+    assert run["status"] == "succeeded"
+    assert run["spec"]["delisting"] == {"assumed_return": 0.0}
+    assert (
+        run["spec_hash"]
+        == manifest["spec_hash"]
+        != spec_hash(parse_spec(canonical_spec_data()))
+    )
+    assert run["engine_version"] == "1.0.0"
+    assert found == {"run_id": RUN_ID, "status": "succeeded", "coverage": None}
+
+
 @pytest.mark.parametrize(
     ("part", "key"), [("holdings", "holdings"), ("trades", "trades")]
 )
@@ -612,7 +677,7 @@ def test_no_response_holds_a_price(client: TestClient) -> None:
     submit(client)
     answers = [finished(client)] + [
         client.get(f"/v1/backtests/{RUN_ID}/{part}").json()
-        for part in ("audit", "holdings", "trades")
+        for part in ("audit", "holdings", "trades", "coverage")
     ]
 
     assert not TOY_PRICES & set(floats(answers))
@@ -660,6 +725,10 @@ def test_the_docs_describe_the_body_as_an_experiment_spec(client: TestClient) ->
         (backtests.AuditView, audit.ViewInputs, {"rows"}),
         (backtests.AuditTable, audit.TableInputs, set()),
         (backtests.AuditGroup, audit.InputGroup, set()),
+        (backtests.CoverageReport, coverage.RunCoverage, set()),
+        (backtests.CoverageCounts, coverage.CoverageCounts, set()),
+        (backtests.CoverageRow, coverage.CoverageRow, set()),
+        (backtests.CoverageExit, coverage.CoverageExit, set()),
     ],
 )
 def test_response_models_carry_every_engine_field_but_internal_ids(

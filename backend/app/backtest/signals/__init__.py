@@ -13,6 +13,8 @@ data it reads, its minimum history, and the reasons it can have no value.
   - "revenue_growth" and "revenue_growth_acceleration": from the quarters filed by then
     (revenue.py);
   - "macro_change": a macro series' change over its latest releases (macro.py).
+- `DATA` says which data each kind reads, so a run's coverage report can say what a
+  member that was left out lacked (app/backtest/coverage.py, S6.7).
 
 Values are fractions, as returns are: 0.01 is 1%. An absolute macro change is in its
 series' units instead, such as percentage points for the unemployment rate.
@@ -20,11 +22,16 @@ series' units instead, such as percentage points for the unemployment rate.
 
 from collections.abc import Mapping
 from types import MappingProxyType
+from typing import Literal
 
 from app.backtest.signals import macro, momentum, revenue
 from app.backtest.signals.base import Signal, SignalValue
 
-__all__ = ["SIGNALS", "Signal", "SignalValue"]
+__all__ = ["DATA", "SIGNALS", "DataKind", "Signal", "SignalValue"]
+
+DataKind = Literal["prices", "fundamentals", "macro"]
+"""What a signal reads: daily bars and corporate actions, XBRL facts, or a macro
+series."""
 
 SIGNALS: Mapping[str, Signal] = MappingProxyType(
     {
@@ -36,3 +43,14 @@ SIGNALS: Mapping[str, Signal] = MappingProxyType(
 )
 """The kinds of signal the engine can evaluate, by their `type` in a spec: one for each
 signal in `SignalSpec` (app/backtest/spec.py)."""
+
+DATA: Mapping[str, DataKind] = MappingProxyType(
+    {
+        "momentum": "prices",
+        "revenue_growth": "fundamentals",
+        "revenue_growth_acceleration": "fundamentals",
+        "macro_change": "macro",
+    }
+)
+"""The data each kind of signal reads, by `type`: one for each in `SIGNALS`. A signal
+without a value lacked it (doc/reference/signals.md gives each one's reasons)."""

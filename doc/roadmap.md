@@ -11,8 +11,8 @@
 - **CISC 499 (Spring 2027):** MCP tools and an AI research assistant that turns questions into structured experiments, plus look-ahead-bias detection, experiment tracking, strategy comparison, and robustness testing.
 - **Ground rule:** the AI translates; deterministic code calculates. Every number comes from tested code, and every input carries the time it became public.
 - **Size:** 16 epics and 104 stories; 69 are P0 for their semester demo. S2.1 (interviews) was removed from scope on November 16. Sprints are two weeks long; Sprint 1 began Monday, September 28, 2026.
-- **Progress:** 43 Done, 5 In progress, 7 In review, and 49 Backlog. The seven In review stories (S7.3–S7.8 and S8.4) are merged and their issues closed; they move to Done at the M4 reconciliation.
-- **Next delivery work:** the delistings and coverage report (S6.7) and the revision viewer (S9.3), then the builder's run button, the results page, the methodology page, the performance baseline, the first usability test, and the demo (M5). Accounts (E16) wait for the team's decision ([planning record](project/planning.md)).
+- **Progress:** 43 Done, 4 In progress, 8 In review, and 49 Backlog. The eight In review stories (S6.7, S7.3–S7.8, and S8.4) are merged; they move to Done at the M4 reconciliation.
+- **Next delivery work:** the revision viewer (S9.3), then the builder's run button, the results page, the methodology page, the performance baseline, the first usability test, and the demo (M5). Accounts (E16) wait for the team's decision ([planning record](project/planning.md)).
 - **Public demo constraint:** raw Tiingo prices remain disabled on the deployed API pending display rights. The [landing-page example](#s98-public-landing-page) is static; it is not the live explorer.
 
 ## Contents
@@ -87,7 +87,7 @@ Set on November 16, 2026 (S2.4). The [evaluation plan](research/evaluation-plan.
 | --- | --- | --- |
 | Foundation and CI | Next.js/React frontend, FastAPI backend, locked dependencies, templates, license, READMEs, backend lint/format/tests, frontend lint/format/tests/build, and container build/start checks | None. *Nov 16:* Prettier's format check and Vitest run in CI (S1.1); one required approval on `main` (S1.4) and S1.3's confirmations are done |
 | Point-in-time core | Append-only Parquet/DuckDB store; knowledge-time enforcement; provenance, raw cache, NYSE calendar, access logs, golden fixtures, and pinned data versions | None. *Nov 16:* the team ratified the time model (S3.1) |
-| Data | Six macro series with vintages and release times; filing histories and identities; XBRL metrics, quarter derivation/restatements; raw-price ingestion, corporate actions, total returns, and 50-company universe v1 | Combined coverage/delisting handling (S6.7); optional catalog, bulk-data, and universe expansion later |
+| Data | Six macro series with vintages and release times; filing histories and identities; XBRL metrics, quarter derivation/restatements; raw-price ingestion, corporate actions, total returns, and 50-company universe v1 | Optional catalog, bulk-data, and universe expansion later. *Nov 17:* the configurable delisting rule and the coverage reports (S6.7) are in review |
 | API | `/v1` prices, macro/revisions, filings/latest, fundamentals, snapshot, and catalog routes, with OpenAPI examples and tests | Run submission, background execution, results/audit endpoints (S8.4); generated client/caching (S8.6) |
 | Backtester | Experiment spec v1, JSON Schema, decision/fill schedule, and total-return utilities | Simulation loop, signal calculations, portfolios/costs, performance metrics, run records, audit, and canonical end-to-end run (S7.3–S7.8) |
 | Web | [Public landing page](#s98-public-landing-page), app shell, dashboard health check, initial builder form/preset/validation, and sign-in/sign-up UI | Catalog-backed builder controls and submission, results, charts, methodology, and real accounts. Most planned routes still render placeholders. *Nov 10:* the live Time Machine explorer (S9.2) is merged. |
@@ -678,7 +678,7 @@ Every story in one table. Verified contributors are listed for completed stories
 | [S6.4](#s64-total-returns-without-look-ahead) | Total returns without look-ahead | E6 | P0 | M | 3 | M3 | ✅ Done | [#137](https://github.com/nfiasco/Quant-Time-Machine/issues/137) | [nfiasco](https://github.com/nfiasco) |
 | [S6.5](#s65-point-in-time-universe-v1) | Point-in-time universe v1 | E6 | P0 | M | 2–3 | M3 | ✅ Done | [#138](https://github.com/nfiasco/Quant-Time-Machine/issues/138) | [nfiasco](https://github.com/nfiasco) |
 | [S6.6](#s66-universe-v2-top-n-by-market-cap-as-of-each-date) | Universe v2: top N by market cap as of each date | E6 | P1 | L | 7 | M6 | In progress | [#139](https://github.com/nfiasco/Quant-Time-Machine/issues/139) | See issue |
-| [S6.7](#s67-delistings-and-coverage-report) | Delistings and coverage report | E6 | P1 | M | 4 | M4 | In progress | [#140](https://github.com/nfiasco/Quant-Time-Machine/issues/140) | See issue |
+| [S6.7](#s67-delistings-and-coverage-report) | Delistings and coverage report | E6 | P1 | M | 4 | M4 | In review | [#140](https://github.com/nfiasco/Quant-Time-Machine/issues/140) | See issue |
 | [S7.1](#s71-experiment-spec-v1) | Experiment spec v1 | E7 | P0 | M | 3 | M3 | ✅ Done | [#141](https://github.com/nfiasco/Quant-Time-Machine/issues/141) | [nfiasco](https://github.com/nfiasco) |
 | [S7.2](#s72-rebalance-schedule-and-decision-and-fill-timing) | Rebalance schedule and decision and fill timing | E7 | P0 | S | 3 | M3 | ✅ Done | [#142](https://github.com/nfiasco/Quant-Time-Machine/issues/142) | [nfiasco](https://github.com/nfiasco) |
 | [S7.3](#s73-simulation-loop) | Simulation loop | E7 | P0 | L | 4 | M4 | In review | [#30](https://github.com/nfiasco/Quant-Time-Machine/issues/30) | See issue |
@@ -1752,7 +1752,7 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 
 #### S6.7 Delistings and coverage report
 
-**Priority:** P1 · **Size:** M · **Sprint:** 4 · **Milestone:** M4 · **Area:** data · **Depends on:** S6.2, S5.6 · **Reqs:** FR-D11, FR-B8 · **Status:** In progress
+**Priority:** P1 · **Size:** M · **Sprint:** 4 · **Milestone:** M4 · **Area:** data · **Depends on:** S6.2, S5.6 · **Reqs:** FR-D11, FR-B8 · **Status:** In review
 
 **Story:** As a researcher, I want to know where data is missing and how delistings were handled, so that I can judge how far to trust a result.
 
@@ -1765,11 +1765,23 @@ These stories follow the open questions in sections 9 and 10 of the team's Probl
 **Tasks**
 
 - [x] Detect last trading dates for engine exits: a holding's last session that traded, which excludes Tiingo's zero-volume bars and its bars from the day the curated history ends the ticker (S7.3)
-- [x] Add the engine hook for delisting exits and result warnings: the simulation loop values a holding whose bars end at its last close, sells it at the next fill, and warns (S7.3). The rule isn't configurable yet
+- [x] Add the engine hook for delisting exits and result warnings: the simulation loop values a holding whose bars end at its last close, sells it at the next fill, and warns (S7.3)
+- [x] Make the delisting rule configurable: the spec's `delisting.assumed_return`, from −1 to 0, is the return assumed after a holding's last close once it stops trading. It's 0 by default; −0.3 is Shumway's average for delistings for poor performance, and −1 writes the holding off. The warning names it, and the builder asks for it as a loss in percent ([portfolio](reference/portfolio.md#6-delistings))
 - [x] Implement and test fundamentals coverage reporting (S5.6)
-- [ ] Extend reporting to combined price/fundamental gaps by security and period
+- [x] Extend reporting to combined price/fundamental gaps by security and period: `python -m app.data.coverage` lists each member's missing sessions, and those without trades, while a member and until it stopped trading, beside each metric's missing periods, by company and year (`PointInTimeView.price_coverage`)
+- [x] Report each run's coverage: every run saves `coverage.json`, its member-decisions by security and year, the ones left out for lack of data and what they lacked, and its exits at a last close. `app.runs` prints a summary, and `GET /v1/backtests/{run_id}/coverage` serves it ([run records](reference/runs.md#the-coverage-report))
 
 **Progress evidence (2026-11-10):** The fundamentals coverage report exists, and the simulation loop exits delisted holdings at their last close that traded, with a warning (S7.3). Tiingo ends Twitter's, Pioneer Natural Resources', and Marathon Oil's bars with a zero-volume bar that repeats the last close, and Xilinx's with 353 shares after Nasdaq halted it; none of these counts. Combined price/fundamental gaps and a configurable delisting rule remain. Evidence: [PR #81](https://github.com/nfiasco/Quant-Time-Machine/pull/81), [PR #84](https://github.com/nfiasco/Quant-Time-Machine/pull/84), `backend/app/data/coverage.py`, `backend/tests/test_coverage.py`, `backend/app/backtest/simulation.py`.
+
+**Progress evidence (2026-11-17):** The delisting rule is configurable, and every run reports its coverage. Measured on the local store (data version 20261111T030742Z, engine 1.1.0):
+- **The default changes nothing.** The canonical spec from 2010 to 2025 gave run `40365a9a…`, whose returns, holdings, trades, metrics, warnings, and audit are byte for byte those of engine 1.0.0's run `ffe49fd6…`. Only its spec hash and run ID are new, since every spec now writes `delisting` out, and so is `coverage.json`. The toy run pinned in `test_records.py` agrees.
+- **Its coverage report** counts 7,529 member-decisions, 326 of them left out for lack of data: 312 without fundamentals (`rev_accel`) and 25 without prices (`mom_12_1`), with AbbVie and PayPal lacking both 11 times. Three holdings were valued at their last close as they stopped trading: Celgene, Xilinx, and Pioneer. These are the counts S7.8's write-up made by hand.
+- **The assumption matters, a little.** With `"assumed_return": -0.3`, only those three holdings change, each 30% lower, and the CAGR falls from 18.48% to 18.00%: $1 grows to $14.10 instead of $15.04, and the Sharpe ratio is 1.03 instead of 1.06.
+- **The coverage command** checked the 165,729 sessions universe v1's 50 members should have traded in as of November 1, 2026, while members and until they stopped trading: none lacks a bar or trades. Eight members stopped trading, and each one's last trade is the close the engine values it at. All 131 company-years with gaps are in fundamentals ([data sources](reference/data-sources.md#universe-v1-starter_large_caps-decision-d3)).
+- **Old runs stay readable.** The API serves `ffe49fd6…` with the spec hash its `run.json` saved, and `coverage: null`, since it predates the report.
+- **Not done.** Nobody else has reviewed it yet. The results page (S9.6) will show the report, and the methodology page (S9.7) should say what it can't show: companies the universe never included.
+
+Evidence: `backend/app/backtest/coverage.py`, `backend/app/data/coverage.py`, `backend/app/backtest/spec.py`, `backend/app/backtest/simulation.py`, `backend/tests/test_run_coverage.py`, [run records](reference/runs.md#the-coverage-report), [portfolio](reference/portfolio.md#6-delistings).
 
 **GitHub:** [#140](https://github.com/nfiasco/Quant-Time-Machine/issues/140) · **Parent epic:** [#101](https://github.com/nfiasco/Quant-Time-Machine/issues/101)
 
@@ -3441,7 +3453,7 @@ Review this table at every milestone.
 
 | ID | Risk | Likelihood | Impact | Mitigation | Related |
 | --- | --- | --- | --- | --- | --- |
-| R1 | Free price data leaves out delisted companies, creating survivorship bias | High | High | Test delisted coverage (S6.1); report coverage gaps in every run (S6.7); state the limitation on the methodology page. *Oct 12:* Yahoo has none (LEH, LEHMQ, and TWTR return nothing). Tiingo covers recent delistings (Twitter) but few before 2010 (no Lehman), so check each universe member's coverage. *Nov 16:* the UD library denied WRDS access, so CRSP can't measure the gap; the per-run coverage report (S6.7) is the mitigation. | S6.1, S6.7 |
+| R1 | Free price data leaves out delisted companies, creating survivorship bias | High | High | Test delisted coverage (S6.1); report coverage gaps in every run (S6.7); state the limitation on the methodology page. *Oct 12:* Yahoo has none (LEH, LEHMQ, and TWTR return nothing). Tiingo covers recent delistings (Twitter) but few before 2010 (no Lehman), so check each universe member's coverage. *Nov 16:* the UD library denied WRDS access, so CRSP can't measure the gap; the per-run coverage report (S6.7) is the mitigation. *Nov 17:* every run saves its coverage report, `app.data.coverage` lists each member's price gaps, and a spec can assume a delisted holding lost more after its last close (S6.7). Companies the universe never included stay out of view. | S6.1, S6.7 |
 | R2 | Historical index membership is proprietary or incomplete | High | Medium | Start with a small, documented universe (S6.5); add a rules-based universe later (S6.6) | S6.5, S6.6 |
 | R3 | XBRL fundamentals start in 2009–2011, and tags vary by company and year | High | Medium | Tag mapping with a coverage report (S5.6); coverage-aware specs and assistant (S11.2); expect thin data in 2010–2011 | S5.6, S7.8 |
 | R4 | Timestamps are ambiguous: the timezone of acceptance times, ALFRED's date-only vintages, and missing early vintages | Medium | High | Verify against source pages (S5.1); use conservative defaults (S4.3); lock behavior in with golden tests (S3.6). *Oct 11:* confirmed. EDGAR's JSON acceptance times run ahead by the Eastern UTC offset, and FRED's real-time parameters default to today. Both are now rules in [`doc/reference/time-model.md`](reference/time-model.md) with named tests. | S3.6, S4.3, S5.1 |
