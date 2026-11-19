@@ -24,6 +24,7 @@ import type {
   V1Response,
 } from "@/lib/api/types";
 import { formatMacroValue, formatNumber, formatUsd, formatUsdMillions } from "@/lib/format";
+import { revisionsHref } from "@/lib/revisions-link";
 import {
   etDateTimeOf,
   formatEtShortDate,
@@ -50,6 +51,8 @@ export type EntityHorizon = {
   emptyNotYetKnown: string;
   /** Records our data didn't have by T, such as "a 10-K". */
   missing: string[];
+  /** A series with a value at T links to that value's revision history (S9.3). */
+  revisions?: { href: `/revisions?${string}`; label: string };
 };
 
 export type SnapshotView = {
@@ -109,7 +112,14 @@ export function buildSnapshotView(
         ? notYetKnown.series[index]
         : notYetKnown.series.find((item) => item.series_id === entry.series_id);
     const catalog = seriesCatalog.find((item) => item.series_id === entry.series_id);
-    const built = seriesHorizon(entry.series_id, entry.latest, later?.revisions ?? [], catalog, t);
+    const built = seriesHorizon(
+      entry.series_id,
+      entry.latest,
+      later?.revisions ?? [],
+      catalog,
+      t,
+      knowledgeTime,
+    );
     hidden += built.hidden;
     return built.horizon;
   });
@@ -229,6 +239,7 @@ function seriesHorizon(
   revisions: MacroObservation[],
   catalog: CatalogSeries | undefined,
   t: number,
+  moment: EtDateTime,
 ): { horizon: EntityHorizon; hidden: number } {
   const key = `series-${seriesId}`;
   const timeline = new Timeline(t);
@@ -280,6 +291,12 @@ function seriesHorizon(
         ? "No later revision of this value in our data."
         : "Later releases aren't listed: only revisions of a value known at T are.",
       missing: [],
+      revisions: latest
+        ? {
+            href: revisionsHref({ series: seriesId, period: latest.period, asOf: moment }),
+            label: `See every published value of ${formatPeriod(latest.period, latest.frequency)}`,
+          }
+        : undefined,
     },
     hidden: timeline.hidden,
   };

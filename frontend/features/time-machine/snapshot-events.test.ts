@@ -113,6 +113,14 @@ describe("buildSnapshotView on the §2.3 example (doc/reference/time-model.md, J
     expect(shownTime(amendment)).toBe("Jun 10, 2020, 4:00 PM ET");
   });
 
+  it("links a series with a value at T to that value's revision history", () => {
+    expect(unrate.revisions).toEqual({
+      href: "/revisions?series=UNRATE&period=2020-05-01&as_of=2020-06-05T09:30",
+      label: "See every published value of May 2020",
+    });
+    expect(aapl.revisions).toBeUndefined();
+  });
+
   it("knows the Fed data published by that morning", () => {
     const may = event(fedfunds, "series-FEDFUNDS:latest:2020-06-01");
     expect(may.known).toBe(true);

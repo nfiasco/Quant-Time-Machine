@@ -1,6 +1,8 @@
-import { CodeIcon, DatabaseIcon, EyeOffIcon, TriangleAlertIcon } from "lucide-react";
+import { CodeIcon, DatabaseIcon, EyeOffIcon, LayersIcon, TriangleAlertIcon } from "lucide-react";
+import Link from "next/link";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyLinkButton } from "@/features/time-machine/copy-link-button";
 import { KnowledgeHorizon } from "@/features/time-machine/knowledge-horizon";
@@ -182,6 +184,14 @@ function EntityCard({ entity, moment }: { entity: EntityHorizon; moment: EtDateT
           <p className="text-xs text-pretty text-muted-foreground">
             Not in our data by T: {entity.missing.join(", ")}.
           </p>
+        ) : null}
+        {entity.revisions ? (
+          <Button asChild variant="outline" size="sm" className="w-fit">
+            <Link href={entity.revisions.href}>
+              <LayersIcon data-icon="inline-start" />
+              {entity.revisions.label}
+            </Link>
+          </Button>
         ) : null}
       </CardContent>
     </Card>

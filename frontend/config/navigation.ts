@@ -119,7 +119,7 @@ export const routes = {
     icon: LayersIcon,
     description:
       "See how an economic data point changed from its first release to today.",
-    status: "planned",
+    status: "live",
     story: { id: "S9.3", title: "Macro revision viewer", milestone: "M4" },
     highlights: [
       "Choose a series and an observation period to see every published value over time, as a chart and a table.",
