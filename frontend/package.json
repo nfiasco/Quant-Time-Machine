@@ -9,7 +9,9 @@
     "lint": "eslint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "api:types": "openapi-typescript ../doc/reference/openapi.json --output lib/api/schema.ts --default-non-nullable=false",
+    "api:types:check": "npm run api:types -- --check"
   },
   "dependencies": {
     "@gsap/react": "2.1.2",
@@ -34,6 +36,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
+    "openapi-typescript": "7.13.0",
     "prettier": "3.9.10",
     "shadcn": "^4.22.0",
     "tailwindcss": "^4",

@@ -10,3 +10,6 @@ components/ui/
 # Written by tools.
 package-lock.json
 next-env.d.ts
+# npm run api:types writes it from the API's OpenAPI schema, and api:types:check compares it
+# byte for byte, so it keeps the generator's style.
+lib/api/schema.ts
