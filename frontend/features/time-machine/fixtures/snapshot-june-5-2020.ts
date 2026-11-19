@@ -1,14 +1,15 @@
-import type { Snapshot, V1Response } from "@/lib/api/types";
+import type { GetResponse } from "@/lib/api/types";
 
 /**
  * GET /v1/snapshot?as_of=2020-06-05&tickers=AAPL,TSLA&series=UNRATE,FEDFUNDS, as the API
  * documents it: the "june_5_2020" example in its OpenAPI schema (backend/app/api/examples.py),
  * which the backend replays against its test fixtures. Test data, not production: the 10-K
  * is a 2001 10-K405 with an assumed time, the 10-Q/A is made up, and TSLA has no bars or
- * filings. `satisfies` makes `next build` fail if lib/api/types.ts drifts from the API.
+ * filings. `satisfies` makes `next build` fail if it no longer matches the route's response
+ * type, which is generated from the same schema (lib/api/types.ts).
  *
- * To refresh it, with the backend running:
- *   curl -s localhost:8000/openapi.json | jq '.paths["/v1/snapshot"].get.responses["200"].content["application/json"].examples.june_5_2020.value'
+ * To refresh it, from frontend/:
+ *   jq '.paths["/v1/snapshot"].get.responses["200"].content["application/json"].examples.june_5_2020.value' ../doc/reference/openapi.json
  */
 export const june5Snapshot = {
   knowledge_time: "2020-06-05T09:30:00-04:00",
@@ -342,4 +343,4 @@ export const june5Snapshot = {
     },
   },
   reason: null,
-} satisfies V1Response<Snapshot>;
+} satisfies GetResponse<"/v1/snapshot">;

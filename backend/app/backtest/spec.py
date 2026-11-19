@@ -1,9 +1,9 @@
 """Experiment spec version 1: the validated JSON document that describes a backtest (S7.1).
 
 Every backtest is one of these, whether it's built in the web form or, later, by the
-assistant (roadmap §3.4). The models match the frontend's `ExperimentSpec` type in
-frontend/features/backtests/types.ts, field for field, and tests/test_spec.py keeps the
-two in sync.
+assistant (roadmap §3.4). The frontend's `ExperimentSpec` type is generated from these
+models, through the API's OpenAPI schema (doc/reference/openapi.json, S8.6), so the two
+can't drift.
 
 - `parse_spec` validates a spec, given as JSON or as parsed JSON. It raises `SpecError`,
   which names each invalid field the way the API's 422 errors do: "schedule.fill must
