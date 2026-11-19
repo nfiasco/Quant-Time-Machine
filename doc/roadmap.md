@@ -11,7 +11,7 @@
 - **CISC 499 (Spring 2027):** MCP tools and an AI research assistant that turns questions into structured experiments, plus look-ahead-bias detection, experiment tracking, strategy comparison, and robustness testing.
 - **Ground rule:** the AI translates; deterministic code calculates. Every number comes from tested code, and every input carries the time it became public.
 - **Size:** 16 epics and 104 stories; 69 are P0 for their semester demo. S2.1 (interviews) was removed from scope on November 16. Sprints are two weeks long; Sprint 1 began Monday, September 28, 2026.
-- **Progress:** 43 Done, 4 In progress, 8 In review, and 49 Backlog. The eight In review stories (S6.7, S7.3–S7.8, and S8.4) are merged; they move to Done at the M4 reconciliation.
+- **Progress:** 43 Done, 4 In progress, 9 In review, and 48 Backlog. The nine In review stories (S6.7, S7.3–S7.8, S8.4, and S8.6) are merged; they move to Done at their milestone's reconciliation, M4's, or M5's for S8.6.
 - **Next delivery work:** the revision viewer (S9.3), then the builder's run button, the results page, the methodology page, the performance baseline, the first usability test, and the demo (M5). Accounts (E16) wait for the team's decision ([planning record](project/planning.md)).
 - **Public demo constraint:** raw Tiingo prices remain disabled on the deployed API pending display rights. The [landing-page example](#s98-public-landing-page) is static; it is not the live explorer.
 
@@ -88,7 +88,7 @@ Set on November 16, 2026 (S2.4). The [evaluation plan](research/evaluation-plan.
 | Foundation and CI | Next.js/React frontend, FastAPI backend, locked dependencies, templates, license, READMEs, backend lint/format/tests, frontend lint/format/tests/build, and container build/start checks | None. *Nov 16:* Prettier's format check and Vitest run in CI (S1.1); one required approval on `main` (S1.4) and S1.3's confirmations are done |
 | Point-in-time core | Append-only Parquet/DuckDB store; knowledge-time enforcement; provenance, raw cache, NYSE calendar, access logs, golden fixtures, and pinned data versions | None. *Nov 16:* the team ratified the time model (S3.1) |
 | Data | Six macro series with vintages and release times; filing histories and identities; XBRL metrics, quarter derivation/restatements; raw-price ingestion, corporate actions, total returns, and 50-company universe v1 | Optional catalog, bulk-data, and universe expansion later. *Nov 17:* the configurable delisting rule and the coverage reports (S6.7) are in review |
-| API | `/v1` prices, macro/revisions, filings/latest, fundamentals, snapshot, and catalog routes, with OpenAPI examples and tests | Run submission, background execution, results/audit endpoints (S8.4); generated client/caching (S8.6) |
+| API | `/v1` prices, macro/revisions, filings/latest, fundamentals, snapshot, and catalog routes, with OpenAPI examples and tests | None. *Nov 16:* run submission, background runs, and the results and audit endpoints (S8.4) are in review. *Nov 19:* generated TypeScript types and the cache of as-of answers (S8.6) are in review |
 | Backtester | Experiment spec v1, JSON Schema, decision/fill schedule, and total-return utilities | Simulation loop, signal calculations, portfolios/costs, performance metrics, run records, audit, and canonical end-to-end run (S7.3–S7.8) |
 | Web | [Public landing page](#s98-public-landing-page), app shell, dashboard health check, initial builder form/preset/validation, and sign-in/sign-up UI | Catalog-backed builder controls and submission, results, charts, methodology, and real accounts. Most planned routes still render placeholders. *Nov 10:* the live Time Machine explorer (S9.2) is merged. |
 | Accounts | Supabase CLI configuration and auth forms exist | Hosted setup record, migrations, RLS, token verification, real sessions, saved experiments, privacy/account deletion (E16) |
@@ -692,7 +692,7 @@ Every story in one table. Verified contributors are listed for completed stories
 | [S8.3](#s83-knowledge-snapshot-endpoint) | Knowledge snapshot endpoint | E8 | P0 | M | 3 | M3 | ✅ Done | [#145](https://github.com/nfiasco/Quant-Time-Machine/issues/145) | [nfiasco](https://github.com/nfiasco) |
 | [S8.4](#s84-backtest-endpoints) | Backtest endpoints | E8 | P0 | M | 4 | M4 | In review | [#25](https://github.com/nfiasco/Quant-Time-Machine/issues/25) | See issue |
 | [S8.5](#s85-catalog-endpoints) | Catalog endpoints | E8 | P0 | S | 3 | M3 | ✅ Done | [#146](https://github.com/nfiasco/Quant-Time-Machine/issues/146) | [nfiasco](https://github.com/nfiasco) |
-| [S8.6](#s86-typed-client-and-response-caching) | Typed client and response caching | E8 | P2 | S | 5 | M5 | Backlog | [#147](https://github.com/nfiasco/Quant-Time-Machine/issues/147) | See issue |
+| [S8.6](#s86-typed-client-and-response-caching) | Typed client and response caching | E8 | P2 | S | 5 | M5 | In review | [#147](https://github.com/nfiasco/Quant-Time-Machine/issues/147) | See issue |
 | [S9.1](#s91-app-shell-and-api-client) | App shell and API client | E9 | P0 | S | 2 | M2 | ✅ Done | [#148](https://github.com/nfiasco/Quant-Time-Machine/issues/148) | [ariudel](https://github.com/ariudel), [nfiasco](https://github.com/nfiasco) |
 | [S9.2](#s92-time-machine-explorer) | Time Machine explorer | E9 | P0 | L | 3 | M3 | ✅ Done | [#35](https://github.com/nfiasco/Quant-Time-Machine/issues/35) | [nfiasco](https://github.com/nfiasco) |
 | [S9.3](#s93-macro-revision-viewer) | Macro revision viewer | E9 | P1 | M | 4 | M4 | Backlog | [#149](https://github.com/nfiasco/Quant-Time-Machine/issues/149) | See issue |
@@ -2208,7 +2208,7 @@ Evidence: `backend/app/api/backtests.py`, `backend/app/run_queue.py`, `backend/a
 
 #### S8.6 Typed client and response caching
 
-**Priority:** P2 · **Size:** S · **Sprint:** 5 · **Milestone:** M5 · **Area:** api · **Depends on:** S8.2 · **Reqs:** NFR-5 · **Status:** Backlog
+**Priority:** P2 · **Size:** S · **Sprint:** 5 · **Milestone:** M5 · **Area:** api · **Depends on:** S8.2 · **Reqs:** NFR-5 · **Status:** In review
 
 **Story:** As a developer, I want generated TypeScript types and cached as-of responses, so that the frontend stays in sync with the API and repeated queries are fast.
 
@@ -2219,10 +2219,20 @@ Evidence: `backend/app/api/backtests.py`, `backend/app/run_queue.py`, `backend/a
 
 **Tasks**
 
-- [ ] Add the type generation script
-- [ ] Add cache headers (ETag) or an in-process cache
+- [x] Add the type generation script: `npm run api:types` turns the committed OpenAPI schema, [`openapi.json`](reference/openapi.json), into `frontend/lib/api/schema.ts`. The frontend's type names, its API functions' return types, and the experiment spec's types come from it ([TypeScript types](reference/api-v1.md#typescript-types)). A backend test keeps the schema current, and CI's `npm run api:types:check` the generated file
+- [x] Add cache headers (ETag) or an in-process cache: both. The API keeps each as-of 200 in memory for the store's newest data version, by path, query, and knowledge time, and starts over at a new data version. Cached answers carry an ETag, so a matching `If-None-Match` gets a 304 ([caching](reference/api-v1.md#caching))
 
 **Progress evidence (2026-11-08):** No implementation or completion evidence for these acceptance criteria is present in the audited commit. This remains planned work.
+
+**Progress evidence (2026-11-19):** The frontend's API types are generated, and repeated as-of queries skip the store. Measured on the local store (data version 20261111T030742Z), inside the process:
+
+- **Repeats are fast.** A repeated snapshot of AAPL, TSLA, UNRATE, and FEDFUNDS took 188 ms before and 0.7 ms now, and the catalogs 11 to 25 ms before and 0.6 ms now. A first request costs what it did: 189 ms against 194 ms.
+- **Cached by query, knowledge time, and data version.** Equivalent `as_of` values share an answer, and an earlier moment never gets a later one: at 08:00 on June 5, 2020, the unemployment rate is still April's. A new data version starts the cache over. A store without a data version, errors, `/v1/catalog/signals`, and the backtest endpoints aren't cached. `tests/test_api_cache.py` checks each, and that all 17 documented as-of requests are cached.
+- **The hand-written types hadn't drifted far.** The frontend compiled against the generated types unchanged. The error codes gained `runs_unavailable`, and the spec's `delisting.assumed_return` became optional, as the engine defaults it to 0. A type test fails the build if `GetResponse` stops resolving to a route's body.
+- **One source.** The API contract's 350-line copy of the types is now a pointer, and the backend test that read the builder's types as text gave way to the generated chain: the models, `openapi.json`, `schema.ts`, then `next build`.
+- **Not done.** Nobody else has reviewed it yet. Production isn't measured, and a first request there is as slow as before (a 723 ms snapshot in the D4 benchmark), so NFR-5's lookup target still needs S15.2. Request parameters aren't typed yet, only responses.
+
+Evidence: `backend/app/api/cache.py`, `backend/app/api/openapi.py`, `doc/reference/openapi.json`, `frontend/lib/api/schema.ts`, `frontend/lib/api/types.ts`, `backend/tests/test_api_cache.py`, `backend/tests/test_openapi.py`, `frontend/lib/api/types.test.ts`, [caching](reference/api-v1.md#caching).
 
 **GitHub:** [#147](https://github.com/nfiasco/Quant-Time-Machine/issues/147) · **Parent epic:** [#102](https://github.com/nfiasco/Quant-Time-Machine/issues/102)
 
