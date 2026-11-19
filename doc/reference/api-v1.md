@@ -1,6 +1,6 @@
 # Research API v1: response contract
 
-> **Stories S8.1, S8.2, S4.5, S8.5, S8.3, and S8.4.** Drafted 2026-10-19 as the contract for S9.1's M2 demo page, and implemented in Sprint 2. Sprint 3 added [`GET /v1/fundamentals/{ticker}`](#get-v1fundamentalsticker) (S5.7, 2026-11-01), then [revision history](#get-v1macroseries_idrevisions) (S4.5), [the catalogs](#get-v1catalogseries) (S8.5), and [the snapshot](#get-v1snapshot) (S8.3) on 2026-11-02. Sprint 4 added [the backtest endpoints](#backtests) (S8.4, 2026-11-15). The API's own docs at `/docs` show the as-of examples below, each labeled with the request that produces it. A test replays every one against the test fixtures, so they can't drift. The backtest examples are from a real run, and its tests check the same shapes on a toy market. S8.6 will generate TypeScript types from the OpenAPI schema. To change the contract, update this file and the backend in the same pull request, and tell the frontend.
+> **Stories S8.1, S8.2, S4.5, S8.5, S8.3, S8.4, and S8.6.** Drafted 2026-10-19 as the contract for S9.1's M2 demo page, and implemented in Sprint 2. Sprint 3 added [`GET /v1/fundamentals/{ticker}`](#get-v1fundamentalsticker) (S5.7, 2026-11-01), then [revision history](#get-v1macroseries_idrevisions) (S4.5), [the catalogs](#get-v1catalogseries) (S8.5), and [the snapshot](#get-v1snapshot) (S8.3) on 2026-11-02. Sprint 4 added [the backtest endpoints](#backtests) (S8.4, 2026-11-15), then [caching](#caching) and the generated [TypeScript types](#typescript-types) (S8.6, 2026-11-19). The API's own docs at `/docs` show the as-of examples below, each labeled with the request that produces it. A test replays every one against the test fixtures, so they can't drift. The backtest examples are from a real run, and its tests check the same shapes on a toy market. To change the contract, update this file and the backend in the same pull request, and tell the frontend.
 
 ## Conventions
 
@@ -1102,358 +1102,39 @@ Every error has the same shape, which replaces FastAPI's default `{"detail": ...
 - **`details`** is `[]` except for `invalid_request`, where each entry names a parameter, such as `as_of`, `form`, or `limit`, or a field of a submitted spec by its path, such as `schedule.fill`.
 - **Every error carries the CORS headers**, a 500 included, so the browser can read the body.
 
+## Caching
+
+An answer as of a knowledge time never changes for a given data version, so the API keeps each one in memory and answers a repeat without reading the store (S8.6, [`app/api/cache.py`](../../backend/app/api/cache.py)).
+
+- **What's cached.** The 200 answers of every `GET` that takes `as_of`: the macro, price, filing, fundamentals, catalog, snapshot, and knowledge-time endpoints. Errors aren't, and neither are [`/v1/catalog/signals`](#get-v1catalogsignals), which takes no `as_of`, or the [backtest endpoints](#backtests), whose answers change while a run goes.
+- **The key** is the path, the knowledge time, the other query parameters as sent, and the data version. `as_of=2020-06-05` and `as_of=2020-06-05T09:30` are the same instant, so they share an answer, while `2020-06-05T08:00` is another, so a later answer never reaches an earlier moment. Request headers aren't part of the key, since no answer depends on who asks.
+- **One data version at a time.** Requests read the store's newest data version, so the cache holds its answers and starts over when an ingestion run or a store upload makes another one newest. While the store has no data version, nothing is cached.
+- **Headers.** A cached answer carries:
+  - `ETag`, a hash of its body;
+  - `Cache-Control: no-cache`, so a browser or proxy may keep it but must check first, since the next data version can change the answer at the same URL;
+  - `Cache-Status: qtm-api; hit`, or `qtm-api; fwd=miss; stored` when the store was read ([RFC 9211](https://www.rfc-editor.org/rfc/rfc9211)).
+
+  Send the ETag back in `If-None-Match` to get a `304 Not Modified` without a body.
+- **Size.** `RESPONSE_CACHE_MB` (default 32) caps the memory the answers take. When it's full, the answers used longest ago go first. `0` turns the cache off.
+
+Measured on the local store (data version 20261111T030742Z), inside the process, a first request costs what it did before, and a repeat about 0.6 ms:
+
+| Request | First | Repeat |
+| --- | ---: | ---: |
+| `GET /v1/snapshot?as_of=2020-06-05T09:30&tickers=AAPL,TSLA&series=UNRATE,FEDFUNDS` | 189 ms | 0.7 ms |
+| `GET /v1/catalog/companies?as_of=2020-06-05T09:30` | 25 ms | 0.6 ms |
+| `GET /v1/catalog/series?as_of=2020-06-05T09:30` | 12 ms | 0.6 ms |
+| `GET /v1/fundamentals/AAPL?as_of=2020-06-05` | 17 ms | 0.6 ms |
+
+The explorer reads both catalogs at 09:30 on the chosen date, so changing its companies or series repeats them, and reloading or sharing a view repeats its snapshot.
+
 ## TypeScript types
 
-Until S8.6 generates them from OpenAPI, the frontend can copy these:
+The frontend's types are generated from the API's OpenAPI schema (S8.6), so they can't drift from the backend:
 
-```ts
-// Use V1Response<Filing | null> for a single item and V1Response<Filing[]> for a list,
-// where [] means nothing was known yet.
-export type V1Response<T> = {
-  knowledge_time: string;
-  data_version: string | null; // null only if the backend's store has no data version yet
-  data: T;
-  reason: string | null;
-};
-
-export type KnowledgeTime = {
-  knowledge_time: string;
-  data_version: string | null;
-};
-
-type Provenance = {
-  available_at: string;
-  time_assumed: boolean;
-  source: "alfred" | "edgar" | "tiingo" | "curated";
-  source_ref: string;
-};
-
-export type MacroObservation = Provenance & {
-  series_id: string;
-  title: string;
-  units: string;
-  frequency: string;
-  seasonal_adjustment: string;
-  release: string;
-  period: string;
-  value: number | null;
-  vintage_date: string;
-};
-
-export type PriceBar = Provenance & {
-  ticker: string;
-  cik: number | null;
-  session_date: string;
-  open: number | null;
-  high: number | null;
-  low: number | null;
-  close: number | null;
-  volume: number | null;
-};
-
-export type Filing = Provenance & {
-  ticker: string;
-  cik: number;
-  company_name: string;
-  accession_number: string;
-  form: string;
-  is_amendment: boolean;
-  amends: string | null;
-  period_of_report: string | null;
-  filing_date: string;
-  document_url: string | null;
-  index_url: string;
-};
-
-export type Fundamental = Provenance & {
-  ticker: string;
-  cik: number | null;
-  metric: string; // revenue, net_income, eps_diluted, operating_cash_flow, total_assets, or shares_outstanding
-  concept: string;
-  unit: string;
-  period_start: string | null; // null for an instant
-  period_end: string;
-  fiscal_year: number | null;
-  fiscal_period: "Q1" | "Q2" | "Q3" | "Q4" | null;
-  value: number;
-  derived: boolean;
-  accession_numbers: string[];
-};
-
-export type DateRange = { first: string; last: string };
-
-export type CatalogSeries = {
-  series_id: string;
-  title: string;
-  units: string;
-  frequency: string;
-  seasonal_adjustment: string;
-  release: string;
-  observations: DateRange | null;
-  vintages: DateRange | null;
-};
-
-export type CatalogCompany = {
-  ticker: string | null;
-  name: string;
-  cik: number | null;
-  universe: string;
-  added: string;
-  prices: DateRange | null;
-  filings: DateRange | null;
-  fundamentals: DateRange | null;
-};
-
-// GET /v1/catalog/signals has no knowledge_time or data_version.
-export type SignalCatalog = {
-  spec_version: 1;
-  data: { type: string; description: string; parameters: Record<string, unknown> }[];
-};
-
-type FilingsByForm = { "10-K": Filing | null; "10-Q": Filing | null; "8-K": Filing | null };
-
-export type Membership = Provenance & { universe: string; added: string };
-
-export type UniverseChange = Provenance & {
-  universe: string;
-  change: "joins" | "leaves";
-  effective: string;
-};
-
-export type SnapshotCompanyKnown = {
-  ticker: string;
-  cik: number | null;
-  company_name: string;
-  prices_withheld: boolean;
-  latest_bar: PriceBar | null;
-  latest_filings: FilingsByForm;
-  latest_revenue: Fundamental | null;
-  universes: Membership[];
-};
-
-export type SnapshotCompanyNotYetKnown = {
-  ticker: string;
-  next_bar: { session_date: string; available_at: string } | null;
-  next_filings: FilingsByForm;
-  later_amendments: Filing[];
-  later_revenue: Fundamental[];
-  universe_changes: UniverseChange[];
-};
-
-export type Snapshot = {
-  known: {
-    companies: SnapshotCompanyKnown[];
-    series: { series_id: string; latest: MacroObservation | null }[];
-  };
-  not_yet_known: {
-    companies: SnapshotCompanyNotYetKnown[];
-    series: { series_id: string; period: string | null; revisions: MacroObservation[] }[];
-  };
-};
-
-// GET /v1/macro/{series_id}/revisions returns V1Response<MacroObservation[]>,
-// GET /v1/catalog/series V1Response<CatalogSeries[]>, GET /v1/catalog/companies
-// V1Response<CatalogCompany[]>, and GET /v1/snapshot V1Response<Snapshot>.
-
-// Backtests (S8.4). ExperimentSpec is in frontend/features/backtests/types.ts.
-export type RunStatus = "queued" | "running" | "succeeded" | "failed";
-
-// One session's open or close: which price, never what it was.
-export type PricePoint = { session: string; price: "open" | "close" };
-
-// POST /v1/backtests answers with this: 202, or 200 for a run that's already saved.
-export type BacktestSubmitted = { run_id: string; status: RunStatus };
-
-export type BacktestMetrics = {
-  periods: number;
-  start: PricePoint;
-  end: PricePoint;
-  years: number;
-  total_return: number;
-  cagr: number | null;
-  volatility: number | null;
-  sharpe: number | null;
-  max_drawdown: number;
-  turnover: number | null;
-  hit_rate: number | null;
-  benchmark_total_return: number | null;
-  benchmark_cagr: number | null;
-  excess_return: number | null;
-  beta: number | null;
-  alpha: number | null;
-  mean_excess_return: number | null;
-  excess_t_stat: number | null;
-};
-
-export type BacktestPeriod = {
-  decision: string;
-  decision_time: string;
-  fill_time: string;
-  fill: PricePoint;
-  end: PricePoint;
-  universe_size: number;
-  holdings: number;
-  trades: number;
-  turnover: number;
-  cost: number;
-  gross_return: number;
-  net_return: number;
-  benchmark_return: number | null;
-  risk_free_rate: number | null;
-  value: number;
-};
-
-export type BacktestWarning = {
-  kind:
-    | "stopped_trading"
-    | "missing_signal"
-    | "empty_portfolio"
-    | "thin_ranking"
-    | "no_fill_price"
-    | "delisted_exit"
-    | "missing_price"
-    | "missing_benchmark"
-    | "missing_risk_free"
-    | "fill_after_end"
-    | "wiped_out";
-  decision: string;
-  message: string;
-  ticker: string | null;
-  signal: string | null;
-};
-
-export type BacktestResult = {
-  metrics: BacktestMetrics;
-  periods: BacktestPeriod[];
-  equity_curve: { at: PricePoint; value: number; benchmark: number | null }[];
-  warnings: BacktestWarning[];
-};
-
-// GET /v1/backtests/{run_id}
-export type BacktestRun = {
-  run_id: string;
-  status: RunStatus;
-  progress: { decisions_done: number; decisions_total: number } | null;
-  submitted_at: string | null;
-  started_at: string | null;
-  finished_at: string | null;
-  error: string | null;
-  spec: ExperimentSpec;
-  spec_hash: string;
-  data_version: string;
-  engine_version: string;
-  git_sha: string | null;
-  result: BacktestResult | null; // null until status is "succeeded"
-};
-
-export type AuditTable = {
-  table: string;
-  rows: number;
-  earliest_available_at: string;
-  latest_available_at: string;
-  sha256: string;
-  groups: {
-    key: string | number | boolean | null;
-    rows: number;
-    latest_available_at: string;
-    latest_source_ref: string;
-  }[];
-};
-
-export type AuditView = {
-  purpose: "decision" | "fill" | "end";
-  decision: string;
-  knowledge_time: string;
-  rows: number;
-  tables: AuditTable[];
-};
-
-export type BacktestHolding = {
-  decision: string;
-  ticker: string;
-  weight: number;
-  signals: Record<string, number>;
-  period_return: number;
-  exit: PricePoint;
-};
-
-export type BacktestTrade = {
-  decision: string;
-  ticker: string | null;
-  fill: PricePoint;
-  weight_before: number;
-  weight_after: number;
-  traded: number;
-  cost: number;
-};
-
-export type CoverageCounts = {
-  member_decisions: number;
-  left_out: number;
-  stopped_trading: number;
-  // For each kind the spec's needed signals read: "prices", "fundamentals", or "macro".
-  missing: Partial<Record<"prices" | "fundamentals" | "macro", number>>;
-  signals: Record<string, number>;
-  no_fill_price: number;
-  exits: number;
-};
-
-export type CoverageRow = CoverageCounts & {
-  ticker: string | null;
-  name: string;
-  year: number;
-};
-
-export type CoverageExit = {
-  decision: string;
-  ticker: string;
-  kind: "delisted_exit" | "missing_price";
-  valued_at: PricePoint;
-  end: PricePoint;
-};
-
-export type CoverageReport = {
-  decisions: number;
-  totals: CoverageCounts;
-  rows: CoverageRow[];
-  exits: CoverageExit[];
-};
-
-// GET /v1/backtests/{run_id}/audit, /holdings, /trades, and /coverage. Each is null
-// until status is "succeeded", and coverage also for a run saved before engine 1.1.0.
-export type BacktestAudit = { run_id: string; status: RunStatus; views: AuditView[] | null };
-export type BacktestHoldings = {
-  run_id: string;
-  status: RunStatus;
-  holdings: BacktestHolding[] | null;
-};
-export type BacktestTrades = {
-  run_id: string;
-  status: RunStatus;
-  trades: BacktestTrade[] | null;
-};
-export type BacktestCoverage = {
-  run_id: string;
-  status: RunStatus;
-  coverage: CoverageReport | null;
-};
-
-export type V1Error = {
-  error: {
-    code:
-      | "invalid_request"
-      | "unknown_ticker"
-      | "unknown_series"
-      | "prices_restricted"
-      | "not_found"
-      | "method_not_allowed"
-      | "runs_unavailable"
-      | "internal_error";
-    message: string;
-    details: { field: string; message: string }[];
-  };
-};
-```
+1. [`openapi.json`](openapi.json) is the schema the API serves at `/openapi.json`. After changing a route or a response model, regenerate it from `backend/` with `uv run python -m app.api.openapi > ../doc/reference/openapi.json`, or a test fails.
+2. `npm run api:types` in `frontend/` turns it into [`frontend/lib/api/schema.ts`](../../frontend/lib/api/schema.ts). CI's `npm run api:types:check` fails when that file is stale. Don't edit it by hand.
+3. [`frontend/lib/api/types.ts`](../../frontend/lib/api/types.ts) gives the schemas the names pages use, such as `Snapshot`, `CatalogCompany`, `BacktestRun`, and `V1Error`, and `GetResponse<"/v1/snapshot">` is a route's 200 body. The experiment spec's types are in [`frontend/features/backtests/types.ts`](../../frontend/features/backtests/types.ts).
 
 With `apiFetch` from `frontend/lib/api/client.ts`, a failed call throws `ApiError`, whose `body` is a `V1Error`.
 
@@ -1464,6 +1145,5 @@ The backend allows requests from the origins in its `CORS_ORIGINS` setting: by d
 ## Coming next
 
 - **Listing runs** waits for accounts and the run registry (S13.1, S16.5). Until then a run is reached by its ID.
-- **Generated TypeScript types** come with S8.6.
 
 A price history and a whole macro series as known at a time (`get_price_history_as_of` and `get_macro_series_as_of`) will get endpoints when a page needs them, using the same envelope.

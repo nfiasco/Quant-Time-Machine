@@ -7,7 +7,8 @@ Start with the [project README](../README.md#getting-started) to run the app, or
 - [Time model](reference/time-model.md): what was knowable at a given time, with worked examples.
 - [Data sources](reference/data-sources.md): coverage, publication times, usage limits, and terms.
 - [Storage](reference/storage.md): how Parquet, DuckDB, and Supabase fit together.
-- [API v1 contract](reference/api-v1.md): request conventions, errors, and example responses, for the as-of endpoints and for submitting and reading backtests.
+- [API v1 contract](reference/api-v1.md): request conventions, errors, caching, and example responses, for the as-of endpoints and for submitting and reading backtests.
+- [OpenAPI schema](reference/openapi.json): the generated schema the API serves at `/openapi.json`, from which the frontend's TypeScript types are generated.
 - [Experiment spec v1 schema](reference/experiment-spec-v1.schema.json): the generated JSON Schema for backtest inputs.
 - [Signal library](reference/signals.md): each backtest signal's formula, data, minimum history, and the reasons it can have no value.
 - [Portfolio construction and costs](reference/portfolio.md): how filters, a ranking, and weights turn signals into a portfolio, long only or long-short, and what trading it costs.
