@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, Path
 from pydantic import Field
 
 from app.api import examples
+from app.api.cache import AsOfRoute
 from app.api.conventions import AppSettings, DataResponse, Provenance, View
 from app.api.errors import ApiError
 from app.data.timeutil import describe_time
@@ -31,7 +32,10 @@ def require_raw_prices(settings: AppSettings) -> None:
 # A router dependency runs before the route's own parameters are checked, so a
 # deployment without prices answers 403 to every request.
 router = APIRouter(
-    prefix="/prices", tags=["prices"], dependencies=[Depends(require_raw_prices)]
+    prefix="/prices",
+    tags=["prices"],
+    dependencies=[Depends(require_raw_prices)],
+    route_class=AsOfRoute,
 )
 
 
