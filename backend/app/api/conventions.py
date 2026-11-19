@@ -92,9 +92,15 @@ AppSettings = Annotated[Settings, Depends(app_settings)]
 """An endpoint or dependency parameter for the app's settings."""
 
 
-def newest_data_version(settings: AppSettings) -> str | None:
+def newest_data_version(request: Request, settings: AppSettings) -> str | None:
     """The app store's newest data version, which this request reads; None if no
-    ingestion run has written one yet."""
+    ingestion run has written one yet.
+
+    The cache (app/api/cache.py) may have looked it up already, since it keeps the answer
+    under it. Then the request reads that one, even if a newer one has appeared since."""
+    looked_up: str | None = getattr(request.state, "data_version", None)
+    if looked_up is not None:
+        return looked_up
     return latest_data_version(store_dir(settings.data_dir))
 
 

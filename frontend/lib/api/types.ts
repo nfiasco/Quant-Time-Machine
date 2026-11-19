@@ -1,176 +1,80 @@
-// Response types for the research API v1, copied from doc/reference/api-v1.md ("TypeScript types").
-// Hand-written until S8.6 generates them from the OpenAPI schema. Keep them in step with
-// the doc: features/time-machine/fixtures/ checks the snapshot's example against them
-// with `satisfies`, so `next build` fails when they drift.
+// Names for the research API v1's types (doc/reference/api-v1.md). They are the API's own:
+// `npm run api:types` generates lib/api/schema.ts from its OpenAPI schema,
+// doc/reference/openapi.json, which a backend test keeps equal to its models (S8.6). Never
+// edit schema.ts by hand: regenerate it after the schema changes, and add a name here when
+// a page needs one.
+import type { components, paths } from "@/lib/api/schema";
 
-// Use V1Response<Filing | null> for a single item and V1Response<Filing[]> for a list,
-// where [] means nothing was known yet.
-export type V1Response<T> = {
-  knowledge_time: string;
-  data_version: string | null; // null only if the backend's store has no data version yet
-  data: T;
-  reason: string | null;
-};
+type Schemas = components["schemas"];
 
-export type KnowledgeTime = {
-  knowledge_time: string;
-  data_version: string | null;
-};
+/** Every route the API answers a GET on, such as `"/v1/snapshot"`. */
+export type GetPath = {
+  [Path in keyof paths]: paths[Path] extends { get: object } ? Path : never;
+}[keyof paths];
 
-export type Provenance = {
-  available_at: string;
-  time_assumed: boolean;
-  source: "alfred" | "edgar" | "tiingo" | "curated";
-  source_ref: string;
-};
+/**
+ * The JSON body of a GET route's 200 response, such as `GetResponse<"/v1/snapshot">`. A
+ * helper in lib/api/ declares its return type with it, so a renamed route or a changed model
+ * fails `next build`.
+ */
+export type GetResponse<Path extends GetPath> = paths[Path]["get"] extends {
+  responses: { 200: { content: { "application/json": infer Body } } };
+}
+  ? Body
+  : never;
 
-export type MacroObservation = Provenance & {
-  series_id: string;
-  title: string;
-  units: string;
-  frequency: string;
-  seasonal_adjustment: string;
-  release: string;
-  period: string;
-  value: number | null;
-  vintage_date: string;
-};
+// The envelope. Use V1Response<Filing | null> for a single item and V1Response<Filing[]> for
+// a list, where [] means nothing was known yet. Each endpoint's own response type, such as
+// GetResponse<"/v1/snapshot">, is one of these.
+export type KnowledgeTime = Schemas["AsOfResponse"];
+export type V1Response<T> = KnowledgeTime & { data: T; reason: string | null };
 
-export type PriceBar = Provenance & {
-  ticker: string;
-  cik: number | null;
-  session_date: string;
-  open: number | null;
-  high: number | null;
-  low: number | null;
-  close: number | null;
-  volume: number | null;
-};
+export type MacroObservation = Schemas["MacroObservation"];
+export type PriceBar = Schemas["PriceBar"];
+export type Filing = Schemas["Filing"];
+export type Fundamental = Schemas["Fundamental"];
 
-export type Filing = Provenance & {
-  ticker: string;
-  cik: number;
-  company_name: string;
-  accession_number: string;
-  form: string;
-  is_amendment: boolean;
-  amends: string | null;
-  period_of_report: string | null;
-  filing_date: string;
-  document_url: string | null;
-  index_url: string;
-};
-
-export type Fundamental = Provenance & {
-  ticker: string;
-  cik: number | null;
-  metric: string; // revenue, net_income, eps_diluted, operating_cash_flow, total_assets, or shares_outstanding
-  concept: string;
-  unit: string;
-  period_start: string | null; // null for an instant
-  period_end: string;
-  fiscal_year: number | null;
-  fiscal_period: "Q1" | "Q2" | "Q3" | "Q4" | null;
-  value: number;
-  derived: boolean;
-  accession_numbers: string[];
-};
-
-export type DateRange = { first: string; last: string };
-
-export type CatalogSeries = {
-  series_id: string;
-  title: string;
-  units: string;
-  frequency: string;
-  seasonal_adjustment: string;
-  release: string;
-  observations: DateRange | null;
-  vintages: DateRange | null;
-};
-
-export type CatalogCompany = {
-  ticker: string | null;
-  name: string;
-  cik: number | null;
-  universe: string;
-  added: string;
-  prices: DateRange | null;
-  filings: DateRange | null;
-  fundamentals: DateRange | null;
-};
-
+export type CatalogSeries = Schemas["CatalogSeries"];
+export type CatalogCompany = Schemas["CatalogCompany"];
 // GET /v1/catalog/signals has no knowledge_time or data_version.
-export type SignalCatalog = {
-  spec_version: 1;
-  data: { type: string; description: string; parameters: Record<string, unknown> }[];
-};
+export type SignalCatalog = Schemas["SignalCatalogResponse"];
 
-export type FilingsByForm = {
-  "10-K": Filing | null;
-  "10-Q": Filing | null;
-  "8-K": Filing | null;
-};
-
-export type Membership = Provenance & { universe: string; added: string };
-
-export type UniverseChange = Provenance & {
-  universe: string;
-  change: "joins" | "leaves";
-  effective: string;
-};
-
+export type FilingsByForm = Schemas["FilingsByForm"];
+export type Membership = Schemas["Membership"];
+export type UniverseChange = Schemas["UniverseChange"];
 /** The first bar after the knowledge time. It never carries prices: they weren't known yet. */
-export type NextBar = { session_date: string; available_at: string };
+export type NextBar = Schemas["NextBar"];
+export type SnapshotCompanyKnown = Schemas["SnapshotCompanyKnown"];
+export type SnapshotCompanyNotYetKnown = Schemas["SnapshotCompanyNotYetKnown"];
+export type Snapshot = Schemas["Snapshot"];
 
-export type SnapshotCompanyKnown = {
-  ticker: string;
-  cik: number | null;
-  company_name: string;
-  prices_withheld: boolean;
-  latest_bar: PriceBar | null;
-  latest_filings: FilingsByForm;
-  latest_revenue: Fundamental | null;
-  universes: Membership[];
-};
+// Backtests (S8.4). The spec a run is built from, ExperimentSpec, is in
+// features/backtests/types.ts.
+export type BacktestSubmitted = Schemas["BacktestSubmitted"];
+export type BacktestRun = Schemas["BacktestRun"];
+export type RunStatus = BacktestRun["status"];
+export type BacktestProgress = Schemas["BacktestProgress"];
+export type BacktestResult = Schemas["BacktestResult"];
+export type BacktestMetrics = Schemas["BacktestMetrics"];
+export type BacktestPeriod = Schemas["BacktestPeriod"];
+export type BacktestWarning = Schemas["BacktestWarning"];
+/** One session's open or close: which price, never what it was. */
+export type PricePoint = Schemas["PricePoint"];
+export type EquityPoint = Schemas["EquityPoint"];
+export type BacktestAudit = Schemas["BacktestAudit"];
+export type AuditView = Schemas["AuditView"];
+export type AuditTable = Schemas["AuditTable"];
+export type BacktestHoldings = Schemas["BacktestHoldings"];
+export type BacktestHolding = Schemas["BacktestHolding"];
+export type BacktestTrades = Schemas["BacktestTrades"];
+export type BacktestTrade = Schemas["BacktestTrade"];
+export type BacktestCoverage = Schemas["BacktestCoverage"];
+export type CoverageReport = Schemas["CoverageReport"];
+export type CoverageCounts = Schemas["CoverageCounts"];
+export type CoverageRow = Schemas["CoverageRow"];
+export type CoverageExit = Schemas["CoverageExit"];
 
-export type SnapshotCompanyNotYetKnown = {
-  ticker: string;
-  next_bar: NextBar | null;
-  next_filings: FilingsByForm;
-  later_amendments: Filing[];
-  later_revenue: Fundamental[];
-  universe_changes: UniverseChange[];
-};
-
-export type Snapshot = {
-  known: {
-    companies: SnapshotCompanyKnown[];
-    series: { series_id: string; latest: MacroObservation | null }[];
-  };
-  not_yet_known: {
-    companies: SnapshotCompanyNotYetKnown[];
-    series: { series_id: string; period: string | null; revisions: MacroObservation[] }[];
-  };
-};
-
-// GET /v1/macro/{series_id}/revisions returns V1Response<MacroObservation[]>,
-// GET /v1/catalog/series V1Response<CatalogSeries[]>, GET /v1/catalog/companies
-// V1Response<CatalogCompany[]>, and GET /v1/snapshot V1Response<Snapshot>.
-
-export type V1Error = {
-  error: {
-    code:
-      | "invalid_request"
-      | "unknown_ticker"
-      | "unknown_series"
-      | "prices_restricted"
-      | "not_found"
-      | "method_not_allowed"
-      | "internal_error";
-    message: string;
-    details: { field: string; message: string }[];
-  };
-};
-
-export type V1ErrorCode = V1Error["error"]["code"];
+// The body of every error the API itself answers with, which `isV1Error` (lib/api/errors.ts)
+// tells apart from a proxy's.
+export type V1Error = Schemas["ErrorResponse"];
+export type V1ErrorCode = Schemas["ErrorBody"]["code"];

@@ -14,7 +14,6 @@ from app.data.sources.alfred import SERIES
 REPOSITORY = Path(__file__).resolve().parents[2]
 CANONICAL = Path(__file__).parent / "fixtures" / "specs" / "canonical.json"
 SCHEMA_FILE = REPOSITORY / "doc" / "reference" / "experiment-spec-v1.schema.json"
-FRONTEND_TYPES = REPOSITORY / "frontend" / "features" / "backtests" / "types.ts"
 
 DELETE = object()
 """Passed to `changed` to remove a field."""
@@ -552,35 +551,3 @@ def test_the_committed_schema_is_current() -> None:
         "doc/reference/experiment-spec-v1.schema.json is out of date. From backend/, run "
         "uv run python -m app.backtest.spec > ../doc/reference/experiment-spec-v1.schema.json"
     )
-
-
-def test_the_spec_matches_the_frontend_types() -> None:
-    # The web app's ExperimentSpec type and these models must use the same field names
-    # and the same string values. Change both together.
-    code = re.sub(
-        r"/\*.*?\*/|//[^\n]*",
-        "",
-        FRONTEND_TYPES.read_text(encoding="utf-8"),
-        flags=re.DOTALL,
-    )
-    fields: set[str] = set()
-    values: set[str] = set()
-
-    def walk(node: object) -> None:
-        if isinstance(node, dict):
-            fields.update(node.get("properties", {}))
-            values.update(
-                value
-                for value in [node.get("const"), *node.get("enum", [])]
-                if isinstance(value, str)
-            )
-            for child in node.values():
-                walk(child)
-        elif isinstance(node, list):
-            for child in node:
-                walk(child)
-
-    walk(json_schema())
-
-    assert set(re.findall(r"(\w+)\??:", code)) == fields
-    assert set(re.findall(r'"([^"]*)"', code)) == values

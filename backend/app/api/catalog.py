@@ -14,12 +14,13 @@ from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api import examples
+from app.api.cache import AsOfRoute
 from app.api.conventions import DataResponse, View
 from app.backtest.spec import signal_types
 from app.data.sources.universes import HISTORY_START, UNIVERSES
 from app.data.timeutil import describe_time
 
-router = APIRouter(prefix="/catalog", tags=["catalog"])
+router = APIRouter(prefix="/catalog", tags=["catalog"], route_class=AsOfRoute)
 
 
 class DateRange(BaseModel):

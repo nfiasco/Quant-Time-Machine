@@ -40,9 +40,12 @@ def fixture_store(store_dir: Path) -> Path:
 
 def api_client(store: Path, *, serve_raw_prices: bool) -> TestClient:
     """The API reading `store`, built from known settings, so a developer's
-    backend/.env can't change the results."""
+    backend/.env, or a variable in their shell, can't change the results."""
     settings = Settings(
-        _env_file=None, data_dir=store.parent, serve_raw_prices=serve_raw_prices
+        _env_file=None,
+        data_dir=store.parent,
+        serve_raw_prices=serve_raw_prices,
+        response_cache_mb=32,
     )
     return TestClient(create_app(settings))
 

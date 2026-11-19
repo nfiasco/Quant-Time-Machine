@@ -155,7 +155,7 @@ After ingesting locally, the owner runs [`backend/scripts/upload_store.sh`](../.
 2. swaps it in: the current store becomes `/data/store.previous`, and the new one `/data/store`. Requests between the two renames, a second or two, find no store. To roll back, swap the names back with `railway volume files rename`;
 3. runs the smoke test with `--data-version`, so the API must report the version just uploaded.
 
-The first upload took 7.5 s. The API reads the store on each request, so nothing restarts.
+The first upload took 7.5 s. The API reads the store on each request, so nothing restarts. Its cache of as-of answers holds only the newest data version's, so the first request after the swap starts it over ([caching](api-v1.md#caching)).
 
 The script needs three things:
 

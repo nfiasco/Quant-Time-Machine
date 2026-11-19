@@ -48,6 +48,7 @@ Settings and API keys load through one typed module, [`app/config.py`](app/confi
 | `CORS_ORIGINS`     | Browser access to the API (CORS)              | Exact origins, comma-separated, no trailing slash. Default `http://localhost:3000`; add the deployed site.                 |
 | `GIT_SHA`          | The commit a saved run records (S7.7)         | Optional. Unset, it's Railway's `RAILWAY_GIT_COMMIT_SHA` on a deploy, or git's HEAD on your machine, with `-dirty` for uncommitted changes. |
 | `SERVE_RAW_PRICES` | `GET /v1/prices` answering at all             | Default `false`, so the endpoint answers 403. Tiingo's prices are internal use only (D2): set `true` on your own machine, never on a deployment others can reach. |
+| `RESPONSE_CACHE_MB` | Memory for the cache of as-of answers (S8.6) | Default `32`. `0` turns the cache off; see [caching](../doc/reference/api-v1.md#caching). |
 
 In code, call `get_settings()` from `app.config`. API keys are `SecretStr` values, so they never show up in logs; use `.get_secret_value()` where the real value is needed. Route handlers don't call `get_settings()`. They read the settings the app was built with, through the `AppSettings` dependency, so a test can build an app with its own settings: `create_app(Settings(_env_file=None, data_dir=...))`. The tests don't need any keys: they use fixtures instead of live APIs.
 
@@ -138,15 +139,24 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
   | 500 | `internal_error` | A bug; the message is generic |
 
 - **CORS:** only the origins in `CORS_ORIGINS` may call the API from a browser. Errors carry the CORS headers too, so a page can read them.
+- **Caching** ([`app/api/cache.py`](app/api/cache.py), S8.6): an as-of answer never changes for a data version, so the API keeps each 200 in memory, by path, query, knowledge time, and data version, and answers a repeat without reading the store. A new data version starts the cache over. Cached answers carry an `ETag`, and a matching `If-None-Match` gets a 304 ([caching](../doc/reference/api-v1.md#caching)).
 
 **Adding an endpoint:**
 
-1. Create a router module in `app/api/` (see `macro.py`), and include it in `app/api/v1.py`, so it's served under `/v1`.
+1. Create a router module in `app/api/` (see `macro.py`) with `APIRouter(..., route_class=AsOfRoute)`, so its answers are cached, and include it in `app/api/v1.py`, so it's served under `/v1`.
 2. Take `view: View` to read the store: one `PointInTimeView` per request, bound to `as_of`.
 3. Return a named subclass of `DataResponse`, whose `data` is a model built on `Provenance`.
-4. Add its examples to `app/api/examples.py`, each labeled with the request that produces it. `tests/test_api_examples.py` replays every one against the fixtures.
+4. Add its examples to `app/api/examples.py`, each labeled with the request that produces it. `tests/test_api_examples.py` replays every one against the fixtures, and `tests/test_api_cache.py` checks that each is cached.
+5. Regenerate the OpenAPI schema and the frontend's types (below).
 
-The backtest routes are the exception to steps 2 and 3: a run isn't an answer as of one moment, so they take no `as_of` and return their own models ([`app/api/backtests.py`](app/api/backtests.py)).
+The backtest routes are the exception to steps 1 to 3: a run isn't an answer as of one moment, so they take no `as_of`, aren't cached, and return their own models ([`app/api/backtests.py`](app/api/backtests.py)).
+
+**The OpenAPI schema** is committed as [`doc/reference/openapi.json`](../doc/reference/openapi.json), exactly what `/openapi.json` serves, and the frontend generates its TypeScript types from it (S8.6). After changing a route or a response model, or upgrading FastAPI or Pydantic, regenerate both, or a test and CI fail:
+
+```bash
+uv run python -m app.api.openapi > ../doc/reference/openapi.json  # from backend/
+npm run api:types                                                 # from frontend/
+```
 
 ## Endpoints
 
@@ -250,7 +260,7 @@ A data version is the store as one finished ingestion run left it, so a saved ru
   ```
 
   A pinned view first checks that every file the version lists is still there with the same size, and the first time in a process, the same hash. If one is missing or changed, it raises `DataVersionError` instead of answering from different data. Without `data_version`, a view reads every file stored now, including any a stopped run left.
-- **The API** pins each request to the store's newest version, `latest_data_version(store)`, and echoes it as `data_version`. It's `null` only if the store has no version yet: run any ingestion command once, even one that answers from the cache.
+- **The API** pins each request to the store's newest version, `latest_data_version(store)`, echoes it as `data_version`, and keeps the answer for it (see caching under [API conventions](#api-conventions-v1)). It's `null` only if the store has no version yet: run any ingestion command once, even one that answers from the cache.
 - **Never delete or rewrite a file a version lists.** `write_rows` never does. Rebuilding a table by deleting its folder breaks the versions that list its files (see [Store](#point-in-time-data-layer)).
 
 ## Backtest engine
@@ -260,7 +270,7 @@ The engine in [`app/backtest/`](app/backtest/) reads data only through `PointInT
 | Module | What it does |
 | --- | --- |
 | [`returns.py`](app/backtest/returns.py) | Daily and monthly total returns from raw prices, splits, and dividends, as known at a time (S6.4). Split factors are rounded to the ratio they stand for, such as 7 for Tiingo's 7.000007. The returns match Tiingo's adjusted closes to within 10⁻⁶. `holding_return` runs from one fill's price to the next's, each a session's open or close, and values a holding whose bars end early at its last close that traded (S7.3) |
-| [`spec.py`](app/backtest/spec.py) | The experiment spec, version 1: Pydantic models that match the frontend's `ExperimentSpec` type field for field (S7.1). `parse_spec` raises `SpecError`, whose problems each name a field: "schedule.fill must be 'same_day_close' or 'next_day_open'." `signal_types()` lists the kinds of signal, with their JSON Schemas, for `/v1/catalog/signals` (S8.5) |
+| [`spec.py`](app/backtest/spec.py) | The experiment spec, version 1: Pydantic models, from which the frontend's `ExperimentSpec` type is generated (S7.1, S8.6). `parse_spec` raises `SpecError`, whose problems each name a field: "schedule.fill must be 'same_day_close' or 'next_day_open'." `signal_types()` lists the kinds of signal, with their JSON Schemas, for `/v1/catalog/signals` (S8.5) |
 | [`schedule.py`](app/backtest/schedule.py) | A spec's decisions, on the first trading day of each month, and their fills (S7.2). A fill is at the same day's close (13:00 ET on an early close) or the next session's open, always strictly after its decision; `ScheduleError` names any day it can't be |
 | [`signals/`](app/backtest/signals/) | What the loop asks of a signal: each member's `SignalValue` at a decision, or the reason it has none (S7.3). `SIGNALS` is the library, by spec `type` (S7.4): `momentum` over whole months, 12-1 by default; `revenue_growth` and `revenue_growth_acceleration` from the quarters filed by then; and `macro_change`, a macro series' change over its latest releases. [`doc/reference/signals.md`](../doc/reference/signals.md) has their formulas |
 | [`portfolio.py`](app/backtest/portfolio.py) | The filters, equal weights, and the trades that reach them. Costs are `bps_per_trade` of the value traded, which is the sum of each weight's change, and come out of the portfolio (S7.3). A ranking holds only its ends, each a quantile of the members that pass the filters, rounded down and at least one; a long-short portfolio is long one end and short the other (S7.5). [`doc/reference/portfolio.md`](../doc/reference/portfolio.md) has the rules and a worked example |
@@ -371,7 +381,7 @@ with PointInTimeView(parse_knowledge_time("2020-06-01")) as view:
 
 The formulas, the data each signal reads, its minimum history, and every reason it can give are in [`doc/reference/signals.md`](../doc/reference/signals.md). On the local store, the canonical spec runs 2020 to 2022, 36 decisions, in about 30 seconds.
 
-The spec's JSON Schema, for the API and the assistant, is [`doc/reference/experiment-spec-v1.schema.json`](../doc/reference/experiment-spec-v1.schema.json). After changing the models, regenerate it, or a test fails: `uv run python -m app.backtest.spec > ../doc/reference/experiment-spec-v1.schema.json`. A test also checks the models against the frontend's [`types.ts`](../frontend/features/backtests/types.ts), so change both together.
+The spec's JSON Schema, for the API and the assistant, is [`doc/reference/experiment-spec-v1.schema.json`](../doc/reference/experiment-spec-v1.schema.json). After changing the models, regenerate it, or a test fails: `uv run python -m app.backtest.spec > ../doc/reference/experiment-spec-v1.schema.json`. Regenerate the [OpenAPI schema](#api-conventions-v1) too: the frontend's [`ExperimentSpec`](../frontend/features/backtests/types.ts) is generated from it.
 
 ## Ingestion
 

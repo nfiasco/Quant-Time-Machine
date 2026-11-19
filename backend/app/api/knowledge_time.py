@@ -2,9 +2,10 @@
 
 from fastapi import APIRouter
 
+from app.api.cache import AsOfRoute
 from app.api.conventions import AsOfResponse, DataVersion, KnowledgeTime
 
-router = APIRouter(tags=["conventions"])
+router = APIRouter(tags=["conventions"], route_class=AsOfRoute)
 
 
 @router.get("/knowledge-time")

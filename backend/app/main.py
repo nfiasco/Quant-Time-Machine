@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import examples, health, v1
+from app.api.cache import ResponseCache
 from app.api.errors import InternalErrorMiddleware, add_error_handlers
 from app.config import Settings, get_settings
 from app.run_queue import RunQueue
@@ -39,6 +40,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     # Backtests run in the background, one at a time (app/run_queue.py).
     app.state.run_queue = RunQueue(settings)
+    # As-of answers, kept for the store's newest data version (app/api/cache.py). Each
+    # app has its own, so a test's app never sees another's answers.
+    app.state.response_cache = (
+        ResponseCache(settings.response_cache_mb * 1024 * 1024)
+        if settings.response_cache_mb
+        else None
+    )
     # Added before CORS, so CORS wraps it and even a 500 reaches the page readable.
     app.add_middleware(InternalErrorMiddleware)
     # Lets the web app call the API from the browser. Sign-in (E16) will send a bearer
