@@ -8,9 +8,9 @@ import { routes } from "@/config/navigation";
 import { siteConfig } from "@/config/site";
 
 const benefits = [
-  { icon: FolderOpenIcon, text: "Save experiments and come back to them later." },
-  { icon: RotateCcwIcon, text: "Re-run any result against the same data version." },
-  { icon: LockIcon, text: "Private by default: only you can see your work." },
+  { icon: FolderOpenIcon, text: "Keep one account for your research workspace." },
+  { icon: RotateCcwIcon, text: "Saved experiments and runs are coming next." },
+  { icon: LockIcon, text: "Recover your password through a secure email link." },
 ];
 
 // Sign-in and sign-up: a brand panel beside the form, without the app shell.

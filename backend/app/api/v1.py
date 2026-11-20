@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.api import (
+    accounts,
     backtests,
     catalog,
     examples,
@@ -15,6 +16,7 @@ from app.api import (
 )
 
 router = APIRouter(prefix="/v1", responses=examples.V1_ERRORS)
+router.include_router(accounts.router)
 router.include_router(knowledge_time.router)
 router.include_router(macro.router)
 router.include_router(prices.router)

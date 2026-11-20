@@ -1,6 +1,6 @@
 # Research API v1: response contract
 
-> **Stories S8.1, S8.2, S4.5, S8.5, S8.3, S8.4, and S8.6.** Drafted 2026-10-19 as the contract for S9.1's M2 demo page, and implemented in Sprint 2. Sprint 3 added [`GET /v1/fundamentals/{ticker}`](#get-v1fundamentalsticker) (S5.7, 2026-11-01), then [revision history](#get-v1macroseries_idrevisions) (S4.5), [the catalogs](#get-v1catalogseries) (S8.5), and [the snapshot](#get-v1snapshot) (S8.3) on 2026-11-02. Sprint 4 added [the backtest endpoints](#backtests) (S8.4, 2026-11-15), then [caching](#caching) and the generated [TypeScript types](#typescript-types) (S8.6, 2026-11-19). The API's own docs at `/docs` show the as-of examples below, each labeled with the request that produces it. A test replays every one against the test fixtures, so they can't drift. The backtest examples are from a real run, and its tests check the same shapes on a toy market. To change the contract, update this file and the backend in the same pull request, and tell the frontend.
+> **Stories S8.1, S8.2, S4.5, S8.5, S8.3, S8.4, S8.6, and S16.4.** Drafted 2026-10-19 as the contract for S9.1's M2 demo page, and implemented in Sprint 2. Sprint 3 added [`GET /v1/fundamentals/{ticker}`](#get-v1fundamentalsticker) (S5.7, 2026-11-01), then [revision history](#get-v1macroseries_idrevisions) (S4.5), [the catalogs](#get-v1catalogseries) (S8.5), and [the snapshot](#get-v1snapshot) (S8.3) on 2026-11-02. Sprint 4 added [the backtest endpoints](#backtests) (S8.4, 2026-11-15), then [caching](#caching) and the generated [TypeScript types](#typescript-types) (S8.6, 2026-11-19). The API's own docs at `/docs` show the as-of examples below, each labeled with the request that produces it. A test replays every one against the test fixtures, so they can't drift. The backtest examples are from a real run, and its tests check the same shapes on a toy market. To change the contract, update this file and the backend in the same pull request, and tell the frontend.
 
 ## Conventions
 
@@ -19,6 +19,14 @@
   - A ticker is resolved as of the knowledge time (S5.2). For example, `FB` in 2020 is Facebook, because Facebook became `META` in June 2022. Today, `FB` belongs to an unrelated ETF.
   - A ticker that no security in our data used at that time returns 404 `unknown_ticker`.
 - **Prices are raw**: as traded, never adjusted for later splits or dividends.
+
+## Account authentication
+
+`GET /v1/me` is a private account endpoint (S16.4). Send `Authorization: Bearer <Supabase user access token>`; the response is `{"user_id":"<verified UUID>"}`. It takes no `as_of` and has no data-version envelope because it identifies the current caller, not historical market data. OpenAPI documents its `SupabaseAccessToken` Bearer scheme.
+
+The API verifies ES256/RS256 signatures using only the configured project's public JWKS, and checks issuer, audience, expiry, required claims, authenticated role, and UUID subject. Missing, malformed, expired, wrong-project, unsigned, or invalid credentials return HTTP 401 with `WWW-Authenticate: Bearer` and code `unauthorized`. Missing configuration or unavailable verification returns HTTP 503 with code `auth_unavailable`; neither exposes token/provider details. Legacy HS256 verification is disabled unless explicitly enabled with Auth `/user` verification.
+
+Identity responses and auth errors use `Cache-Control: private, no-store` and vary by Authorization. Account routes are excluded from the shared as-of cache; supplying an `as_of` parameter cannot bypass the authentication dependency. Health, market-data/catalog endpoints, and existing public backtest/run endpoints remain public, even when no auth configuration is present. Future routes serving private saved experiments must require `CurrentUser` and enforce ownership; those endpoints and RLS tables remain S16.2/S16.5.
 
 ## The envelope
 
@@ -1091,6 +1099,8 @@ Every error has the same shape, which replaces FastAPI's default `{"detail": ...
 | 404 | `unknown_series` | The series isn't in our catalog |
 | 404 | `not_found` | No endpoint has that path, or no run has that ID |
 | 405 | `method_not_allowed` | The endpoint doesn't accept that method |
+| 401 | `unauthorized` | A user access token is missing, invalid, expired, or for another project. |
+| 503 | `auth_unavailable` | Account verification is unavailable; retry later. |
 | 422 | `invalid_request` | A parameter is missing or invalid, including `as_of` (bad format, or a time that never happened or happened twice), or a submitted spec is. `details` lists each field. |
 | 403 | `prices_restricted` | Raw prices are turned off on this deployment (D2) |
 | 503 | `runs_unavailable` | [`POST /v1/backtests`](#post-v1backtests) can't take a run now: its queue is full, or this server can't save runs. The message says which. |

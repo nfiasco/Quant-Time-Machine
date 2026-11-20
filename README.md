@@ -29,7 +29,7 @@ The goal is not an AI that predicts stocks. It's a research environment where yo
 | [`backend/spikes/`](backend/spikes/)       | Sprint 1 experiments behind our data and storage decisions                                           |
 | [`doc/`](doc/)                             | Roadmap, technical reference, project workflow, and research notes                                                                             |
 | [`.github/`](.github/)                     | Community policies, CI workflows, and templates                                              |
-| [`supabase/`](supabase/)                   | Supabase (PostgreSQL and Auth) config for user accounts and each user's saved data; no schema yet ([how it fits](doc/reference/storage.md#two-stores-point-in-time-data-and-accounts)) |
+| [`supabase/`](supabase/)                   | [Supabase Auth setup, migrations, and account workflow](supabase/README.md); user-data tables remain planned ([how it fits](doc/reference/storage.md#two-stores-point-in-time-data-and-accounts)) |
 
 See the [documentation index](doc/README.md) for the roadmap, technical reference, and project guides. Each app has its own README; frontend contributors should also read the [frontend guidelines](frontend/GUIDELINES.md).
 

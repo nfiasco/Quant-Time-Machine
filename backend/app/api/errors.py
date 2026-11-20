@@ -24,6 +24,8 @@ from app.data.errors import LookAheadError, NotFoundError
 from app.data.timeutil import describe_time
 
 ErrorCode = Literal[
+    "unauthorized",
+    "auth_unavailable",
     "invalid_request",
     "unknown_ticker",
     "unknown_series",
@@ -62,11 +64,19 @@ class ErrorResponse(BaseModel):
 class ApiError(Exception):
     """An error the API answers with its own status, code, and message."""
 
-    def __init__(self, status: int, code: ErrorCode, message: str) -> None:
+    def __init__(
+        self,
+        status: int,
+        code: ErrorCode,
+        message: str,
+        *,
+        headers: Mapping[str, str] | None = None,
+    ) -> None:
         super().__init__(message)
         self.status = status
         self.code = code
         self.message = message
+        self.headers = headers
 
 
 def error_response(
@@ -154,7 +164,9 @@ async def _not_known_yet(request: Request, error: LookAheadError) -> JSONRespons
 
 
 async def _api_error(request: Request, error: ApiError) -> JSONResponse:
-    return error_response(error.status, error.code, error.message)
+    return error_response(
+        error.status, error.code, error.message, headers=error.headers
+    )
 
 
 async def _http_error(request: Request, error: HTTPException) -> JSONResponse:

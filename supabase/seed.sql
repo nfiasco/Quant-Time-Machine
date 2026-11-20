@@ -1,0 +1,3 @@
+-- Intentionally empty. Auth users are created through Supabase Auth, never SQL.
+-- Do not seed real emails, credentials, sessions, or market data.
+-- Small synthetic user-data fixtures can be added with S16.2's RLS tests.

@@ -9,6 +9,7 @@ live APIs.
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import urlsplit
 
 from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
@@ -36,6 +37,45 @@ class Settings(BaseSettings):
 
     # Tiingo API token for daily prices (decision D2): https://www.tiingo.com/account/api/token
     tiingo_api_key: SecretStr | None = None
+
+    # Accounts (D9). S16.4 verifies bearer tokens against this project's JWKS,
+    # checking issuer and audience. No service-role key or shared JWT secret needed.
+    supabase_url: str | None = None
+    supabase_jwt_audience: str = "authenticated"
+    # Public key for the Auth /user verification fallback on legacy/local HS256.
+    supabase_publishable_key: SecretStr | None = None
+    supabase_allow_legacy_hs256: bool = False
+    supabase_jwks_cache_seconds: int = Field(default=300, ge=30, le=600)
+
+    @property
+    def supabase_jwt_issuer(self) -> str | None:
+        return f"{self.supabase_url}/auth/v1" if self.supabase_url else None
+
+    @property
+    def supabase_jwks_url(self) -> str | None:
+        issuer = self.supabase_jwt_issuer
+        return f"{issuer}/.well-known/jwks.json" if issuer else None
+
+    @field_validator("supabase_url")
+    @classmethod
+    def _validate_supabase_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        url = urlsplit(value)
+        local = url.scheme == "http" and url.hostname in {"localhost", "127.0.0.1"}
+        if (
+            not url.hostname
+            or (url.scheme != "https" and not local)
+            or url.username
+            or url.password
+            or url.path not in {"", "/"}
+            or url.query
+            or url.fragment
+        ):
+            raise ValueError(
+                "SUPABASE_URL must be an HTTPS origin or a local HTTP origin"
+            )
+        return value.rstrip("/")
 
     # Raw downloads and the local point-in-time store. Git-ignored.
     # A relative path is resolved from backend/, not from the current directory.

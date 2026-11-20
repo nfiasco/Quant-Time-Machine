@@ -3338,7 +3338,7 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 - [ ] Add account settings to `.env.example` and `backend/app/config.py`
 - [ ] Write `supabase/README.md` with migration workflow, local setup, and demo-day limits
 
-**Progress evidence (2026-11-08):** Supabase CLI configuration is committed, but migrations and supabase/README.md are absent, seed.sql is referenced but missing, and auth methods/token verification remain undecided. A legacy market-data upload experiment does not implement accounts. Evidence: `supabase/config.toml`.
+**Branch implementation (2026-11-16, pending review):** Auth foundation migration, empty seed, environment settings, D9, and local/hosted workflow are in place. The authenticated CLI confirms the existing project is healthy in us-west-2; Auth health, email confirmation settings, ES256 keys, database connectivity, and pending migration dry run were verified. Free-plan membership, other teammates' access, SMTP/redirect setup, and local migration replay still require verification. See [`supabase/README.md`](../supabase/README.md).
 
 **GitHub:** [#186](https://github.com/nfiasco/Quant-Time-Machine/issues/186) · **Parent epic:** [#108](https://github.com/nfiasco/Quant-Time-Machine/issues/108)
 
@@ -3387,13 +3387,13 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 - [ ] Protect pages that need an account
 - [ ] Add a smoke test for the sign-in flow
 
-**Progress evidence (2026-11-08):** Sign-in/sign-up forms and validation are committed. Their server actions explicitly return unavailable; no account is created, no session exists, and no Supabase Auth client is wired in. Evidence: [PR #51](https://github.com/nfiasco/Quant-Time-Machine/pull/51), `frontend/features/auth/actions.ts`, `frontend/features/auth/credentials-form.tsx`.
+**Branch implementation (2026-11-16, pending review):** Real Supabase Auth actions cover sign-up/sign-in/sign-out and password recovery, with email callbacks, persistent server cookies, verified account header, private-page checks, and an SDK-backed synthetic smoke test. Missing configuration stays explicitly unavailable. The worktree is configured with the hosted public key and a live invalid-credentials response was checked; email delivery and successful live signup/recovery still require verification; saved experiments remain S16.5. See [`supabase/README.md`](../supabase/README.md).
 
 **GitHub:** [#187](https://github.com/nfiasco/Quant-Time-Machine/issues/187) · **Parent epic:** [#108](https://github.com/nfiasco/Quant-Time-Machine/issues/108)
 
 #### S16.4 The backend knows who is calling
 
-**Priority:** P1 · **Size:** S · **Sprint:** 4 · **Milestone:** M4 · **Area:** api · **Depends on:** S16.1, S8.1 · **Reqs:** FR-U1, NFR-8 · **Status:** Backlog
+**Priority:** P1 · **Size:** S · **Sprint:** 4 · **Milestone:** M4 · **Area:** api · **Depends on:** S16.1, S8.1 · **Reqs:** FR-U1, NFR-8 · **Status:** In progress
 
 **Story:** As a developer, I want each API request tied to a verified user, so that results are saved to the right account and use can be limited per person.
 
@@ -3405,11 +3405,11 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 
 **Tasks**
 
-- [ ] Write the token-check dependency
-- [ ] Mark which endpoints require sign-in
-- [ ] Write tests with test tokens
+- [x] Write the token-check dependency
+- [x] Mark which endpoints require sign-in
+- [x] Write tests with test tokens
 
-**Progress evidence (2026-11-08):** No implementation or completion evidence for these acceptance criteria is present in the audited commit. This remains planned work.
+**Branch implementation (2026-11-19, pending review):** `CurrentUser` verifies Supabase JWT signatures/claims using bounded public JWKS caching. `/v1/me` requires a valid user token and bypasses the shared market-data cache; public research and public backtest endpoints remain accessible. The Experiments server page forwards its session token and checks the API subject. Tests use locally signed ES256/RS256 tokens and a synthetic JWKS provider, with coverage for missing/invalid/expired credentials, project boundaries, rotation, cache isolation, and explicit legacy Auth verification. Saved private experiments and owner/RLS policies remain S16.2/S16.5.
 
 **GitHub:** [#188](https://github.com/nfiasco/Quant-Time-Machine/issues/188) · **Parent epic:** [#108](https://github.com/nfiasco/Quant-Time-Machine/issues/108)
 
@@ -3493,7 +3493,7 @@ Open decisions, each owned by a story. When one is made, record the outcome and 
 | D6 | Model, API, and where the agent loop runs | Claude through the Anthropic API (default candidate) or alternatives; backend or frontend | Claude through the Anthropic API, with the loop in the Python backend | Sprint 7 | S11.1 | Open |
 | D7 | How the assistant reaches the tools | Same-process calls, MCP over Streamable HTTP, or both | The same functions behind both; decide in the spike | Sprint 7 | S10.1 | Open |
 | D8 | Charting library | Recharts, Chart.js, lightweight-charts, others | One library for every chart | Sprint 4 | S9.3, S9.6 | Open |
-| D9 | Access control and sign-in | Access code, GitHub sign-in, Supabase Auth accounts, none | Supabase Auth accounts (E16): the team plans sign-in so each user's data stays with their account, which also caps AI cost (S15.6). S16.1 picks the sign-in methods. | Sprint 2 (original target passed) | S16.1 | Open |
+| D9 | Access control and sign-in | Access code, GitHub sign-in, Supabase Auth accounts, none | **Supabase email/password Auth**, email confirmation and password reset; cookie-backed SSR sessions verified with Auth. Backend S16.4 verifies asymmetric JWTs via project JWKS (issuer/audience/expiry), with explicit opt-in Auth `/user` verification for legacy/local HS256. See [`supabase/README.md`](../supabase/README.md#d9-authentication-and-token-verification). | Sprint 2 (original target passed) | S16.1 | Decided 2026-11-16 (pending team review) |
 | D10 | Run registry storage | Files, SQLite, PostgreSQL | Supabase PostgreSQL with row-level security, alongside accounts (D9), in the tables from S16.2; files until accounts exist. Runs point to market data by `data_version` and never copy it ([`doc/reference/storage.md`](reference/storage.md#two-stores-point-in-time-data-and-accounts)). | Sprint 3 (not yet implemented) | S16.2 | Open |
 | D11 | License | MIT, Apache-2.0, other | **MIT** ([`LICENSE`](../LICENSE)); the team confirmed it fits the course's code-ownership expectations | Sprint 1 | S1.3 | Decided 2026-10-11; confirmed 2026-11-16 |
 | D12 | Knowledge-time input and timestamps in API responses | Reject a time without an offset, or read it as New York time; echo times in UTC or in New York time | **A time without an offset is New York time**, which is the market clock and what the web app already sends. A local time that never happened or happened twice (the daylight-saving hours) gets a 422. Responses write every timestamp in New York time with its offset. See [time-model rule 3](reference/time-model.md#3-a-bare-date-means-0930-et-and-a-time-without-an-offset-is-new-york-time) and [`doc/reference/api-v1.md`](reference/api-v1.md). | Sprint 2 | S8.1 | Decided 2026-10-19; ratified with the time model 2026-11-16 |

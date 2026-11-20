@@ -2,14 +2,15 @@
 // "use server" module may only export async functions.
 
 /** Keep in sync with `minimum_password_length` in supabase/config.toml. */
-export const PASSWORD_MIN_LENGTH = 6;
+export const PASSWORD_MIN_LENGTH = 8;
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export type AuthField = "email" | "password";
+export type AuthMode = "sign-in" | "sign-up" | "forgot-password" | "reset-password";
 
 export type AuthFormState = {
-  status: "idle" | "invalid" | "unavailable";
+  status: "idle" | "invalid" | "unavailable" | "error" | "success";
   /** Shown after a submit, for example why nothing happened. */
   message?: string;
   fieldErrors?: Partial<Record<AuthField, string>>;
@@ -21,21 +22,24 @@ export const initialAuthFormState: AuthFormState = { status: "idle" };
 
 export function validateCredentials(
   formData: FormData,
-  mode: "sign-in" | "sign-up",
+  mode: AuthMode,
 ): { email: string; password: string; fieldErrors: Partial<Record<AuthField, string>> } {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
   const fieldErrors: Partial<Record<AuthField, string>> = {};
 
-  if (!email) {
+  if (mode !== "reset-password" && !email) {
     fieldErrors.email = "Enter your email address.";
-  } else if (!EMAIL_PATTERN.test(email)) {
+  } else if (mode !== "reset-password" && !EMAIL_PATTERN.test(email)) {
     fieldErrors.email = "Enter a valid email address, like name@example.com.";
   }
 
-  if (!password) {
+  if (mode !== "forgot-password" && !password) {
     fieldErrors.password = mode === "sign-in" ? "Enter your password." : "Choose a password.";
-  } else if (mode === "sign-up" && password.length < PASSWORD_MIN_LENGTH) {
+  } else if (
+    ["sign-up", "reset-password"].includes(mode) &&
+    password.length < PASSWORD_MIN_LENGTH
+  ) {
     fieldErrors.password = `Use at least ${PASSWORD_MIN_LENGTH} characters.`;
   }
 
