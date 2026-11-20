@@ -38,12 +38,14 @@ class Settings(BaseSettings):
     # Tiingo API token for daily prices (decision D2): https://www.tiingo.com/account/api/token
     tiingo_api_key: SecretStr | None = None
 
-    # Accounts (D9). S16.4 will verify bearer tokens against this project's JWKS,
+    # Accounts (D9). S16.4 verifies bearer tokens against this project's JWKS,
     # checking issuer and audience. No service-role key or shared JWT secret needed.
     supabase_url: str | None = None
     supabase_jwt_audience: str = "authenticated"
     # Public key for the Auth /user verification fallback on legacy/local HS256.
     supabase_publishable_key: SecretStr | None = None
+    supabase_allow_legacy_hs256: bool = False
+    supabase_jwks_cache_seconds: int = Field(default=300, ge=30, le=600)
 
     @property
     def supabase_jwt_issuer(self) -> str | None:

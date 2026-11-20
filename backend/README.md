@@ -52,6 +52,14 @@ Settings and API keys load through one typed module, [`app/config.py`](app/confi
 
 In code, call `get_settings()` from `app.config`. API keys are `SecretStr` values, so they never show up in logs; use `.get_secret_value()` where the real value is needed. Route handlers don't call `get_settings()`. They read the settings the app was built with, through the `AppSettings` dependency, so a test can build an app with its own settings: `create_app(Settings(_env_file=None, data_dir=...))`. The tests don't need any keys: they use fixtures instead of live APIs.
 
+## Account authentication (S16.4)
+
+Set `SUPABASE_URL` in the ignored backend `.env` to the frontend's Supabase project. The hosted ES256 project requires no secret or API key for JWT verification. `GET /v1/me` accepts a user access token in `Authorization: Bearer <token>` and returns `{"user_id":"<UUID>"}`. Missing/invalid/expired credentials get 401; unavailable verification/configuration gets 503. See `/docs` for the Bearer security scheme.
+
+Private handlers declare `user: CurrentUser` from `app.api.auth` and use `user.user_id` as the owner identity. Signature, issuer, audience, expiry, role, and UUID subject are verified on every private request. PyJWT/cryptography provides the cryptographic verification and bounded public JWKS caching; these primitives are not hand-written. Private routes must not use `AsOfRoute`, whose shared cache serves only public market-data answers. `/v1/me` always returns `Cache-Control: private, no-store`.
+
+Health, market-data/catalog routes, and existing public backtest/run routes remain usable without an account. Private saved experiments and their row-level security are separate work. Tests generate local ES256/RS256 keys and sign synthetic tokens, so CI needs no Supabase project or provider secrets. Legacy/local HS256 support is an explicit opt-in that verifies through Auth `/user`; see [`../supabase/README.md`](../supabase/README.md#d9-authentication-and-token-verification) for settings, cache/rotation behavior, and the full setup record.
+
 ## Tests and linting
 
 ```bash

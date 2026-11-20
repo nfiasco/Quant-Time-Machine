@@ -36,7 +36,10 @@ export function validateCredentials(
 
   if (mode !== "forgot-password" && !password) {
     fieldErrors.password = mode === "sign-in" ? "Enter your password." : "Choose a password.";
-  } else if (["sign-up", "reset-password"].includes(mode) && password.length < PASSWORD_MIN_LENGTH) {
+  } else if (
+    ["sign-up", "reset-password"].includes(mode) &&
+    password.length < PASSWORD_MIN_LENGTH
+  ) {
     fieldErrors.password = `Use at least ${PASSWORD_MIN_LENGTH} characters.`;
   }
 

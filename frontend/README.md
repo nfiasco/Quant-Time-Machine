@@ -51,11 +51,11 @@ Read it only through [`lib/api/client.ts`](lib/api/client.ts) (`API_URL`, `apiUr
 - restart `npm run dev` after changing one;
 - in Vercel, set it per environment (Production, Preview), because the value is frozen into each deployment when it's built. Production is set to the deployed API, `https://quant-time-machine-api.up.railway.app` (S15.1). Preview isn't set, so previews use the default; the API's CORS allows only production and `localhost:3000`.
 
-## Accounts (S16.1 / S16.3)
+## Accounts (S16.1 / S16.3 / S16.4)
 
 Email/password sign-up, sign-in, sign-out, email confirmation, and password recovery use Supabase Auth. Copy the auth placeholders in `.env.example` to an ignored `.env.local`. Set the project URL, public publishable/anon key, and trusted `SITE_URL`; configure the hosted redirect allow-list and email delivery as described in [`../supabase/README.md`](../supabase/README.md). Missing configuration shows **Accounts unavailable**. No service-role key is used.
 
-Sessions persist in server-managed HttpOnly cookies across reloads. The header shows the verified email and a sign-out action. `/experiments` requires sign-in and preserves its return destination; public research pages remain available. Saved experiments, backend bearer-token verification, and RLS user-data tables remain separate stories. The auth smoke tests use the real Supabase SSR client with synthetic HTTP responses, so default tests need no account or network access.
+Sessions persist in server-managed HttpOnly cookies across reloads. The header shows the verified email and a sign-out action. `/experiments` requires sign-in and preserves its return destination; public research pages remain available. The Experiments page also forwards its access token on the server to FastAPI `/v1/me` and checks the verified subject; run the backend with `SUPABASE_URL` set to the same project. The token never reaches a Client Component, and identity responses are not cached. Saved experiments and RLS user-data tables remain separate stories. The auth smoke tests use the real Supabase SSR client with synthetic HTTP responses, so default tests need no account or network access.
 
 ## Scripts
 

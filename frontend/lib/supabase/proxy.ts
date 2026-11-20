@@ -10,7 +10,11 @@ export async function updateSession(request: NextRequest) {
   let signedIn = false;
   if (config) {
     const client = createServerClient(config.url, config.key, {
-      cookieOptions: { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" },
+      cookieOptions: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+      },
       cookies: {
         getAll: () => request.cookies.getAll(),
         setAll(cookiesToSet, headers) {
@@ -18,7 +22,9 @@ export async function updateSession(request: NextRequest) {
           const previousCookies = response.cookies.getAll();
           response = NextResponse.next({ request });
           previousCookies.forEach((cookie) => response.cookies.set(cookie));
-          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options),
+          );
           Object.entries(headers).forEach(([name, value]) => response.headers.set(name, value));
         },
       },

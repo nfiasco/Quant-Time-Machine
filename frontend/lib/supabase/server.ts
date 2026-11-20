@@ -9,7 +9,11 @@ export async function createClient() {
   if (!config) return null;
   const cookieStore = await cookies();
   return createServerClient(config.url, config.key, {
-    cookieOptions: { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax" },
+    cookieOptions: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+    },
     cookies: {
       getAll: () => cookieStore.getAll(),
       setAll(cookiesToSet) {

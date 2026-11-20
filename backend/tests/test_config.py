@@ -15,6 +15,8 @@ ENV_VARS = (
     "SUPABASE_URL",
     "SUPABASE_JWT_AUDIENCE",
     "SUPABASE_PUBLISHABLE_KEY",
+    "SUPABASE_ALLOW_LEGACY_HS256",
+    "SUPABASE_JWKS_CACHE_SECONDS",
 )
 
 
@@ -34,6 +36,8 @@ def test_defaults_need_no_keys() -> None:
     assert settings.tiingo_api_key is None
     assert settings.supabase_url is None
     assert settings.supabase_jwks_url is None
+    assert settings.supabase_allow_legacy_hs256 is False
+    assert settings.supabase_jwks_cache_seconds == 300
     assert settings.data_dir == BACKEND_DIR / "data"
     assert settings.cors_origins == ["http://localhost:3000"]
     # Raw Tiingo prices are internal use only (D2): off unless turned on.

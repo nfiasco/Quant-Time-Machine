@@ -15,7 +15,11 @@ export function SignOutButton() {
         {pending ? <Spinner data-icon="inline-start" /> : null}
         Sign out
       </Button>
-      {state.message ? <p role="status" className="max-w-52 text-xs text-destructive">{state.message}</p> : null}
+      {state.message ? (
+        <p role="status" className="max-w-52 text-xs text-destructive">
+          {state.message}
+        </p>
+      ) : null}
     </form>
   );
 }

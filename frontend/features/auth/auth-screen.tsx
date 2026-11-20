@@ -23,16 +23,24 @@ export async function AuthScreen({ mode, next: requestedNext, error }: AuthScree
     const { user } = await getAccount();
     if (user) redirect(next);
   }
-  const available = !!getSupabaseConfig() &&
-    ((mode === "sign-in" || mode === "reset-password") || !!getSiteUrl());
+  const available =
+    !!getSupabaseConfig() && (mode === "sign-in" || mode === "reset-password" || !!getSiteUrl());
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1.5 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">{copy[mode][0]}</h1>
         <p className="text-sm text-muted-foreground">{copy[mode][1]}</p>
       </div>
-      <CredentialsForm mode={mode} available={available} next={next}
-        notice={error === "invalid-link" ? "This link is invalid or expired. Request a new link, or sign in if you've already confirmed your email." : undefined} />
+      <CredentialsForm
+        mode={mode}
+        available={available}
+        next={next}
+        notice={
+          error === "invalid-link"
+            ? "This link is invalid or expired. Request a new link, or sign in if you've already confirmed your email."
+            : undefined
+        }
+      />
     </div>
   );
 }

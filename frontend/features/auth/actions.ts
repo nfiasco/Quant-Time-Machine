@@ -19,7 +19,8 @@ function failure(error: AuthError, email?: string): AuthFormState {
   if (!error.status || error.status >= 500) return { ...unavailable, values: { email } };
   const messages: Record<string, string> = {
     invalid_credentials: "The email or password is incorrect.",
-    email_not_confirmed: "Confirm your email before signing in. Check your inbox for the confirmation link.",
+    email_not_confirmed:
+      "Confirm your email before signing in. Check your inbox for the confirmation link.",
     weak_password: "Choose a stronger password with at least 8 characters.",
     same_password: "Choose a password different from your current password.",
     over_request_rate_limit: "Too many attempts. Wait a moment and try again.",
@@ -28,8 +29,11 @@ function failure(error: AuthError, email?: string): AuthFormState {
   };
   return {
     status: "error",
-    message: error.status === 429 ? messages.over_request_rate_limit :
-      messages[error.code ?? ""] ?? "We couldn't complete that request. Check your details and try again.",
+    message:
+      error.status === 429
+        ? messages.over_request_rate_limit
+        : (messages[error.code ?? ""] ??
+          "We couldn't complete that request. Check your details and try again."),
     values: { email },
   };
 }
@@ -59,7 +63,8 @@ export async function signUp(_previous: AuthFormState, formData: FormData): Prom
   let signedIn = false;
   try {
     const { data, error } = await client.auth.signUp({
-      email, password,
+      email,
+      password,
       options: { emailRedirectTo: `${siteUrl}/auth/callback?next=${encodeURIComponent(next)}` },
     });
     if (error) return failure(error, email);
@@ -73,12 +78,16 @@ export async function signUp(_previous: AuthFormState, formData: FormData): Prom
   }
   return {
     status: "success",
-    message: "Check your inbox. If this address can be registered, you'll receive a link to confirm your email.",
+    message:
+      "Check your inbox. If this address can be registered, you'll receive a link to confirm your email.",
     values: { email },
   };
 }
 
-export async function requestPasswordReset(_previous: AuthFormState, formData: FormData): Promise<AuthFormState> {
+export async function requestPasswordReset(
+  _previous: AuthFormState,
+  formData: FormData,
+): Promise<AuthFormState> {
   const { email, fieldErrors } = validateCredentials(formData, "forgot-password");
   if (Object.keys(fieldErrors).length) return { status: "invalid", fieldErrors, values: { email } };
   const client = await createClient();
@@ -94,26 +103,34 @@ export async function requestPasswordReset(_previous: AuthFormState, formData: F
   }
   return {
     status: "success",
-    message: "If an account exists for this address, you'll receive a password reset link. Open it in this browser.",
+    message:
+      "If an account exists for this address, you'll receive a password reset link. Open it in this browser.",
     values: { email },
   };
 }
 
-export async function updatePassword(_previous: AuthFormState, formData: FormData): Promise<AuthFormState> {
+export async function updatePassword(
+  _previous: AuthFormState,
+  formData: FormData,
+): Promise<AuthFormState> {
   const { password, fieldErrors } = validateCredentials(formData, "reset-password");
   if (Object.keys(fieldErrors).length) return { status: "invalid", fieldErrors };
   const client = await createClient();
   if (!client) return unavailable;
   try {
     const { data, error: userError } = await client.auth.getUser();
-    if (userError || !data.user) return { status: "error", message: "Your reset link has expired. Request a new one." };
+    if (userError || !data.user)
+      return { status: "error", message: "Your reset link has expired. Request a new one." };
     const { error } = await client.auth.updateUser({ password });
     if (error) return failure(error);
   } catch {
     return unavailable;
   }
   revalidatePath("/", "layout");
-  return { status: "success", message: "Your password has been updated. You can return to the dashboard." };
+  return {
+    status: "success",
+    message: "Your password has been updated. You can return to the dashboard.",
+  };
 }
 
 export async function signOut(): Promise<AuthFormState> {

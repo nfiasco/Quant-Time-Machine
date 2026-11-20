@@ -72,7 +72,34 @@ Server Actions validate inputs and invoke Auth; credentials are never stored by 
 
 `/experiments` and its descendants need an account; the registry's `requiresAccount` flag is the source of truth. `/reset-password` also requires a verified session. The landing page, dashboard, market-data views, and canonical backtest remain public. Sign-in returns users to a validated internal destination. Sign-out revokes the current session and clears its cookies; other devices stay signed in.
 
-**Backend verification contract for S16.4 (#188):** accept bearer tokens from this Supabase project, verify signatures using `${SUPABASE_URL}/auth/v1/.well-known/jwks.json`, restrict algorithms to the project's asymmetric signing algorithm (RS256 or ES256), and validate issuer `${SUPABASE_URL}/auth/v1`, audience `authenticated`, expiry, and user subject. Cache JWKS with bounded expiry and refetch on an unknown key ID. For legacy/local HS256 projects, verify the token by calling `/auth/v1/user` with its bearer token and the public `SUPABASE_PUBLISHABLE_KEY`; do not decode and trust it or distribute the shared signing secret. Missing, expired, malformed, or wrong-project tokens must fail closed. The new backend settings describe that contract; **API authentication is not implemented by this branch**. S16.2/S16.4 must enforce ownership before private user data is stored or served.
+**Backend verification implemented for S16.4 (#188):** the reusable FastAPI `CurrentUser` dependency verifies each private request against the configured project's public JWKS. PyJWT with `cryptography` validates ES256/RS256 signatures, issuer `${SUPABASE_URL}/auth/v1`, audience `authenticated`, expiry, required claims, the authenticated role, and a UUID user subject. Anonymous users, public/service-role keys, unsigned tokens, wrong-project tokens, and malformed/expired credentials cannot authorize a request. Token header URLs never select a key source. Verification runs in a worker thread, with 5-second network timeouts.
+
+Only the JWKS is cached (default 300 seconds, configurable 30–600). Individual keys and user identities are not cached indefinitely. Unknown key IDs can trigger a key-set refresh at most once every 30 seconds, allowing rotation without a request flood; a new key may wait for that cooldown. Asymmetric access tokens are verified locally and remain valid until their expiry even after refresh-session sign-out; the frontend deletes its session cookies on sign-out.
+
+`GET /v1/me` requires `Authorization: Bearer <access-token>` and returns only `{"user_id":"<verified UUID>"}`. Missing/invalid tokens get 401 with a Bearer challenge; missing server configuration or unavailable key verification gets a generic 503. Responses are `private, no-store` and excluded from the market-data response cache, even if `as_of` is supplied. Health, market-data/catalog routes, and the current public backtest/run routes remain public; those runs are not private saved experiments. Future private handlers must declare `user: CurrentUser` and use that verified ID for owner checks.
+
+The Experiments page now forwards its HttpOnly session's opaque access token through a server-only `lib/api/account.ts` call to `/v1/me`, verifies the returned subject matches its already-verified Supabase account, and shows a retryable error if the API cannot verify it. Tokens never appear in page props, URLs, or response bodies. Saved experiments and RLS isolation remain S16.2/S16.5.
+
+For legacy/local HS256 projects only, set `SUPABASE_ALLOW_LEGACY_HS256=true` plus the public `SUPABASE_PUBLISHABLE_KEY`. The backend checks registered claims and then requires the fixed project's Auth `/user` endpoint to verify the signature and return the same subject. This fallback is off by default. No shared JWT signing secret or service-role key is used. See the [Supabase JWT guide](https://supabase.com/docs/guides/auth/jwts) and [PyJWT API](https://pyjwt.readthedocs.io/en/stable/api.html).
+
+### Run this worktree
+
+The ignored environment files in this worktree already point both apps at the existing hosted project. In two terminals:
+
+```sh
+cd /home/ian-guy/Quant-Time-Machine/.worktrees/supabase-auth/backend
+uv sync --locked
+uv run fastapi dev
+```
+
+```sh
+cd /home/ian-guy/Quant-Time-Machine/.worktrees/supabase-auth/frontend
+npm ci
+npm run dev -- --webpack --port 3001
+```
+
+Open `http://localhost:3001/sign-in`. Supabase's hosted redirect allow-list must include `http://localhost:3001/auth/callback` before testing emails. `http://localhost:8000/v1/me` returns 401 without a token; `/health` remains public. On Railway, set `SUPABASE_URL` to the same project as the frontend; the hosted ES256 project needs no backend API key. Do not overwrite an existing `.env` file when configuring a different checkout.
+
 
 ## Hosted Auth configuration
 
@@ -112,3 +139,12 @@ References: [Supabase Next.js SSR](https://supabase.com/docs/guides/auth/server-
 - Browser checks covered 375, 768, and 1280 px layouts, light/dark themes, account-page redirect preservation, configured sign-in/sign-up/recovery forms, and a live synthetic invalid-credential response. Successful account creation, confirmation mail, password-reset mail, screen-reader behavior, and 200% zoom have not been verified.
 - Auth health, email provider/confirmation flags, ES256 JWKS, and hosted migration dry run succeeded. Local CLI status parsed the configuration but could not inspect services because neither Docker nor Podman is installed.
 - `npm audit` found no Supabase-package advisories. The frontend toolchain has 17 existing advisories, including a high-severity `body-parser` advisory; unrelated dependency updates remain separate work.
+
+
+### FastAPI integration checks (2026-11-19)
+
+Current main was merged into the auth branch. Backend Ruff lint/format and all 1,298 fixture tests passed (71 opt-in network/local-data tests deselected), including 47 auth-boundary tests with generated ES256/RS256 keys. Frontend generated API-type checks, lint, Prettier, and all 125 tests passed, as did the Next.js 16.4.6 Webpack production build. The 13 repository organization-policy tests passed.
+
+Live local HTTP checks confirmed `/v1/me` returns 401 with a Bearer challenge and `private, no-store` without a token; `/health` and `/v1/catalog/signals` returned 200. Both ignored environment files are configured for the same hosted project. The new caller identity is never stored in the public as-of cache.
+
+Fresh browser inspection was blocked by browser policy, so the PR uses the previously captured sign-in screenshot in `doc/images/auth-sign-in-2026-11-16.png` and labels its capture date. Successful real-email signup/recovery, SMTP/redirect configuration, Free-plan/other-team-member access, local Docker migration replay, and private experiment/RLS storage remain the documented follow-up scope. The hosted foundation migration has not been applied.

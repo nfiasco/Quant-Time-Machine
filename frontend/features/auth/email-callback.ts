@@ -7,7 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 /** Support the standard PKCE link and token-hash templates, without leaking tokens. */
 export async function handleEmailCallback(request: NextRequest, kind: "code" | "token") {
   const params = request.nextUrl.searchParams;
-  const recovery = params.get("type") === "recovery" || params.get("next") === routes.resetPassword.href;
+  const recovery =
+    params.get("type") === "recovery" || params.get("next") === routes.resetPassword.href;
   const next = recovery ? routes.resetPassword.href : safeNext(params.get("next"));
   let verified = false;
   const client = await createClient();

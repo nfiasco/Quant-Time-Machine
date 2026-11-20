@@ -21,6 +21,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Current Account
+         * @description Return the verified caller's ID. No token, email, or user metadata is echoed.
+         */
+        get: operations["get_current_account_v1_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/knowledge-time": {
         parameters: {
             query?: never;
@@ -1134,7 +1154,7 @@ export interface components {
              * Code
              * @enum {string}
              */
-            code: "invalid_request" | "unknown_ticker" | "unknown_series" | "prices_restricted" | "not_found" | "method_not_allowed" | "runs_unavailable" | "internal_error";
+            code: "unauthorized" | "auth_unavailable" | "invalid_request" | "unknown_ticker" | "unknown_series" | "prices_restricted" | "not_found" | "method_not_allowed" | "runs_unavailable" | "internal_error";
             /** Message */
             message: string;
             /** Details */
@@ -2181,6 +2201,17 @@ export interface components {
              */
             id: string;
         };
+        /**
+         * UserIdentity
+         * @description The verified subject available to private handlers, with no credentials.
+         */
+        UserIdentity: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -2208,6 +2239,62 @@ export interface operations {
                     "application/json": {
                         [key: string]: string;
                     };
+                };
+            };
+        };
+    };
+    get_current_account_v1_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserIdentity"];
+                };
+            };
+            /** @description A user access token is missing or invalid */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is missing or invalid */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A bug. The message is generic. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Account verification is unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

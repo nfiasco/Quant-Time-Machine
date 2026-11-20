@@ -30,6 +30,73 @@
         }
       }
     },
+    "/v1/me": {
+      "get": {
+        "tags": [
+          "accounts"
+        ],
+        "summary": "Get Current Account",
+        "description": "Return the verified caller's ID. No token, email, or user metadata is echoed.",
+        "operationId": "get_current_account_v1_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserIdentity"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A parameter is missing or invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A bug. The message is generic.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A user access token is missing or invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Account verification is unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "SupabaseAccessToken": []
+          }
+        ]
+      }
+    },
     "/v1/knowledge-time": {
       "get": {
         "tags": [
@@ -4395,6 +4462,8 @@
           "code": {
             "type": "string",
             "enum": [
+              "unauthorized",
+              "auth_unavailable",
               "invalid_request",
               "unknown_ticker",
               "unknown_series",
@@ -6285,6 +6354,29 @@
         ],
         "title": "UniverseSpec",
         "description": "Which securities are eligible at each decision."
+      },
+      "UserIdentity": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id"
+        ],
+        "title": "UserIdentity",
+        "description": "The verified subject available to private handlers, with no credentials."
+      }
+    },
+    "securitySchemes": {
+      "SupabaseAccessToken": {
+        "type": "http",
+        "description": "A Supabase user access token, not a publishable or service-role API key.",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
       }
     }
   }
