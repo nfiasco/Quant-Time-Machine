@@ -88,6 +88,10 @@ class Settings(BaseSettings):
     # people can reach until display rights are settled. Off, the endpoint answers 403.
     serve_raw_prices: bool = False
 
+    # How much memory, in megabytes, the API may use to keep as-of answers, which never
+    # change for a data version (app/api/cache.py, S8.6). 0 turns the cache off.
+    response_cache_mb: int = Field(default=32, ge=0)
+
     # The commit the code runs from, which every saved run records (S7.7). Railway sets
     # RAILWAY_GIT_COMMIT_SHA on a deploy from GitHub. Unset, as on a laptop, it's asked
     # of git itself (app/runs.py).

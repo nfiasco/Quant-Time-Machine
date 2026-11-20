@@ -1,6 +1,6 @@
 # Time model
 
-> **Story S3.1.** Adopted 2026-10-11 as the working rules, pending the team walk-through at sprint review. The default decision and fill timing (D5) is decided. To change a rule, update this file, its golden test (S3.6), and the methodology page (S9.7) together.
+> **Story S3.1.** Adopted 2026-10-11 as the working rules, and ratified by the team as written on 2026-11-16, with the default decision and fill timing (D5) and the reading of a time without an offset (D12). To change a rule, update this file, its golden test (S3.6), and the methodology page (S9.7) together.
 
 Everything in Quant Time Machine answers one question: **what could someone have known at time *T*?** A decision at *T* may use only facts whose `available_at` is at or before *T*. This page defines `available_at` for every kind of data, with a worked example per rule. The examples double as golden test cases.
 
@@ -278,7 +278,9 @@ The pitfalls table in [roadmap §2.4](../roadmap.md#24-where-look-ahead-bias-cre
 - **Timestamps that lie about their zone.** EDGAR's JSON acceptance times (rule 5), until SEC switched them to true UTC in late October 2026.
 - **API defaults that mean "today".** FRED's `realtime_start` and `realtime_end` default to today, so a query without them returns revised data. Our research notebook fell into exactly this: it passed a `vintage_date` parameter, which FRED ignores, and silently got today's values.
 
-## Known limitations and open questions
+## Known limitations
+
+The team reviewed these when it ratified the rules on 2026-11-16 and kept every rule as written. They stay here so the methodology page (S9.7) can state them.
 
 1. **Earnings releases come first, so our rule is conservative.** Companies announce results in an 8-K press release before the 10-Q. Apple's 8-K for fiscal Q2 2020 was accepted at 16:30:41 ET on April 30, 2020, and the 10-Q at 18:03:10 ET. For other companies the gap can be days. We date fundamentals by the filing their XBRL numbers come from, so they become usable slightly later than in reality. That's acceptable for v1; say so on the methodology page.
 2. **A decision at exactly 16:00.** The bar is known at 16:00 (the comparison is inclusive), so a 16:00 decision can use that close. But fills must be strictly after the decision, so its earliest fill is the next session. A same-day close fill is allowed only for decisions before the close, and the spec and the schedule enforce it (S7.2).

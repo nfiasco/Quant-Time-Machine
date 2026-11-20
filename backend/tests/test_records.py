@@ -130,7 +130,7 @@ def test_a_run_saves_everything_a_reviewer_needs(
     assert run["data_version"] == DATA_VERSION
     assert run["engine_version"] == ENGINE_VERSION
     assert run["git_sha"] == GIT_SHA
-    assert run["record_version"] == 1
+    assert run["record_version"] == 2
 
     # What it produced: returns, holdings, trades, metrics, warnings, and the audit.
     periods = found["returns.json"]["periods"]
@@ -201,6 +201,27 @@ def test_a_run_saves_everything_a_reviewer_needs(
         "signal": "rev_accel",
     }
     assert len(found["warnings.json"]) == 4
+    # Those four are the gaps in the coverage report: CCC had no rev_accel at any of
+    # the four decisions, so it was left out of each for lack of fundamentals.
+    coverage = found["coverage.json"]
+    assert coverage["decisions"] == 4
+    assert coverage["totals"] == {
+        "member_decisions": 12,
+        "left_out": 4,
+        "stopped_trading": 0,
+        "missing": {"fundamentals": 4, "prices": 0},
+        "signals": {"mom_12_1": 0, "rev_accel": 4},
+        "no_fill_price": 0,
+        "exits": 0,
+    }
+    assert [
+        (row["ticker"], row["year"], row["left_out"]) for row in coverage["rows"]
+    ] == [
+        ("AAA", 2021, 0),
+        ("BBB", 2021, 0),
+        ("CCC", 2021, 4),
+    ]
+    assert coverage["exits"] == []
 
     # Every input at every decision, with when it became known.
     audit = found["audit.json"]
@@ -340,7 +361,7 @@ def test_the_same_inputs_give_byte_identical_files(
     assert first.record == second.record
     assert first.folder.name == second.folder.name
     assert files(first.folder) == files(second.folder)
-    assert len(files(first.folder)) == 7
+    assert len(files(first.folder)) == 8  # run.json and the seven results
 
 
 def test_two_processes_give_byte_identical_files(
@@ -384,15 +405,19 @@ def test_a_pinned_runs_files_never_change(simulation: Simulation) -> None:
     record = build_record(simulation, git_sha=GIT_SHA)
     listed = documents(record)["run.json"]["files"]
 
-    assert ENGINE_VERSION == "1.0.0"
+    # Engine 1.1.0 added the delisting return (S6.7). Its default changed no file
+    # from 1.0.0's; only the spec hash and the run ID did, since the spec now writes
+    # it out, and coverage.json is new.
+    assert ENGINE_VERSION == "1.1.0"
     assert record.spec_hash == (
-        "8209f0a63f0801fd475f4a49edd04fb9634586df59389558815e95bbbc268698"
+        "17eaeace5bfe1f9ed18177a1f19527c6d933a363431d58e5397fa37eef2752a7"
     )
     assert record.run_id == (
-        "285c538292559cefba245dfa6bfd50eec0adef6fe894bb8733a471b2878a7abf"
+        "f96f97959ed75d9182385c509b9c54e44a835471a598337efe4a11cae8de792f"
     )
     assert {name: entry["sha256"] for name, entry in listed.items()} == {
         "audit.json": "f31e6e3055ebf1d81c712d6e7b93e51ff075aae7c00f63d8e3d599b73ef7511b",
+        "coverage.json": "74a03012b67bb7de02967f5cfe50f55fcc93b31fef49bd24160c571bc691eb28",
         "holdings.json": "b76d777b90a01642945a6d2e5726048be79bbdab2eddd9ac29ab0312105bdca7",
         "metrics.json": "e6d44562275b62df033a476c188b592812a7bc6db4fd1f6f2421d89d9465f9b7",
         "returns.json": "c84ad14cd2e91f5fa7a618ec53d60f4be9f2158d8c29a43d3b10e9b06efcaed9",
@@ -455,6 +480,26 @@ def test_the_code_version_is_the_setting_or_gits_head() -> None:
     # or nothing where there's no checkout, as in the container.
     found = code_version(Settings(_env_file=None, git_sha=None))
     assert found is None or re.fullmatch(r"[0-9a-f]{40}(-dirty)?", found)
+
+
+def test_the_command_reports_the_runs_coverage(
+    settings: Settings,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("app.runs.get_settings", lambda: settings)
+    spec_file = tmp_path / "spec.json"
+    spec_file.write_text(json.dumps(spec_data()), encoding="utf-8")
+
+    assert main([str(spec_file), "--out", str(tmp_path / "runs")]) == 0
+
+    lines = capsys.readouterr().out.splitlines()
+    assert (
+        "  coverage      12 member-decisions, 4 left out for lack of data: 4 without "
+        "fundamentals"
+    ) in lines
+    assert "  exits         none" in lines
 
 
 def test_the_command_reports_an_invalid_spec(

@@ -14,9 +14,7 @@ import { demoQuery, explorerHref, suggestedQuery } from "@/features/time-machine
 import { formatEtDateTime, type EtDateTime } from "@/lib/time";
 
 type ExplorerEmptyProps =
-  | { kind: "blank" }
-  | { kind: "moment-only"; moment: EtDateTime }
-  | { kind: "invalid" };
+  { kind: "blank" } | { kind: "moment-only"; moment: EtDateTime } | { kind: "invalid" };
 
 // Solid, not dashed: in this app a dashed border means "not yet known".
 const EMPTY_CLASS = "border border-solid bg-card";
@@ -33,8 +31,7 @@ export function ExplorerEmpty(props: ExplorerEmptyProps) {
           </EmptyMedia>
           <EmptyTitle>Add a company or a series</EmptyTitle>
           <EmptyDescription>
-            Choose what to look at on {formatEtDateTime(props.moment)}, then show what was
-            known.
+            Choose what to look at on {formatEtDateTime(props.moment)}, then show what was known.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
@@ -57,8 +54,8 @@ export function ExplorerEmpty(props: ExplorerEmptyProps) {
           </EmptyMedia>
           <EmptyTitle>This link has a problem</EmptyTitle>
           <EmptyDescription>
-            Fix the highlighted fields above and show what was known, or start over with
-            the example.
+            Fix the highlighted fields above and show what was known, or start over with the
+            example.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent>
@@ -80,8 +77,8 @@ export function ExplorerEmpty(props: ExplorerEmptyProps) {
         </EmptyMedia>
         <EmptyTitle>Pick a moment to look back from</EmptyTitle>
         <EmptyDescription>
-          Choose a date and time, then companies or economic series, to see what was public
-          then and what wasn&apos;t yet.
+          Choose a date and time, then companies or economic series, to see what was public then and
+          what wasn&apos;t yet.
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent>

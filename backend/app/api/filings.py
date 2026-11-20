@@ -9,11 +9,12 @@ from fastapi import APIRouter, Path, Query
 from pydantic import Field
 
 from app.api import examples
+from app.api.cache import AsOfRoute
 from app.api.conventions import DataResponse, Provenance, View
 from app.data.timeutil import describe_time
 from app.data.view import PointInTimeView
 
-router = APIRouter(prefix="/filings", tags=["filings"])
+router = APIRouter(prefix="/filings", tags=["filings"], route_class=AsOfRoute)
 
 FormFamily = Literal["10-K", "10-Q", "8-K"]
 """A form a reader asks for: the keys of FORM_FAMILIES in app/data/sources/edgar.py (a

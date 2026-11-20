@@ -22,7 +22,8 @@ jobs:
   frontend:
     # This name is a required status check on main (doc/project/github-workflow.md). Rename the job
     # only together with the "Protect main" ruleset, or pull requests wait for a check that
-    # never reports.
+    # never reports. The job also runs the Prettier format check and the generated API types'
+    # check; its name predates them and stays for the same reason.
     name: Frontend (lint + test + build)
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -39,7 +40,11 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      # lib/api/schema.ts must be what npm run api:types makes of doc/reference/openapi.json,
+      # which a backend test keeps equal to the API's models (S8.6).
+      - run: npm run api:types:check
       - run: npm run lint
+      - run: npm run format:check
       - run: npm test
       - run: npm run build
 

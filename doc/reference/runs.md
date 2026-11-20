@@ -1,6 +1,6 @@
 # Run records, determinism, and the audit
 
-> **Story S7.7.** Version 1, 2026-11-12. To change what a run saves, update [`app/backtest/records.py`](../../backend/app/backtest/records.py), [`app/backtest/audit.py`](../../backend/app/backtest/audit.py), [`app/backtest/canonical.py`](../../backend/app/backtest/canonical.py), their tests, and this page together.
+> **Stories S7.7, S8.4, and S6.7.** Version 1, 2026-11-12; [runs from the API](#runs-from-the-api) added 2026-11-15, and [the coverage report](#the-coverage-report) 2026-11-17. To change what a run saves, update [`app/backtest/records.py`](../../backend/app/backtest/records.py), [`app/backtest/audit.py`](../../backend/app/backtest/audit.py), [`app/backtest/coverage.py`](../../backend/app/backtest/coverage.py), [`app/backtest/canonical.py`](../../backend/app/backtest/canonical.py), their tests, and this page together.
 
 Every run saves a record: a folder of JSON files that say exactly what it used and what it produced. A reviewer can read them, check them, and run the same thing again.
 
@@ -35,11 +35,12 @@ Runs live in `DATA_DIR/runs/`, one folder for each run ID.
 | `trades.json` | Each trade: its fill, its weight before and after, the value traded, and its cost |
 | `metrics.json` | The run's [metrics](metrics.md) |
 | `warnings.json` | Each gap in the data, and what the run assumed instead |
+| `coverage.json` | [What data its decisions lacked](#the-coverage-report), by security and year, and the holdings it valued at their last close |
 | `audit.json` | [What each view the run opened read](#the-audit), and when the newest of it became known |
 
-Every holding, trade, and warning carries `decision`, the New York day of its decision, so the files join on it. Times are in UTC, as `2020-06-01T13:30:00Z`. The API will show them in New York time, as it does everywhere (D12).
+Every holding, trade, warning, and exit carries `decision`, the New York day of its decision, so the files join on it. The coverage report's rows go by security and year instead. Times are in UTC, as `2020-06-01T13:30:00Z`. The API shows them in New York time, as it does everywhere (D12).
 
-`run.json` for the canonical spec from 2020 to 2022, with the spec and four of the files left out:
+`run.json` for the canonical spec from 2020 to 2022, as engine 1.0.0 saved it before runs kept `coverage.json`, with the spec and four of the files left out:
 
 ```json
 {
@@ -63,7 +64,7 @@ Every holding, trade, and warning carries `decision`, the New York day of its de
 }
 ```
 
-**What isn't saved, on purpose:** when the run happened, and how long it took. Either would make two runs of the same inputs differ. The run registry will keep them beside the files (S13.1).
+**What isn't saved, on purpose:** when the run happened, and how long it took. Either would make two runs of the same inputs differ. A run submitted to the API has them in its [job file](#runs-from-the-api), beside the runs, until the run registry keeps them (S13.1).
 
 ## The run ID and the spec hash
 
@@ -77,7 +78,7 @@ Every holding, trade, and warning carries `decision`, the New York day of its de
   It's all 64 hex digits. The same three always give the same ID, so a run ID names its inputs, not the moment it ran.
 - **The engine version** is `ENGINE_VERSION` in [`app/backtest/__init__.py`](../../backend/app/backtest/__init__.py). Raise it with any change that can change a saved result: to a signal, the portfolio, returns, metrics, or the loop, or to how `app/data` reads the store, such as how a quarter is derived.
 - **The git SHA** is recorded and isn't part of the ID. It's the `GIT_SHA` setting if there is one (Railway sets `RAILWAY_GIT_COMMIT_SHA` on a deploy from GitHub), or else git's HEAD, with `-dirty` after it when tracked files have uncommitted changes. It's `null` where neither is known. The commit also pins every dependency, through `uv.lock`.
-- **The record version**, `record_version`, is the version of the files' layout. It isn't part of the ID either: a new layout says the same things about the same run.
+- **The record version**, `record_version`, is the version of the files' layout. It isn't part of the ID either: a new layout says the same things about the same run. Version 2 added `coverage.json`, with engine 1.1.0 (S6.7).
 
 ## Canonical JSON
 
@@ -90,7 +91,7 @@ Every holding, trade, and warning carries `decision`, the New York day of its de
 
 Hashes use the compact form, with no spaces. Files use the same text indented by two spaces, with a newline at the end, so two runs can be compared line by line with `diff`.
 
-**Numbers are rounded before they're saved.** Every computed number in `returns.json`, `holdings.json`, `trades.json`, and `metrics.json` keeps 12 significant digits. A float has 15 to 17, and the last one or two are where machines differ: CAGR is a power, and a power's last digit depends on the machine's maths library. The spec is never rounded. It's saved exactly as it ran, or the saved spec wouldn't be the one to run again.
+**Numbers are rounded before they're saved.** Every computed number in `returns.json`, `holdings.json`, `trades.json`, and `metrics.json` keeps 12 significant digits. `coverage.json` holds counts only. A float has 15 to 17, and the last one or two are where machines differ: CAGR is a power, and a power's last digit depends on the machine's maths library. The spec is never rounded. It's saved exactly as it ran, or the saved spec wouldn't be the one to run again.
 
 ## The audit
 
@@ -179,6 +180,63 @@ A table's `sha256` covers every distinct row the view returned from it:
 
 The order the rows were read in doesn't matter, which it must not: the store returns rows that tie in any order. `row_line` and `rows_hash` in [`audit.py`](../../backend/app/backtest/audit.py) do both steps.
 
+## The coverage report
+
+Free price data leaves out companies that stopped trading, and WRDS access was denied, so nothing can measure that gap from outside ([data sources](data-sources.md#wrds-crsp-at-the-university-of-delaware), R1). Instead, every run says where its own data ran out. `coverage.json` is reduced from the run's members, warnings, and holdings by [`app/backtest/coverage.py`](../../backend/app/backtest/coverage.py), the way `metrics.json` is from its periods. It reads no data of its own, so the audit doesn't change.
+
+- **A member-decision** is a member of the universe at a decision.
+- **It's left out for lack of data** when the member had stopped trading (`stopped_trading`), or when a signal a filter or the ranking needs had no value (`missing_signal`). A member without two signals counts once. A member that failed a filter wasn't left out for lack of data.
+- **`missing`** says what it lacked, by what the signals read: `prices` for momentum, `fundamentals` for revenue growth and its acceleration, and `macro` for a macro change ([`DATA`](../../backend/app/backtest/signals/__init__.py)). A member without two kinds counts once in each, so they can add up to more than `left_out`. Missing prices usually mean too short a history, such as a spin-off's first year, rather than a missing bar: `python -m app.data.coverage` lists those (S6.7).
+- **`signals`** counts each needed signal's gaps, by its ID in the spec.
+- **`no_fill_price`** counts chosen members whose trade had no price at the fill.
+- **`exits`** are holdings valued at their last close before their period ended: `delisted_exit` for one that stopped trading, after the spec's [assumed delisting return](portfolio.md#6-delistings), and `missing_price` for one whose bar at the period's end was missing.
+
+`rows` has one entry for each security and New York calendar year in which it was a member at a decision, by security ID and then year, so the thin early years of XBRL show. Its `ticker` and `name` are the last it had that year. `totals` adds the rows up, and `exits` lists each exit with its last close and its period's end.
+
+From the canonical spec, 2010 to 2025, on data version 20261111T030742Z (run `40365a9a…`), with one of its 637 rows and one of its three exits:
+
+```json
+{
+  "decisions": 192,
+  "totals": {
+    "member_decisions": 7529,
+    "left_out": 326,
+    "stopped_trading": 0,
+    "missing": { "fundamentals": 312, "prices": 25 },
+    "signals": { "mom_12_1": 25, "rev_accel": 312 },
+    "no_fill_price": 0,
+    "exits": 3
+  },
+  "rows": [
+    {
+      "security_id": "abbvie",
+      "ticker": "ABBV",
+      "name": "AbbVie Inc.",
+      "year": 2013,
+      "member_decisions": 12,
+      "left_out": 12,
+      "stopped_trading": 0,
+      "missing": { "fundamentals": 8, "prices": 12 },
+      "signals": { "mom_12_1": 12, "rev_accel": 8 },
+      "no_fill_price": 0,
+      "exits": 0
+    }
+  ],
+  "exits": [
+    {
+      "decision": "2019-11-01",
+      "security_id": "celgene",
+      "ticker": "CELG",
+      "kind": "delisted_exit",
+      "valued_at": { "session": "2019-11-20", "price": "close" },
+      "end": { "session": "2019-12-02", "price": "close" }
+    }
+  ]
+}
+```
+
+(The file's keys are in sorted order; they're reordered here to read more easily.) AbbVie, spun off from Abbott in January 2013, had no 12-1 momentum at any decision that year and no revenue acceleration at eight, so all twelve of its member-decisions were left out. Over the run, 326 of 7,529 member-decisions were left out, 4.3%: the counts the [canonical write-up](../research/canonical-backtest.md#what-the-engine-warned-about) took from the warnings by hand. Celgene stopped trading after November 20, 2019, while held, and was sold at the next fill.
+
 ## Determinism
 
 **The promise.** The same spec, data version, and engine version give the same run ID and byte-identical files (FR-B3, NFR-2).
@@ -205,13 +263,37 @@ A run ID names its inputs, so saving the same run again finds its folder there.
 
 A folder is written whole or not at all: the files are written beside it, then moved into place.
 
+## Runs from the API
+
+`POST /v1/backtests` runs a spec the same way the command does, through `run_backtest`, but in the background ([`app/run_queue.py`](../../backend/app/run_queue.py), S8.4; the contract is in [api-v1.md](api-v1.md#backtests)).
+
+- **The ID comes first.** A run ID needs only the spec, the data version, and the engine version, so the API answers with it before the run starts. The data version is the store's newest when the spec is submitted.
+- **A job file holds the status:** `DATA_DIR/runs/_jobs/<run ID>.json`, with the spec, the data version, the engine version, `status`, `submitted_at`, `started_at`, `finished_at` (UTC, to the second), and `error`.
+
+  | `status` | Meaning |
+  | --- | --- |
+  | `queued` | Waiting for the run ahead of it |
+  | `running` | In progress. How many decisions are done is kept in memory, not in the file |
+  | `succeeded` | Its folder is saved |
+  | `failed` | It stopped. `error` is a sentence that says why |
+
+- **One run at a time,** in a worker thread in the API's process, with up to five waiting. A whole canonical run peaks at about 340 MB and uses one CPU for over three minutes, and nobody signs in to start one yet.
+- **The saved folder decides.** A run whose folder is saved has succeeded, whatever its job file says, and even without one: a run saved by the command is served too. Submitting a saved run again answers with it and runs nothing. A job marked `succeeded` whose folder is gone is no run at all.
+- **A restart fails what was in progress.** A deploy stops the process, and the thread with it. As the server starts, it marks every job still `queued` or `running` as `failed`: "The server restarted before this run finished. Submit it again." Nothing half-written is left, because a run's folder is moved into place whole.
+- **A failed run can be submitted again.** Its job file is replaced.
+- **What a failed run says.** A spec the engine refuses gives the engine's sentence, which names the field. Anything else says only that the problem is on our side, and the server's log has the rest.
+- **`execute(run_id, settings)` is a plain function** that reads a job's file, runs it, and writes how it ended. A thread calls it now, and a task queue could call it the same way on a host without background threads ([hosting](hosting.md)).
+
 ## Known limitations
 
 - **Rounding can't cover every case.** If two machines' results straddle a rounding boundary, their 12th digits differ. None has been seen, and the pinned test would show one.
 - **The pinned hashes were produced on macOS.** CI's Linux run is the first check that another machine agrees.
 - **The audit is a summary.** It proves the timing of every row and names each group's newest source, but it doesn't list the rows.
+- **The coverage report only knows the universe's members.** It can't count the companies a universe never included because our prices don't cover them, such as Lehman Brothers. Universe v1's [coverage gaps](data-sources.md#universe-v1-starter_large_caps-decision-d3) list those.
 - **The audit covers what views returned.** The catalogs' coverage reads return date ranges, not rows, and aren't logged. The engine doesn't use them.
 - **A `-dirty` git SHA** says the code had uncommitted changes, not what they were.
 - **Runs aren't tied to a user yet,** and two people who run the same spec on the same data share one folder. Accounts and the run registry come with S13.1.
-- **The deployed server can't save runs yet.** Its user can only read the volume ([hosting](hosting.md)), so S8.4 needs a folder it can write to.
+- **The deployed server can't save runs yet.** Its user can only read the volume, so `POST /v1/backtests` answers 503 `runs_unavailable` there until `/data/runs` is made writable: a one-time step in [hosting](hosting.md#next-steps).
+- **One server runs the jobs.** The queue assumes it's the only process using its `_jobs` folder, which holds for one replica. Two servers on one folder could each run the same spec, and one's restart would fail the other's jobs.
+- **Job files are never cleaned up.** Each is a few kilobytes. The run registry replaces them (S13.1).
 - **Re-running needs the data version's files.** Deleting a table to rebuild it breaks every run pinned to a version that lists its files ([database choice review](../research/database-choice-review.md)).

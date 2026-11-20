@@ -1,11 +1,12 @@
 # Quant Time Machine — Backend
 
-The Quant Time Machine API, built with [FastAPI](https://fastapi.tiangolo.com). It serves point-in-time data and will run backtests. So far it has:
+The Quant Time Machine API, built with [FastAPI](https://fastapi.tiangolo.com). It serves point-in-time data and runs backtests. So far it has:
 
 - the point-in-time data layer: the store and its writer, `PointInTimeView`, and the NYSE calendar;
 - the ingestion client and CLI;
 - the `/v1` as-of endpoints for macro series and their revisions, prices, filings, and fundamentals, with their conventions, plus the catalogs and the knowledge snapshot;
-- the start of the [backtest engine](#backtest-engine): total returns from raw prices, splits, and dividends, the experiment spec, the rebalance schedule, the simulation loop, the signal library, portfolios, metrics, and [run records](#run-records) that the same inputs always reproduce byte for byte (S7.7).
+- the [backtest engine](#backtest-engine): total returns from raw prices, splits, and dividends, the experiment spec, the rebalance schedule, the simulation loop, the signal library, portfolios, metrics, and [run records](#run-records) that the same inputs always reproduce byte for byte (S7.7);
+- the [backtest endpoints](#backtests-over-the-api), which run a submitted spec in the background and serve its status, results, and audit (S8.4).
 
 Three sources are in, each ingested and readable as of any moment:
 
@@ -47,6 +48,7 @@ Settings and API keys load through one typed module, [`app/config.py`](app/confi
 | `CORS_ORIGINS`     | Browser access to the API (CORS)              | Exact origins, comma-separated, no trailing slash. Default `http://localhost:3000`; add the deployed site.                 |
 | `GIT_SHA`          | The commit a saved run records (S7.7)         | Optional. Unset, it's Railway's `RAILWAY_GIT_COMMIT_SHA` on a deploy, or git's HEAD on your machine, with `-dirty` for uncommitted changes. |
 | `SERVE_RAW_PRICES` | `GET /v1/prices` answering at all             | Default `false`, so the endpoint answers 403. Tiingo's prices are internal use only (D2): set `true` on your own machine, never on a deployment others can reach. |
+| `RESPONSE_CACHE_MB` | Memory for the cache of as-of answers (S8.6) | Default `32`. `0` turns the cache off; see [caching](../doc/reference/api-v1.md#caching). |
 
 In code, call `get_settings()` from `app.config`. API keys are `SecretStr` values, so they never show up in logs; use `.get_secret_value()` where the real value is needed. Route handlers don't call `get_settings()`. They read the settings the app was built with, through the `AppSettings` dependency, so a test can build an app with its own settings: `create_app(Settings(_env_file=None, data_dir=...))`. The tests don't need any keys: they use fixtures instead of live APIs.
 
@@ -83,6 +85,7 @@ backend/
 │   ├── main.py         # Creates the FastAPI app and registers routers
 │   ├── config.py       # Typed settings: API keys and paths from the environment or .env
 │   ├── runs.py         # Runs a spec on the store and saves its record (S7.7)
+│   ├── run_queue.py    # Runs submitted specs in the background, and tracks their status (S8.4)
 │   ├── api/            # HTTP route handlers (thin; they call into data/ and backtest/)
 │   │   ├── health.py   # GET /health
 │   │   ├── v1.py       # The /v1 router
@@ -95,7 +98,8 @@ backend/
 │   │   ├── filings.py        # GET /v1/filings/{ticker} and /latest
 │   │   ├── fundamentals.py   # GET /v1/fundamentals/{ticker}
 │   │   ├── catalog.py        # GET /v1/catalog/series, /companies, and /signals
-│   │   └── snapshot.py       # GET /v1/snapshot
+│   │   ├── snapshot.py       # GET /v1/snapshot
+│   │   └── backtests.py      # POST /v1/backtests, and GET /v1/backtests/{run_id} with /audit, /holdings, /trades, /coverage
 │   ├── data/           # Point-in-time data layer (see below)
 │   └── backtest/       # The backtest engine (see below)
 ├── spikes/             # Experiments behind the data, storage, and hosting decisions (not app code)
@@ -130,17 +134,29 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
   | 422 | `invalid_request` | A missing or invalid parameter; `details` names each one |
   | 404 | `unknown_ticker`, `unknown_series` | Raise `NotFoundError` |
   | 403 | `prices_restricted` | `SERVE_RAW_PRICES` is off |
-  | 404, 405 | `not_found`, `method_not_allowed` | No such path or method |
+  | 404, 405 | `not_found`, `method_not_allowed` | No such path or method, or no run with that ID |
+  | 503 | `runs_unavailable` | `POST /v1/backtests` when the queue is full or the runs folder can't be written |
   | 500 | `internal_error` | A bug; the message is generic |
 
 - **CORS:** only the origins in `CORS_ORIGINS` may call the API from a browser. Errors carry the CORS headers too, so a page can read them.
+- **Caching** ([`app/api/cache.py`](app/api/cache.py), S8.6): an as-of answer never changes for a data version, so the API keeps each 200 in memory, by path, query, knowledge time, and data version, and answers a repeat without reading the store. A new data version starts the cache over. Cached answers carry an `ETag`, and a matching `If-None-Match` gets a 304 ([caching](../doc/reference/api-v1.md#caching)).
 
 **Adding an endpoint:**
 
-1. Create a router module in `app/api/` (see `macro.py`), and include it in `app/api/v1.py`, so it's served under `/v1`.
+1. Create a router module in `app/api/` (see `macro.py`) with `APIRouter(..., route_class=AsOfRoute)`, so its answers are cached, and include it in `app/api/v1.py`, so it's served under `/v1`.
 2. Take `view: View` to read the store: one `PointInTimeView` per request, bound to `as_of`.
 3. Return a named subclass of `DataResponse`, whose `data` is a model built on `Provenance`.
-4. Add its examples to `app/api/examples.py`, each labeled with the request that produces it. `tests/test_api_examples.py` replays every one against the fixtures.
+4. Add its examples to `app/api/examples.py`, each labeled with the request that produces it. `tests/test_api_examples.py` replays every one against the fixtures, and `tests/test_api_cache.py` checks that each is cached.
+5. Regenerate the OpenAPI schema and the frontend's types (below).
+
+The backtest routes are the exception to steps 1 to 3: a run isn't an answer as of one moment, so they take no `as_of`, aren't cached, and return their own models ([`app/api/backtests.py`](app/api/backtests.py)).
+
+**The OpenAPI schema** is committed as [`doc/reference/openapi.json`](../doc/reference/openapi.json), exactly what `/openapi.json` serves, and the frontend generates its TypeScript types from it (S8.6). After changing a route or a response model, or upgrading FastAPI or Pydantic, regenerate both, or a test and CI fail:
+
+```bash
+uv run python -m app.api.openapi > ../doc/reference/openapi.json  # from backend/
+npm run api:types                                                 # from frontend/
+```
 
 ## Endpoints
 
@@ -158,6 +174,12 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | `GET /v1/catalog/signals` | The signal types a spec can use, with their JSON Schemas; no `as_of`, since they don't depend on time or data | `signal_types` in [`spec.py`](app/backtest/spec.py) |
 | `GET /v1/snapshot?as_of&tickers&series` | What was known then, and what wasn't yet: the [June 5, 2020 table](../doc/reference/time-model.md#june-5-2020-at-0930-et-1330z). Prices follow `SERVE_RAW_PRICES`, but never with a 403: off, a bar keeps its date and loses its prices | Known: the view's reads. Not yet known: [`look_ahead.py`](app/data/look_ahead.py) |
 
+| `POST /v1/backtests` | A run's ID for the spec in the body, at once: 202 when it's queued, 200 when that run is already saved, 422 with the spec's own field paths | `parse_spec`, `check_runnable`, and `RunQueue.submit` |
+| `GET /v1/backtests/{run_id}` | The run's status and progress, and once it has succeeded, its metrics, holding periods, equity curve, and warnings | The run's job, and its saved files |
+| `GET /v1/backtests/{run_id}/audit?decision` | What each view the run opened read, for every decision or one | `audit.json` |
+| `GET /v1/backtests/{run_id}/holdings?decision` and `/trades?decision` | Each holding of each period, and each trade at each fill | `holdings.json`, `trades.json` |
+| `GET /v1/backtests/{run_id}/coverage` | What data the run's decisions lacked, by security and year, and the holdings it valued at their last close (S6.7) | `coverage.json` |
+
 ## Point-in-time data layer
 
 | Module | What it does |
@@ -171,7 +193,7 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | [`records.py`](app/data/records.py) | What the view's reads return, with the field names of the API contract |
 | [`look_ahead.py`](app/data/look_ahead.py) | What became public after a knowledge time, only for the snapshot's "not yet known" half (S8.3). See [Look-ahead](#look-ahead) |
 | [`fundamentals.py`](app/data/fundamentals.py) | Standard metrics from XBRL facts: each concept's latest value per period, the concept order, and coverage (S5.6) |
-| [`coverage.py`](app/data/coverage.py) | The coverage report for the standard metrics (S5.6) |
+| [`coverage.py`](app/data/coverage.py) | The coverage report: each universe member's price gaps beside the standard metrics' missing periods, by company and year (S5.6, S6.7) |
 | [`raw_cache.py`](app/data/raw_cache.py) and [`http.py`](app/data/http.py) | Downloads, with rate limits, retries, and a cache of every response |
 | [`ingest.py`](app/data/ingest.py) | The ingestion command |
 | [`sources/`](app/data/sources/) | One ingester per source, with its config files |
@@ -202,6 +224,7 @@ Every `/v1` endpoint follows [`app/api/conventions.py`](app/api/conventions.py) 
 | `universe_as_of(name)` | The `UniverseMember`s of a universe in [`universes.toml`](app/data/sources/universes.toml), such as `starter_large_caps`, each with its ticker, name, and CIK then. A company counts from 00:00 ET on the effective date it joined until the date it left: Tesla is in from December 21, 2020 (S6.5) |
 | `universe_coverage(name)` | The members `universe_as_of` gives, each with the dates its prices, filings, and XBRL facts reach by then, across every CIK it had (S8.5) |
 | `fundamentals_coverage(universe, metric)` | For every company in the universe by then, those that left included: how many of its 10-Qs and 10-Ks reported one of the metric's concepts for their own period, which concepts they used, and the periods none covered (S5.6) |
+| `price_coverage(universe)` | For every company in the universe by then, those that left included: the sessions it should have traded in, while a member and until it stopped trading, those without a bar or without trades, and its last trade (S6.7) |
 
 ```python
 from app.data.timeutil import parse_knowledge_time
@@ -237,7 +260,7 @@ A data version is the store as one finished ingestion run left it, so a saved ru
   ```
 
   A pinned view first checks that every file the version lists is still there with the same size, and the first time in a process, the same hash. If one is missing or changed, it raises `DataVersionError` instead of answering from different data. Without `data_version`, a view reads every file stored now, including any a stopped run left.
-- **The API** pins each request to the store's newest version, `latest_data_version(store)`, and echoes it as `data_version`. It's `null` only if the store has no version yet: run any ingestion command once, even one that answers from the cache.
+- **The API** pins each request to the store's newest version, `latest_data_version(store)`, echoes it as `data_version`, and keeps the answer for it (see caching under [API conventions](#api-conventions-v1)). It's `null` only if the store has no version yet: run any ingestion command once, even one that answers from the cache.
 - **Never delete or rewrite a file a version lists.** `write_rows` never does. Rebuilding a table by deleting its folder breaks the versions that list its files (see [Store](#point-in-time-data-layer)).
 
 ## Backtest engine
@@ -247,14 +270,15 @@ The engine in [`app/backtest/`](app/backtest/) reads data only through `PointInT
 | Module | What it does |
 | --- | --- |
 | [`returns.py`](app/backtest/returns.py) | Daily and monthly total returns from raw prices, splits, and dividends, as known at a time (S6.4). Split factors are rounded to the ratio they stand for, such as 7 for Tiingo's 7.000007. The returns match Tiingo's adjusted closes to within 10⁻⁶. `holding_return` runs from one fill's price to the next's, each a session's open or close, and values a holding whose bars end early at its last close that traded (S7.3) |
-| [`spec.py`](app/backtest/spec.py) | The experiment spec, version 1: Pydantic models that match the frontend's `ExperimentSpec` type field for field (S7.1). `parse_spec` raises `SpecError`, whose problems each name a field: "schedule.fill must be 'same_day_close' or 'next_day_open'." `signal_types()` lists the kinds of signal, with their JSON Schemas, for `/v1/catalog/signals` (S8.5) |
+| [`spec.py`](app/backtest/spec.py) | The experiment spec, version 1: Pydantic models, from which the frontend's `ExperimentSpec` type is generated (S7.1, S8.6). `parse_spec` raises `SpecError`, whose problems each name a field: "schedule.fill must be 'same_day_close' or 'next_day_open'." `signal_types()` lists the kinds of signal, with their JSON Schemas, for `/v1/catalog/signals` (S8.5) |
 | [`schedule.py`](app/backtest/schedule.py) | A spec's decisions, on the first trading day of each month, and their fills (S7.2). A fill is at the same day's close (13:00 ET on an early close) or the next session's open, always strictly after its decision; `ScheduleError` names any day it can't be |
 | [`signals/`](app/backtest/signals/) | What the loop asks of a signal: each member's `SignalValue` at a decision, or the reason it has none (S7.3). `SIGNALS` is the library, by spec `type` (S7.4): `momentum` over whole months, 12-1 by default; `revenue_growth` and `revenue_growth_acceleration` from the quarters filed by then; and `macro_change`, a macro series' change over its latest releases. [`doc/reference/signals.md`](../doc/reference/signals.md) has their formulas |
 | [`portfolio.py`](app/backtest/portfolio.py) | The filters, equal weights, and the trades that reach them. Costs are `bps_per_trade` of the value traded, which is the sum of each weight's change, and come out of the portfolio (S7.3). A ranking holds only its ends, each a quantile of the members that pass the filters, rounded down and at least one; a long-short portfolio is long one end and short the other (S7.5). [`doc/reference/portfolio.md`](../doc/reference/portfolio.md) has the rules and a worked example |
-| [`simulation.py`](app/backtest/simulation.py) | The loop (S7.3). `simulate(spec, views)` steps through a spec's decisions, each with a view bound to its time, then values the holdings and trades at a view bound to the fill session's close. It returns each holding period's holdings, trades, costs, and returns, the benchmark's, the risk-free rate its decision knew, and warnings for the data it did without |
+| [`simulation.py`](app/backtest/simulation.py) | The loop (S7.3). `simulate(spec, views)` steps through a spec's decisions, each with a view bound to its time, then values the holdings and trades at a view bound to the fill session's close. It returns each holding period's holdings, trades, costs, and returns, the benchmark's, the risk-free rate its decision knew, and warnings for the data it did without. A holding that stops trading is valued at its last close, after the spec's assumed delisting return (S6.7) |
 | [`metrics.py`](app/backtest/metrics.py) | A run's metrics, from its holding periods (S7.6). `summarize(result)` gives CAGR, volatility, the Sharpe ratio, maximum drawdown, and turnover, and against the benchmark, excess return, hit rate, beta, alpha, and the t-statistic of the mean monthly excess return. `equity_curve(result)` gives the portfolio's value beside the benchmark's. Both only do arithmetic, and a metric that can't be computed is `None`. [`doc/reference/metrics.md`](../doc/reference/metrics.md) has the formulas and a run worked by hand |
 | [`canonical.py`](app/backtest/canonical.py) | Canonical JSON (S7.7): sorted keys, one way to write each number, and `rounded`, which keeps 12 significant digits of a computed result. Equal values give equal bytes, so equal hashes |
 | [`audit.py`](app/backtest/audit.py) | A run's audit (S7.7). As each view closes, the loop summarizes its access log: for each table, the distinct rows, the earliest and latest `available_at`, a SHA-256 of them all, and each company's or series' newest source |
+| [`coverage.py`](app/backtest/coverage.py) | A run's coverage report (S6.7). `summarize(result)` counts its member-decisions by security and year, those left out for lack of data and what they lacked (prices, fundamentals, or macro data), and its exits at a last close. Like the metrics, it only does arithmetic on what the run recorded |
 | [`records.py`](app/backtest/records.py) | A run's record (S7.7). `build_record` turns a finished run into its files, and `write_run` saves them under its run ID, the SHA-256 of the spec, the data version, and `ENGINE_VERSION`. Saving different results for a saved run raises `RunConflictError`. [`doc/reference/runs.md`](../doc/reference/runs.md) has the files and the rules |
 
 ```python
@@ -309,15 +333,34 @@ equity_curve(result)  # the portfolio's value and the benchmark's, period by per
 uv run python -m app.runs tests/fixtures/specs/canonical.json
 ```
 
-It prints the run ID, the headline metrics, and the folder. `--data-version` reads an older data version, `--out` saves somewhere else, and `--overwrite` replaces a saved run whose results differ.
+It prints the run ID, the headline metrics, the member-decisions left out for lack of data and the holdings exited at a last close, and the folder. `--data-version` reads an older data version, `--out` saves somewhere else, and `--overwrite` replaces a saved run whose results differ.
 
-- **A record is seven JSON files:** `run.json` (the spec as it ran, its hash, the data version, the engine version, the git SHA, and each other file's hash), `returns.json`, `holdings.json`, `trades.json`, `metrics.json`, `warnings.json`, and `audit.json`.
+- **A record is eight JSON files:** `run.json` (the spec as it ran, its hash, the data version, the engine version, the git SHA, and each other file's hash), `returns.json`, `holdings.json`, `trades.json`, `metrics.json`, `warnings.json`, `coverage.json` (S6.7), and `audit.json`.
 - **The run ID** is the SHA-256 of the spec, the data version, and the engine version, so the same inputs always have the same ID.
 - **The same inputs give the same bytes.** The files are canonical JSON, computed numbers keep 12 significant digits, and no file has a time of day in it. CI runs a spec twice, in one process and in two, and compares every byte.
 - **The audit** has an entry for each view the run opened: what it read from each table, when the newest row became known, and a hash of every row. A decision of the canonical spec reads about 17,700 rows, so the rows themselves aren't kept.
 - **Raise `ENGINE_VERSION`** in [`app/backtest/__init__.py`](app/backtest/__init__.py) with any change that can change a saved result, in the engine or in how `app/data` reads the store. A test with a toy run's hashes written into it fails until you do.
 
 The files, the canonical JSON rules, how to check an audit hash, and the known limitations are in [`doc/reference/runs.md`](../doc/reference/runs.md).
+
+### Backtests over the API
+
+`POST /v1/backtests` takes a spec and answers with its run ID at once, and the run goes in the background (S8.4). With the dev server running:
+
+```bash
+curl -X POST localhost:8000/v1/backtests -H 'Content-Type: application/json' \
+  --data @tests/fixtures/specs/canonical.json
+curl localhost:8000/v1/backtests/<run ID>
+```
+
+- **[`app/run_queue.py`](app/run_queue.py) runs one spec at a time,** in a worker thread in the API's process, with up to five waiting. A sixth gets a 503. There's no other infrastructure: no broker and no second process.
+- **A run's status is a job file,** `DATA_DIR/runs/_jobs/<run ID>.json`: `queued`, `running`, `succeeded`, or `failed`, with when it was submitted, started, and finished. The run's own files stay free of clocks. Progress, decisions done out of the total, is kept in memory.
+- **A saved run has succeeded,** job file or not, so a run saved by `python -m app.runs` is served too, and submitting a saved run again answers 200 and runs nothing.
+- **A restart stops the run in progress.** As the server starts, it marks every job still queued or running as failed, with a sentence that says to submit it again. That's `RunQueue.recover()`, called from the app's lifespan in [`app/main.py`](app/main.py).
+- **The spec is checked before it's queued:** `parse_spec`, then `check_runnable` in [`simulation.py`](app/backtest/simulation.py), which is everything the engine can refuse without reading data. Both answer 422 with the spec's own field paths.
+- **`fastapi dev` reloads on every save,** which is a restart: a run in progress fails. Use `uv run fastapi run` to try a long run while you edit.
+
+The contract, with examples of every response, is in [`doc/reference/api-v1.md`](../doc/reference/api-v1.md#backtests).
 
 **Signals.** Each signal reads only through the view it's given, so it sees what was known at the decision, and gives every member a value or a reason it has none, which becomes a `missing_signal` warning. A signal can also be called on its own:
 
@@ -338,7 +381,7 @@ with PointInTimeView(parse_knowledge_time("2020-06-01")) as view:
 
 The formulas, the data each signal reads, its minimum history, and every reason it can give are in [`doc/reference/signals.md`](../doc/reference/signals.md). On the local store, the canonical spec runs 2020 to 2022, 36 decisions, in about 30 seconds.
 
-The spec's JSON Schema, for the API and the assistant, is [`doc/reference/experiment-spec-v1.schema.json`](../doc/reference/experiment-spec-v1.schema.json). After changing the models, regenerate it, or a test fails: `uv run python -m app.backtest.spec > ../doc/reference/experiment-spec-v1.schema.json`. A test also checks the models against the frontend's [`types.ts`](../frontend/features/backtests/types.ts), so change both together.
+The spec's JSON Schema, for the API and the assistant, is [`doc/reference/experiment-spec-v1.schema.json`](../doc/reference/experiment-spec-v1.schema.json). After changing the models, regenerate it, or a test fails: `uv run python -m app.backtest.spec > ../doc/reference/experiment-spec-v1.schema.json`. Regenerate the [OpenAPI schema](#api-conventions-v1) too: the frontend's [`ExperimentSpec`](../frontend/features/backtests/types.ts) is generated from it.
 
 ## Ingestion
 
@@ -362,7 +405,11 @@ Each command loads its whole catalog: there's no option for a single series or t
 
 Each ingester lives in [`app/data/sources/`](app/data/sources/) and is listed in `INGESTERS` in [`app/data/ingest.py`](app/data/ingest.py).
 
-**Coverage of the standard metrics.** After `ingest sec`, run `uv run python -m app.data.coverage`. It reads the store as the API does, pinned to the newest data version, and prints Markdown. For each metric in [`sources/metrics.toml`](app/data/sources/metrics.toml), and each company that was ever in the universe, it shows how many of the company's 10-Qs and 10-Ks reported one of the metric's concepts for their own period, which concepts they used, and which periods none covered.
+**Coverage of prices and the standard metrics.** After ingesting, run `uv run python -m app.data.coverage`. It reads the store as the API does, pinned to the newest data version, and prints Markdown about each company that was ever in the universe (S5.6, S6.7):
+
+- **Gaps by company and year:** the sessions it had no bar for, or a bar without trades, beside each metric's periods that no concept covered.
+- **Prices:** its memberships, the sessions it should have traded in (while a member, until it stopped trading), how many were missing or had no trades, its last trade, and the day it stopped trading. A vendor's bar from that day on doesn't count, as it doesn't for the engine.
+- **One section for each metric** in [`sources/metrics.toml`](app/data/sources/metrics.toml): how many of the company's 10-Qs and 10-Ks reported one of the metric's concepts for their own period, which concepts they used, and which periods none covered.
 
 - **Options:** `--as-of` for an earlier knowledge time, and `--metric` (repeatable) for fewer metrics.
 - **What to look for:** a company that misses periods, or whose concept switches to one with different values for the same period. Either may need an override in `metrics.toml`, with its reason and source.
@@ -439,6 +486,7 @@ The API runs on Railway's Hobby plan (D4) at <https://quant-time-machine-api.up.
 - **The store** lives on a Railway volume at `/data`, not in the image. After ingesting locally, the owner uploads it with `scripts/upload_store.sh`, which copies all of `DATA_DIR/store`, `_versions/` included, so the host reports the same data version as the machine that ingested. It swaps the new store in, keeps the old one as `store.previous`, and runs the smoke test.
 - **The smoke test**, `uv run scripts/smoke_test.py https://quant-time-machine-api.up.railway.app`, checks `/health`, CORS for the web app, a macro value, a filing, and that prices answer 403, all as of June 5, 2020, whose answers never change. GitHub Actions runs it after each deploy ([`smoke.yml`](../.github/workflows/smoke.yml)), and the upload script runs it with `--data-version`. [`tests/test_smoke_test.py`](tests/test_smoke_test.py) runs the same checks against the fixtures.
 - **CI builds and starts the image** on every pull request (the "Backend image" job), so a broken Dockerfile fails there rather than on Railway.
+- **Backtests can't be submitted there yet.** The server's user can't write to the volume, so `POST /v1/backtests` answers 503 until `/data/runs` is made writable, a one-time step in [`hosting.md`](../doc/reference/hosting.md#next-steps). The other endpoints aren't affected.
 
 `.dockerignore` keeps `data/` and `.env` out of the build, because a build from a local folder, such as `docker build` or `railway up`, sends whatever isn't excluded there, git-ignored or not. Keep it that way. Before Railway, the API ran on Fly.io on a free trial that lapsed on 2026-10-31.
 

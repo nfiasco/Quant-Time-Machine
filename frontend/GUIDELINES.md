@@ -13,7 +13,7 @@ How we build the Quant Time Machine web app: the design system, where code goes,
 7. **Accessible by default.** Labels on every input, visible focus, keyboard support, AA contrast, and color is never the only signal.
 8. **Plain words, no advice.** Use the glossary terms; never phrase anything as an investment recommendation.
 9. **Check the states.** Loading, empty, and error states exist; pages work at 375 px, 768 px, and desktop widths, in light and dark.
-10. **CI must pass.** `npm run lint && npm test && npm run build`, plus a screenshot in the pull request for UI changes.
+10. **CI must pass.** `npm run lint && npm run format:check && npm test && npm run build`, plus a screenshot in the pull request for UI changes.
 
 ## 1. Principles
 
@@ -166,7 +166,7 @@ lib/            Framework-agnostic helpers: api/, time, format, theme, utils
 - One main component per file; small private helpers can sit below it.
 - Props are a `type` above the component. No `any`.
 - Import across folders with `@/`; relative imports only within the same folder.
-- No formatter is configured yet: match the surrounding file. Our files use double quotes and semicolons; generated shadcn files keep their own style.
+- Prettier formats the code: double quotes, semicolons, and lines of up to 100 characters (`.prettierrc.json`). Run `npm run format` before committing; CI runs `npm run format:check`. Generated shadcn files in `components/ui/`, the generated API types in `lib/api/schema.ts`, and Markdown are left out (`.prettierignore`), so the generated files keep their own style.
 
 ### Server and client
 
@@ -178,7 +178,7 @@ lib/            Framework-agnostic helpers: api/, time, format, theme, utils
 
 - Call the backend only through `lib/api/` (`apiFetch` plus one typed function per endpoint). The backend accepts browser (CORS) requests only from the origins in its `CORS_ORIGINS` setting (S8.1), which defaults to `http://localhost:3000`. Before fetching from the browser on a deployed site, add that site's origin there.
 - Call the API from Server Components. Wrap a call in `settle` (`lib/api/errors.ts`) to render its failure in place: a 4xx comes back with the API's sentence and field names, so it can sit next to the right field.
-- Hand-written API types live in `lib/api/types.ts`, copied from `doc/reference/api-v1.md`; they're temporary until S8.6 generates them from the OpenAPI schema.
+- API types are generated from the API's OpenAPI schema (S8.6): `npm run api:types` turns `doc/reference/openapi.json` into `lib/api/schema.ts`. Never edit that file; regenerate it when the schema changes (CI's `npm run api:types:check` fails until you do). Import names from `lib/api/types.ts`, and add one there when a page needs it. A function in `lib/api/` declares its return type as its route's, `GetResponse<"/v1/snapshot">`, so a renamed route or a changed model fails the build.
 - Shareable state lives in the URL, using the API's parameter names: `as_of`, `tickers`, `series`, `preset`. Parse and validate on read (see `parseAsOf` and `features/time-machine/params.ts`). Lists are one comma-separated value, and links keep commas and colons readable.
 
 ### Styling
@@ -209,7 +209,7 @@ This version differs from older tutorials and training data. Before using an API
 2. Create `app/(app)/<path>/page.tsx`: export `metadata = routeMetadata(routes.<name>)` and render `PlannedPage` until the real UI exists.
 3. Build the UI in `features/<name>/`, composed from `components/ui` and the shared components.
 4. Design the loading, empty, and error states; check 375 px, 768 px, and desktop, in light and dark.
-5. Run `npm run lint && npm test && npm run build`, and attach a screenshot to the pull request (Definition of Done).
+5. Run `npm run lint && npm run format:check && npm test && npm run build`, and attach a screenshot to the pull request (Definition of Done).
 
 ## 12. Landing page
 
@@ -228,5 +228,5 @@ Unit tests run with [Vitest](https://vitest.dev) (`npm test`, and in CI). They c
 
 - **What to test.** Framework-free modules: `lib/` helpers and the pure files in a feature, such as `features/time-machine/params.ts` (the URL rules) and `snapshot-events.ts` (which side of T each record lands on). Name the file after the module, `params.test.ts`, next to it.
 - **What not to test here.** Async Server Components can't run under Vitest; check pages in the browser at the three widths and in both themes, and attach the screenshot.
-- **Use the API's own examples.** Fixtures come from the API's documented responses (its OpenAPI examples), typed with `satisfies V1Response<…>` so `next build` fails if `lib/api/types.ts` drifts. Never invent values.
+- **Use the API's own examples.** Fixtures come from the API's documented responses (its OpenAPI examples), typed with `satisfies GetResponse<…>`, their route's generated response type, so `next build` fails if they no longer match the API. Never invent values.
 - **Prove nothing leaks.** Anything that reads point-in-time data includes a test that a record dated after the knowledge time can't show as known (roadmap §6.6).

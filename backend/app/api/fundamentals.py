@@ -8,12 +8,13 @@ from fastapi import APIRouter, Path, Query
 from pydantic import Field
 
 from app.api import examples
+from app.api.cache import AsOfRoute
 from app.api.conventions import DataResponse, Provenance, View
 from app.data.sources.metrics import METRICS
 from app.data.timeutil import describe_time
 from app.data.view import PointInTimeView
 
-router = APIRouter(prefix="/fundamentals", tags=["fundamentals"])
+router = APIRouter(prefix="/fundamentals", tags=["fundamentals"], route_class=AsOfRoute)
 
 MetricName = Literal[
     "revenue",

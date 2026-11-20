@@ -66,8 +66,7 @@ export const routes = {
     title: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboardIcon,
-    description:
-      "Start from a moment in time, the featured experiment, or your recent runs.",
+    description: "Start from a moment in time, the featured experiment, or your recent runs.",
     status: "live",
   },
   timeMachine: {
@@ -117,8 +116,7 @@ export const routes = {
     title: "Revisions",
     href: "/revisions",
     icon: LayersIcon,
-    description:
-      "See how an economic data point changed from its first release to today.",
+    description: "See how an economic data point changed from its first release to today.",
     status: "planned",
     story: { id: "S9.3", title: "Macro revision viewer", milestone: "M4" },
     highlights: [
@@ -131,8 +129,7 @@ export const routes = {
     title: "Filings",
     href: "/filings",
     icon: FileTextIcon,
-    description:
-      "Compare when a quarter ended with when its filing actually became public.",
+    description: "Compare when a quarter ended with when its filing actually became public.",
     status: "planned",
     story: { id: "S9.4", title: "Company filing timeline", milestone: "M5" },
     highlights: [
@@ -162,8 +159,7 @@ export const routes = {
     title: "Methodology",
     href: "/methodology",
     icon: BookOpenIcon,
-    description:
-      "The timing rules behind every number, and what the results do and don't prove.",
+    description: "The timing rules behind every number, and what the results do and don't prove.",
     status: "planned",
     story: { id: "S9.7", title: "Methodology page", milestone: "M5" },
     highlights: [
@@ -207,8 +203,7 @@ export const routes = {
     title: "Compare",
     href: "/compare",
     icon: Columns3Icon,
-    description:
-      "Put two to four runs side by side to see which idea actually holds up.",
+    description: "Put two to four runs side by side to see which idea actually holds up.",
     status: "planned",
     story: {
       id: "S14.1",

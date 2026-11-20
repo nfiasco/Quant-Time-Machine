@@ -84,7 +84,12 @@ export const starterSelection = { tickers: ["AAPL"], series: ["UNRATE", "FEDFUND
  * gives the same list, and 09:30 always exists, unlike times in the daylight-saving gap.
  */
 export function catalogAsOf(moment: Pick<EtDateTime, "year" | "month" | "day">): string {
-  return toAsOfParam({ year: moment.year, month: moment.month, day: moment.day, ...DEFAULT_DECISION_TIME });
+  return toAsOfParam({
+    year: moment.year,
+    month: moment.month,
+    day: moment.day,
+    ...DEFAULT_DECISION_TIME,
+  });
 }
 
 /** A full query for a moment: the §2.3 selection on its own moment, else the starter. */
@@ -216,7 +221,11 @@ export function fieldErrorsFromFailure(failure: ApiFailure): FieldErrors {
  * `/time-machine?as_of=2020-06-05T09:30&tickers=AAPL,TSLA&series=UNRATE,FEDFUNDS`.
  * Empty lists are left out, so a moment alone gives `/time-machine?as_of=…`.
  */
-export function explorerHref({ moment, tickers, series }: ExplorerQuery): `/time-machine?${string}` {
+export function explorerHref({
+  moment,
+  tickers,
+  series,
+}: ExplorerQuery): `/time-machine?${string}` {
   const params = new URLSearchParams({ as_of: toAsOfParam(moment) });
   if (tickers.length > 0) params.set("tickers", tickers.join(","));
   if (series.length > 0) params.set("series", series.join(","));
@@ -241,7 +250,9 @@ function asOfIssue(raw: string): string {
 
 function listIssue(name: "tickers" | "series", entries: string[]): string | undefined {
   const isTickers = name === "tickers";
-  const invalid = entries.filter((entry) => !(isTickers ? TICKER_PATTERN : SERIES_PATTERN).test(entry));
+  const invalid = entries.filter(
+    (entry) => !(isTickers ? TICKER_PATTERN : SERIES_PATTERN).test(entry),
+  );
   if (invalid.length > 0) {
     const subject = quoteList(invalid);
     const verb = invalid.length === 1 ? "isn't" : "aren't";

@@ -59,13 +59,17 @@ Sessions persist in server-managed HttpOnly cookies across reloads. The header s
 
 ## Scripts
 
-| Command         | What it does                                          |
-| --------------- | ----------------------------------------------------- |
-| `npm run dev`   | Start the dev server on port 3000                     |
-| `npm run build` | Production build (also type-checks the project)       |
-| `npm run start` | Serve the production build (run `build` first)        |
-| `npm run lint`  | Lint with ESLint                                      |
-| `npm test`      | Run the unit tests once with Vitest                   |
+| Command                   | What it does                                                 |
+| ------------------------- | ------------------------------------------------------------ |
+| `npm run dev`             | Start the dev server on port 3000                            |
+| `npm run build`           | Production build (also type-checks the project)              |
+| `npm run start`           | Serve the production build (run `build` first)               |
+| `npm run lint`            | Lint with ESLint                                             |
+| `npm run format`          | Format the code with Prettier                                |
+| `npm run format:check`    | Check the formatting without changing files (CI runs it)     |
+| `npm test`                | Run the unit tests once with Vitest                          |
+| `npm run api:types`       | Regenerate `lib/api/schema.ts` from the API's OpenAPI schema |
+| `npm run api:types:check` | Check that it's current (CI runs it)                         |
 
 ## Project structure
 
@@ -98,7 +102,7 @@ config/
 └── navigation.ts         # Every route: title, icon, status, roadmap story
 hooks/                    # Shared React hooks
 lib/
-├── api/                  # Backend client: client.ts (API_URL, apiFetch), types.ts, errors.ts, one file per endpoint group
+├── api/                  # Backend client: client.ts (API_URL, apiFetch), schema.ts (generated), types.ts, errors.ts, one file per endpoint group
 ├── time.ts               # Market-time (ET) parsing and formatting
 ├── format.ts             # Number formatting (prices, revenue, macro values)
 ├── theme.ts              # Light and dark theme helpers

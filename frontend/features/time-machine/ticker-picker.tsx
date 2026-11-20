@@ -233,7 +233,10 @@ function matchCompany(value: string, search: string, keywords?: string[]): numbe
   const ticker = value.toLowerCase();
   if (ticker === query) return 1;
   if (ticker.startsWith(query)) return 0.9;
-  const words = (keywords ?? []).join(" ").toLowerCase().split(/[^a-z0-9&.]+/);
+  const words = (keywords ?? [])
+    .join(" ")
+    .toLowerCase()
+    .split(/[^a-z0-9&.]+/);
   if (words.some((word) => word.startsWith(query))) return 0.7;
   return (keywords ?? []).join(" ").toLowerCase().includes(query) ? 0.4 : 0;
 }

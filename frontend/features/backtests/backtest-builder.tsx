@@ -12,13 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { canonicalPreset } from "@/features/backtests/presets";
 import { SpecSummary } from "@/features/backtests/spec-summary";
@@ -26,10 +20,11 @@ import type { ExperimentSpec } from "@/features/backtests/types";
 import {
   decisionFromTime,
   decisionTime,
+  delistingFromLoss,
+  delistingLoss,
   validateSpec,
-} 
-//from "@/features/backtests/validation";
-from "./validation";
+  //from "@/features/backtests/validation";
+} from "./validation";
 
 // TODO: replace with the shadcn NativeSelect (`npx shadcn@latest add native-select`)
 // once it's added to components/ui. These classes match Input.
@@ -42,12 +37,13 @@ type BacktestBuilderProps = {
 };
 
 /** The form that builds an experiment spec (S9.5). Submitting isn't wired up until POST /v1/backtests exists (S8.4). */
-export function BacktestBuilder({
-  initialSpec = canonicalPreset.spec,
-}: BacktestBuilderProps) {
+export function BacktestBuilder({ initialSpec = canonicalPreset.spec }: BacktestBuilderProps) {
   const [spec, setSpec] = useState<ExperimentSpec>(initialSpec);
   // The cost field's text, so clearing it shows an error instead of silently becoming 0.
   const [costText, setCostText] = useState(String(initialSpec.costs.bps_per_trade));
+  // The delisting loss's text, likewise. The spec gets a delisting section only once
+  // it's edited: without one, a holding that stops trading keeps its last close.
+  const [lossText, setLossText] = useState(delistingLoss(initialSpec.delisting));
 
   const errors = validateSpec(spec);
   const isValid = Object.keys(errors).length === 0;
@@ -58,9 +54,7 @@ export function BacktestBuilder({
   }
 
   function invalidProps(path: string) {
-    return errors[path]
-      ? { "aria-invalid": true, "aria-describedby": `${path}-error` }
-      : {};
+    return errors[path] ? { "aria-invalid": true, "aria-describedby": `${path}-error` } : {};
   }
 
   return (
@@ -225,6 +219,32 @@ export function BacktestBuilder({
                     {...invalidProps("costs.bps_per_trade")}
                   />
                   {fieldError("costs.bps_per_trade")}
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="delisting">Delisting loss (%)</FieldLabel>
+                  <Input
+                    id="delisting"
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    max={100}
+                    step="any"
+                    className="font-mono tabular-nums"
+                    value={lossText}
+                    onChange={(e) => {
+                      const text = e.target.value;
+                      setLossText(text);
+                      setSpec((s) => ({ ...s, delisting: delistingFromLoss(text) }));
+                    }}
+                    {...invalidProps("delisting.assumed_return")}
+                  />
+                  {errors["delisting.assumed_return"] ? (
+                    fieldError("delisting.assumed_return")
+                  ) : (
+                    <FieldDescription>
+                      If a holding stops trading: 0 keeps its last close, 100 writes it off.
+                    </FieldDescription>
+                  )}
                 </Field>
               </div>
             </FieldGroup>

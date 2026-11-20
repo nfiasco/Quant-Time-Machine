@@ -24,15 +24,12 @@ export function FeaturesSection() {
       className="border-t outline-none"
     >
       <div className="mx-auto w-full max-w-6xl px-4 py-24 sm:px-6 lg:px-8">
-        <h2
-          id="features-title"
-          className="text-3xl font-semibold tracking-tight sm:text-4xl"
-        >
+        <h2 id="features-title" className="text-3xl font-semibold tracking-tight sm:text-4xl">
           What&apos;s inside
         </h2>
         <p className="mt-3 max-w-2xl text-base text-pretty text-muted-foreground sm:text-lg">
-          The point-in-time data layer and its API are built. The pages that use
-          them are on the way.
+          The point-in-time data layer and its API are built. The pages that use them are on the
+          way.
         </p>
         <ul className="mt-12 grid gap-px overflow-hidden rounded-2xl border bg-border sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map(({ route, endpoint }) => (
@@ -43,13 +40,9 @@ export function FeaturesSection() {
                   {statusLabel(route)}
                 </span>
               </div>
-              <p className="text-sm text-pretty text-muted-foreground">
-                {route.description}
-              </p>
+              <p className="text-sm text-pretty text-muted-foreground">{route.description}</p>
               {endpoint ? (
-                <code className="mt-auto font-mono text-xs text-brand-ink">
-                  {endpoint}
-                </code>
+                <code className="mt-auto font-mono text-xs text-brand-ink">{endpoint}</code>
               ) : null}
             </li>
           ))}
@@ -61,8 +54,8 @@ export function FeaturesSection() {
               </span>
             </div>
             <p className="text-sm text-pretty text-muted-foreground">
-              Every endpoint takes a knowledge time and returns only what was public by
-              then, with when and where each fact came from.
+              Every endpoint takes a knowledge time and returns only what was public by then, with
+              when and where each fact came from.
             </p>
             <code className="mt-auto font-mono text-xs text-brand-ink">as_of=…</code>
           </li>

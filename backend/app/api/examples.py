@@ -1,4 +1,5 @@
-"""Example responses for the OpenAPI docs at /docs, one set per route (S8.2).
+"""Example responses for the OpenAPI docs at /docs, one set per route (S8.2), and the
+example body of POST /v1/backtests (S8.4).
 
 Each example's description is the request that produces it. tests/test_api_examples.py
 replays every one against the test fixtures and requires the same answer, so an example
@@ -925,6 +926,60 @@ SNAPSHOT: Responses = {
     ),
 }
 
+CANONICAL_SPEC: dict[str, Any] = {
+    "spec_version": 1,
+    "name": "Improving revenue growth + positive momentum",
+    "universe": {"type": "point_in_time_list", "id": "starter_large_caps"},
+    "period": {"start": "2010-01-01", "end": "2025-12-31"},
+    "schedule": {
+        "rebalance": "monthly",
+        "decision": "first_trading_day 09:30 America/New_York",
+        "fill": "same_day_close",
+    },
+    "signals": {
+        "rev_accel": {
+            "type": "revenue_growth_acceleration",
+            "basis": "yoy_quarterly",
+        },
+        "mom_12_1": {"type": "momentum", "lookback_months": 12, "skip_months": 1},
+    },
+    "filters": [
+        {"signal": "rev_accel", "op": ">", "value": 0},
+        {"signal": "mom_12_1", "op": ">", "value": 0},
+    ],
+    "portfolio": {"weighting": "equal", "long_only": True},
+    "benchmark": "SPY",
+    "costs": {"bps_per_trade": 10},
+}
+"""The canonical experiment (roadmap §3.4), as the body of POST /v1/backtests in /docs.
+tests/test_api_backtests.py keeps it the same as tests/fixtures/specs/canonical.json."""
+
+_NO_RUN = "0" * 64
+"""A run ID nothing hashes to, for the examples of a run we don't have."""
+
+
+def _no_such_run(path: str = "") -> Responses:
+    """A run's routes share one error of their own: no run has the ID. Its other
+    answers depend on runs the fixtures don't have, so doc/reference/api-v1.md shows
+    them instead."""
+    return {
+        404: _error(
+            "No run with this ID was saved or submitted",
+            unknown_run=example(
+                f"/v1/backtests/{_NO_RUN}{path}",
+                "A run we don't have",
+                _error_body("not_found", f"We have no run {_NO_RUN}."),
+            ),
+        )
+    }
+
+
+BACKTEST = _no_such_run()
+BACKTEST_AUDIT = _no_such_run("/audit")
+BACKTEST_HOLDINGS = _no_such_run("/holdings")
+BACKTEST_TRADES = _no_such_run("/trades")
+BACKTEST_COVERAGE = _no_such_run("/coverage")
+
 WITHOUT_RAW_PRICES = frozenset({SNAPSHOT_JUNE_5})
 """Requests whose examples show a server with raw prices off, as deployed (D2), so
 tests/test_api_examples.py replays them that way."""
@@ -951,6 +1006,11 @@ def keep_nulls(app: FastAPI) -> None:
             CATALOG_COMPANIES,
             CATALOG_SIGNALS,
             SNAPSHOT,
+            BACKTEST,
+            BACKTEST_AUDIT,
+            BACKTEST_HOLDINGS,
+            BACKTEST_TRADES,
+            BACKTEST_COVERAGE,
         )
         for status, response in responses.items()
         for example in _examples_in(response).values()

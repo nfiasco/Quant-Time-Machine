@@ -47,7 +47,7 @@ The frontend is at <http://localhost:3000>; the API documentation is at <http://
 Run the checks for the components you change, from the repository root:
 
 ```sh
-(cd frontend && npm run lint && npm test && npm run build)
+(cd frontend && npm run lint && npm run format:check && npm test && npm run build)
 (cd backend && uv run ruff check && uv run ruff format --check && uv run pytest)
 python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 ```

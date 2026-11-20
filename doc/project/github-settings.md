@@ -26,10 +26,10 @@ Alerts update as GitHub processes dependency changes and published advisories. C
 
 ## CI and merge controls
 
-- The active **Protect main** ruleset requires a PR and the six checks listed in the [team workflow](github-workflow.md#automation-and-maintenance). It blocks branch deletion and force pushes and requires resolved review conversations. Its existing zero-required-approvals setting is retained; adopting the planned one-review requirement remains tracked in S1.4. Contributors should still request peer review.
+- The active **Protect main** ruleset requires a PR, one approving review, and the six checks listed in the [team workflow](github-workflow.md#automation-and-maintenance). It blocks branch deletion and force pushes and requires resolved review conversations. Since 2026-11-16 (S1.4), repository admins are its only bypass actor, in pull-request-only mode: an admin can merge a PR without an approval, GitHub records the bypass, and nobody can push to `main` directly. Everyone else needs a teammate's approval before merging.
 - Actions tokens default to read access and cannot approve PRs. Individual jobs/workflows request only their needed permissions. The privileged organization workflow runs trusted default-branch code and never executes PR code or reads PR artifacts.
 - Third-party Actions in repository workflows are pinned to full commit SHAs. Maintainers review upstream releases and update those pins manually, verifying the release's commit. Checkouts disable credential persistence; jobs have bounded timeouts.
-- ESLint, Vitest, the Next.js production/type-checking build, Ruff, pytest, metadata-policy tests, and the container build/start check cover the current stack. Accessibility also requires the manual checks in [ACCESSIBILITY.md](../../.github/ACCESSIBILITY.md).
+- ESLint, Prettier's format check, Vitest, the Next.js production/type-checking build, Ruff, pytest, metadata-policy tests, and the container build/start check cover the current stack. Accessibility also requires the manual checks in [ACCESSIBILITY.md](../../.github/ACCESSIBILITY.md).
 - Successfully merged branches are deleted automatically. There is no automatic merge policy for dependency PRs and no stale-issue bot.
 
 ## Optional products and agents

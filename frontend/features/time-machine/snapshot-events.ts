@@ -422,12 +422,18 @@ function filingLabel(family: FormFamily, filing: Filing): string {
   const period = filing.period_of_report ? parseIsoDate(filing.period_of_report) : null;
   const periodText = period ? formatEtShortDate(period) : null;
   if (family === "10-K") {
-    return periodText ? `${filing.form} for the fiscal year ended ${periodText}` : `${filing.form} annual report`;
+    return periodText
+      ? `${filing.form} for the fiscal year ended ${periodText}`
+      : `${filing.form} annual report`;
   }
   if (family === "10-Q") {
-    return periodText ? `${filing.form} for the quarter ended ${periodText}` : `${filing.form} quarterly report`;
+    return periodText
+      ? `${filing.form} for the quarter ended ${periodText}`
+      : `${filing.form} quarterly report`;
   }
-  return periodText ? `${filing.form} current report, event of ${periodText}` : `${filing.form} current report`;
+  return periodText
+    ? `${filing.form} current report, event of ${periodText}`
+    : `${filing.form} current report`;
 }
 
 /** A caveat and an untimed label for records whose time is a conservative default. */

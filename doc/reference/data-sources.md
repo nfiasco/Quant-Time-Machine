@@ -1,6 +1,6 @@
 # Data sources and terms
 
-> **Story S2.3**, combining spikes S4.1 (ALFRED), S5.1 (EDGAR), and S6.1 (prices). Facts and terms were checked on 2026-10-11; spike results are marked with the date they were retrieved. Terms change, so re-check them before any public launch (S15.7). This is our reading of each provider's terms, not legal advice.
+> **Story S2.3**, combining spikes S4.1 (ALFRED), S5.1 (EDGAR), and S6.1 (prices). Closed 2026-11-16, when the UD library denied our request for WRDS access. Facts and terms were checked on 2026-10-11; spike results are marked with the date they were retrieved. Terms change, so re-check them before any public launch (S15.7). This is our reading of each provider's terms, not legal advice.
 
 For every source this memo answers:
 
@@ -19,7 +19,7 @@ The spike scripts that produced the evidence are in [`backend/spikes/`](../../ba
 | Filing history | [SEC EDGAR submissions API](#sec-edgar-filing-history-submissions-api) | `acceptanceDateTime`, **after a correction** | Free, no key; at most 10 requests per second, with a User-Agent | Yes | Chosen. Verified 2026-10-11 |
 | Reported financials | [SEC XBRL company facts API](#sec-xbrl-reported-financials-company-facts) | Acceptance time of the filing (`accn`) that reported each value | Same as above | Yes | Chosen. Verified 2026-10-11 |
 | Daily prices, splits, dividends | [Tiingo end-of-day API](#daily-prices-decision-d2) (D2) | The session's close (rule 4 of the [time model](time-model.md)) | Free tier: 50 requests per hour, 1,000 per day, 500 symbols per month | **Not without permission or a license**: free and paid individual plans are internal use only | Chosen. Verified 2026-10-12: raw prices ✓, splits and dividends ✓, delisted companies only partly |
-| Survivorship-free reference prices | [WRDS (CRSP) through UD](#wrds-crsp-at-the-university-of-delaware) | Session close; delisting dates and returns | Through UD's subscription | No: internal academic use only | Not requested yet |
+| Survivorship-free reference prices | [WRDS (CRSP) through UD](#wrds-crsp-at-the-university-of-delaware) | Session close; delisting dates and returns | Through UD's subscription | No: internal academic use only | **Unavailable:** the UD library denied our request (2026-11-16) |
 | Trading calendar | [`exchange_calendars`](#trading-calendar) | Not applicable | Open source (Apache-2.0) | Yes | Chosen (S3.5) |
 | Universe membership | [A curated list, `starter_large_caps`](#universe-v1-starter_large_caps-decision-d3) (D3), dated by S&P's public announcements | The effective date of each change | Free | Yes: we cite public announcements and store only our members' dates | Chosen 2026-10-29 (D3); built 2026-10-31 with 50 members (S6.5), which ingestion loads with SPY |
 
@@ -233,6 +233,8 @@ Retrieved 2026-10-11: Apple's revenue for the quarter ended March 28, 2020 (`Rev
   - which concepts they used;
   - which periods none of them covered.
 
+  Since S6.7 it puts those periods beside each member's price gaps, by company and year ([universe v1](#universe-v1-starter_large_caps-decision-d3)).
+
 **What the first full load showed (2026-11-01).**
 
 - **The load.** `ingest sec --refresh` made 364 requests in 79 seconds: 311 for submissions, 52 for company facts, and SEC's ticker file. Every member's CIK has company facts; SPY has none.
@@ -287,7 +289,7 @@ Spike S6.1 ([`spikes/prices.py`](../../backend/spikes/prices.py)) pulls AAPL fro
 | Limits | Undocumented | API key only through a CAPTCHA, plus a JavaScript bot check | 25 requests per day | 50 per hour, 1,000 per day, 500 symbols per month | Through UD's subscription |
 | Cost | Free | Free | Free; premium from $49.99 per month | Free; $30 per month (Power), $50 per month for internal commercial use | Free to Lerner College; $250 per year for other UD users |
 | Terms | No automated collection, no commercial reuse, no redistribution without permission | Unclear | Free use is personal and non-commercial; giving others access counts as commercial | **Internal use only**: "you may not display or share the data" | Academic, internal use only; no redistribution |
-| Verdict | ✗ Not a source of record | ✗ Not automatable | ✗ No history on the free tier | ✓ **Chosen** | Internal reference only |
+| Verdict | ✗ Not a source of record | ✗ Not automatable | ✗ No history on the free tier | ✓ **Chosen** | ✗ Access denied (2026-11-16); would have been internal reference only |
 
 **How far back Tiingo's delisted coverage goes.** Tiingo's public ticker list (`supported_tickers.zip`, 108,982 rows) has 15,818 stocks whose data ends before 2025: delisted, merged, or renamed. Counted by the year their data ends:
 
@@ -322,36 +324,34 @@ What the test pull showed, and what follows:
    - Store the raw fields and the split and dividend events. Never feed adjusted price levels into signals.
    - S6.4 rounds split ratios (AAPL's 2014 split arrives as 7.000007) and reconciles computed returns against `adjClose`. They agree to within 10⁻⁶ ([time model, rule 4](time-model.md#4-a-daily-price-bar-is-known-at-its-sessions-close)).
 2. **Delisted companies: only partly covered.**
-   - Recent delistings are there: Twitter's data runs to its last trading day. Its final bar, for October 28, 2022, the day the NYSE suspended trading before the open, has zero volume and repeats the previous close. It's a placeholder, not a trade, and delisting exits (S6.7) must treat it that way.
+   - Recent delistings are there: Twitter's data runs to its last trading day. Its final bar, for October 28, 2022, the day the NYSE suspended trading before the open, has zero volume and repeats the previous close. It's a placeholder, not a trade, and delisting exits treat it that way (S7.3).
    - Coverage thins out before 2015 and is nearly absent before 2010; Lehman Brothers has no prices.
-   - So for universe v1 (D3, S6.5), check each member's Tiingo coverage before including it, and report gaps in every run (S6.7).
-   - If WRDS access comes through, use CRSP internally to measure what's missing (R1).
+   - So for universe v1 (D3, S6.5), check each member's Tiingo coverage before including it. Every run reports the gaps it met in its [coverage report](runs.md#the-coverage-report) (S6.7).
+   - WRDS access was denied (2026-11-16), so CRSP can't measure what's missing (R1). The gaps are reported, run by run, instead (S6.7), and a spec can assume a holding that stopped trading lost more after its last close ([portfolio](portfolio.md#6-delistings)).
 3. **Settle display rights before M5.** Tiingo's free and Power plans are "internal use only". Before the deployed demo shows prices to the public:
    - (a) ask Tiingo whether a non-commercial university project may display charts;
    - (b) or keep raw prices off public pages, show only derived results, and put the demo behind access control (D9);
    - (c) or budget for a redistribution license.
 
    Until then, the API must not serve raw Tiingo prices to anonymous users.
-4. **Keep the fetcher swappable.** S6.2's fetcher should sit behind a small interface, so a licensed or CRSP-based source can replace Tiingo without touching the rest of the system. Done: a new source implements `PriceSource` in [`sources/prices.py`](../../backend/app/data/sources/prices.py), as [`sources/tiingo.py`](../../backend/app/data/sources/tiingo.py) does.
+4. **Keep the fetcher swappable.** S6.2's fetcher should sit behind a small interface, so a licensed source can replace Tiingo without touching the rest of the system. Done: a new source implements `PriceSource` in [`sources/prices.py`](../../backend/app/data/sources/prices.py), as [`sources/tiingo.py`](../../backend/app/data/sources/tiingo.py) does.
 
 ## WRDS (CRSP) at the University of Delaware
 
 **What UD offers.** UD's WRDS subscription is administered by the Alfred Lerner College of Business and Economics and includes CRSP (historical stock prices and returns, with delisting returns) and Compustat. Lerner College faculty, staff, and students don't pay; other UD users pay $250 a year. Eligible account types include faculty, staff, graduate students, supervised research assistants, and class accounts requested by faculty. The library's business guide says to ask your professor for access. Sources: [UD IT data management page](https://sites.udel.edu/it-rci/services/data-management/) and the [UD Library business data guide](https://guides.lib.udel.edu/business/data), retrieved 2026-10-11.
 
-**What we may do with it.** Use of WRDS is governed by UD's subscription agreement ([WRDS terms of use](https://wrds-www.wharton.upenn.edu/users/tou/)). CRSP's standard terms limit data to internal academic use, with no redistribution or public display. So CRSP can help us:
+**What we may do with it.** Use of WRDS is governed by UD's subscription agreement ([WRDS terms of use](https://wrds-www.wharton.upenn.edu/users/tou/)). CRSP's standard terms limit data to internal academic use, with no redistribution or public display. So CRSP could only ever have helped us internally:
 
 - validate Tiingo's coverage and our handling of delistings (S6.7);
 - back research-only comparison runs.
 
 It can never appear in the public app, in API responses, or in this repository.
 
-**Status: not asked yet.** This is an open action item for the team: email our professor or Lerner IT (contact on the UD page above). Ask:
+**Status: denied (2026-11-16).** The team asked for access, and the UD library denied the request. CRSP and Compustat are unavailable to the project, even for internal validation. What follows:
 
-1. Can CISC 498 students on this project get access, for example through a class or research-assistant account requested by our professor?
-2. Does UD's subscription include CRSP's daily stock file with delisting returns?
-3. What does the license allow for a student project whose results are shown publicly?
-
-Record the answers here.
+- Delisted-company coverage stays limited to what Tiingo has (R1), so each run reports its gaps and delisting exits (S6.7), and the methodology page says survivorship bias isn't fully removed (S9.7).
+- There's no independent check of Tiingo's prices beyond the published SPY returns ([canonical backtest](../research/canonical-backtest.md#sanity-checks)) and our reconciliation with Tiingo's own adjusted closes (S6.4).
+- A licensed, survivorship-free source stays an option only with a budget (D2); the price fetcher is swappable.
 
 ## Trading calendar
 
@@ -359,7 +359,7 @@ Record the answers here.
 
 ## Universe membership
 
-Official index membership (for example, the S&P 500's history) is proprietary. S&P Dow Jones Indices licenses it, and public reconstructions are incomplete. Compustat, through UD's WRDS, has historical index constituents, but the same internal-use limits as CRSP apply.
+Official index membership (for example, the S&P 500's history) is proprietary. S&P Dow Jones Indices licenses it, and public reconstructions are incomplete. Compustat, through WRDS, has historical index constituents, but the same internal-use limits as CRSP apply, and the UD library denied our request for WRDS access.
 
 The plan stays as in the roadmap: v1 is a small, documented, curated universe that deliberately includes companies that later left or were delisted (D3, S6.5). Universe v2 is rules-based, the top N by market cap computed from our own data (S6.6).
 
@@ -481,7 +481,13 @@ Like Twitter's, most acquired companies' last bars are placeholders, not trades.
 - Pioneer on May 3, 2024;
 - Marathon Oil on November 22, 2024.
 
-Discover's last bar, May 16, 2025, is a real session. Delisting exits (S6.7) must skip the placeholders.
+Discover's last bar, May 16, 2025, is a real session. Delisting exits skip the placeholders (S7.3).
+
+**What the price coverage report showed (2026-11-17, S6.7).** `uv run python -m app.data.coverage --as-of 2026-11-01` on data version `20261111T030742Z` checked the 165,729 sessions the 50 members should have traded in, while members and until they stopped trading. None was missing a bar, and none had a bar without trades.
+
+- **Celgene's missing session isn't a gap.** November 21, 2019, the session the first load had no bar for, is the day its curated history says it stopped trading, so it isn't one it should have traded in.
+- **Eight members stopped trading.** Each one's last trade is the session before the day it stopped, where the engine values a holding: Time Warner on June 14, 2018, Celgene on November 20, 2019, Xilinx on February 11, 2022, Twitter on October 27, 2022, Activision Blizzard on October 12, 2023, Pioneer on May 2, 2024, Marathon Oil on November 21, 2024, and Discover on May 16, 2025. The placeholders above fall on or after the day each stopped, so none counts, even those with a few shares traded.
+- **So every gap left is in fundamentals:** 131 company-years, at 23 companies, all from the metrics' missing periods above.
 
 The list can grow toward 100 members on the same rules.
 
@@ -495,7 +501,7 @@ Ingestion and the walking skeleton (M2) loaded these five companies plus the ben
 | MSFT | Microsoft | 789019 | 1986-03-13 on | Its fiscal year ends June 30, which exercises fiscal-quarter logic (S5.7). Regular dividends. |
 | JPM | JPMorgan Chase | 19617 | 1983-12-30 on | A bank, whose revenue tags differ from other companies' (S5.6). Its EDGAR history is huge: 26,395 filings in the `recent` block and 71 older pages, mostly structured-note prospectuses. That stress-tests pagination and form filtering (S5.3). |
 | META | Meta Platforms (Facebook until June 2022) | 1326801 | 2012-05-18 on, under `META` | The FB → META ticker change (S5.2 overrides). Tiingo files Facebook's whole history under `META`, and Tiingo's `FB` today is an unrelated ETF (listed 2025-06-26). So the price fetcher must look prices up by security, not by the ticker a user typed. |
-| TWTR | Twitter, taken private in October 2022 | 1418091 | 2013-11-07 to 2022-10-28 | A delisted company. SEC's current ticker file doesn't list TWTR, and its submissions show no tickers, so it needs an override entry (S5.2). Its last bar later tests delisting exits (S6.7). |
+| TWTR | Twitter, taken private in October 2022 | 1418091 | 2013-11-07 to 2022-10-28 | A delisted company. SEC's current ticker file doesn't list TWTR, and its submissions show no tickers, so it needs an override entry (S5.2). Its last bar, a placeholder, is the case delisting exits skip (S7.3, S6.7). |
 | SPY | SPDR S&P 500 ETF Trust (benchmark) | 884394 | 1993-01-29 on | The default benchmark (S6.2). It files no 10-K or 10-Q, so the filing endpoints should return an empty result with a reason, not an error. |
 
 Loading all six takes six Tiingo requests, against the free plan's 50 per hour and 500 symbols per month. Universe v1 and SPY take 51, so a first load needs two runs an hour apart.
@@ -504,7 +510,7 @@ Loading all six takes six Tiingo requests, against the free plan's 50 per hour a
 
 | Gap | Effect | Mitigation |
 | --- | --- | --- |
-| **Delisted companies.** Yahoo has none. Tiingo has recent ones (Twitter) but few before 2010 (no Lehman). CRSP has them all, but for internal use only. | Survivorship bias: results look better than reality, especially in the early years | Check each universe member's coverage (S6.5). Include delisted companies the data covers. Report coverage gaps in every run (S6.7, R1). Measure the gap with CRSP if WRDS access comes through. |
+| **Delisted companies.** Yahoo has none. Tiingo has recent ones (Twitter) but few before 2010 (no Lehman). CRSP has them all, but for internal use only. | Survivorship bias: results look better than reality, especially in the early years | Check each universe member's coverage (S6.5). Include delisted companies the data covers. Every run reports its coverage gaps, and a spec can assume delisted holdings lost more (S6.7, R1). CRSP could have measured the gap, but WRDS access was denied. |
 | **Historical index membership.** It's proprietary. | Today's index members applied to the past | A curated universe with sources (S6.5, D3); a rules-based universe later (S6.6). |
 | **Fundamentals before XBRL** (before 2009 to 2011, depending on company size). | No machine-readable fundamentals for those years | The engine rejects or warns when a spec needs them (§3.4); expect thin data in 2010 and 2011 (R3). |
 | **Ticker history.** SEC's ticker file lists only current tickers. | Old or reused tickers resolve to the wrong company | A curated, cited history for the starter universe and reused tickers, in [`securities.toml`](../../backend/app/data/sources/securities.toml) (S5.2). A ticker only in SEC's file resolves only from when the file was downloaded. |

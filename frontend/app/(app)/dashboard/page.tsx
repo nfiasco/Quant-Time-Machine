@@ -6,11 +6,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { routeMetadata, routes } from "@/config/navigation";
 import { siteConfig } from "@/config/site";
-import {
-  ApiOfflineHint,
-  ApiStatus,
-  ApiStatusPending,
-} from "@/features/dashboard/api-status";
+import { ApiOfflineHint, ApiStatus, ApiStatusPending } from "@/features/dashboard/api-status";
 import { FeaturedExperimentCard } from "@/features/dashboard/featured-experiment-card";
 import { HowItWorks } from "@/features/dashboard/how-it-works";
 import { QuickStartCard } from "@/features/dashboard/quick-start-card";

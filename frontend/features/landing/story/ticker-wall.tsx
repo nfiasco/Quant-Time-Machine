@@ -5,11 +5,7 @@ import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { Button } from "@/components/ui/button";
 
-import {
-  WALL_ROWS,
-  rowDuration,
-  rowTickers,
-} from "./ticker-data";
+import { WALL_ROWS, rowDuration, rowTickers } from "./ticker-data";
 
 /**
  * The faint market board behind the logo: rows of tickers with daily changes, drifting

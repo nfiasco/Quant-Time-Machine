@@ -36,11 +36,7 @@ ScrollTrigger.config({ ignoreMobileResize: true });
  * pieces in and out along one scrubbed timeline. Everything it changes is reverted on
  * unmount (and when the visitor turns on reduced motion), leaving the static layout.
  */
-export function StoryEngine({
-  rootRef,
-}: {
-  rootRef: RefObject<HTMLElement | null>;
-}) {
+export function StoryEngine({ rootRef }: { rootRef: RefObject<HTMLElement | null> }) {
   useGSAP(
     () => {
       const root = rootRef.current;
@@ -72,8 +68,7 @@ type Measured = {
 };
 
 function buildStory(root: HTMLElement): (() => void) | undefined {
-  const one = <T extends Element>(selector: string) =>
-    root.querySelector<T>(selector);
+  const one = <T extends Element>(selector: string) => root.querySelector<T>(selector);
 
   const stage = one<HTMLElement>("[data-story-stage]");
   const world = one<HTMLElement>("[data-story-world]");
@@ -94,9 +89,24 @@ function buildStory(root: HTMLElement): (() => void) | undefined {
   const wall = one<HTMLElement>("[data-story-wall]");
   const pause = one<HTMLElement>("[data-story-pause]");
   if (
-    !stage || !world || !logo || !name || !intro || !ask || !close || !camera ||
-    !snake || !chevron || !future || !topClock || !bottomClock || !dial || !hud ||
-    !readout || !wall || !pause
+    !stage ||
+    !world ||
+    !logo ||
+    !name ||
+    !intro ||
+    !ask ||
+    !close ||
+    !camera ||
+    !snake ||
+    !chevron ||
+    !future ||
+    !topClock ||
+    !bottomClock ||
+    !dial ||
+    !hud ||
+    !readout ||
+    !wall ||
+    !pause
   ) {
     return undefined;
   }

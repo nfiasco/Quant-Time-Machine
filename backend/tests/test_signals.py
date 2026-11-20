@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from app.backtest.signals import SIGNALS
+from app.backtest.signals import DATA, SIGNALS
 from app.backtest.spec import (
     MacroChangeSignal,
     MomentumSignal,
@@ -32,6 +32,13 @@ PARAMS = {
 def test_the_library_has_every_signal_a_spec_can_name() -> None:
     # In the catalog's order, which doc/reference/signals.md follows.
     assert list(SIGNALS) == [kind.type for kind in signal_types()]
+
+
+def test_each_signal_says_what_data_it_reads() -> None:
+    # A run's coverage report counts a member left out by the data its signal lacked
+    # (app/backtest/coverage.py).
+    assert list(DATA) == list(SIGNALS)
+    assert set(DATA.values()) == {"prices", "fundamentals", "macro"}
 
 
 @pytest.mark.parametrize("kind", SIGNALS)

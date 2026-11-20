@@ -12,6 +12,8 @@ run's ID:
 - `holdings.json`, `trades.json`, and `warnings.json`: one entry each, with its
   decision's day.
 - `metrics.json`: the run's metrics (app/backtest/metrics.py).
+- `coverage.json`: what data its decisions lacked, by security and year, and its exits
+  at a last close (app/backtest/coverage.py, S6.7).
 - `audit.json`: what each view the run opened read (app/backtest/audit.py).
 
 The same spec, data version, and engine version always give the same bytes:
@@ -38,7 +40,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-from app.backtest import ENGINE_VERSION
+from app.backtest import ENGINE_VERSION, coverage
 from app.backtest.audit import timestamp
 from app.backtest.canonical import canonical_json, rounded, sha256_hex
 from app.backtest.metrics import equity_curve, summarize
@@ -47,9 +49,10 @@ from app.backtest.simulation import HoldingPeriod, Simulation
 from app.backtest.spec import ExperimentSpec
 from app.data.timeutil import ET
 
-RECORD_VERSION = 1
+RECORD_VERSION = 2
 """The version of the files' layout, in `run.json`. It isn't part of the run ID: a new
-layout says the same things about the same run."""
+layout says the same things about the same run. Version 2 added `coverage.json`
+(S6.7)."""
 
 MANIFEST = "run.json"
 
@@ -59,6 +62,7 @@ RESULT_FILES = (
     "trades.json",
     "metrics.json",
     "warnings.json",
+    "coverage.json",
     "audit.json",
 )
 """What a run produced. `run.json` lists each one's size and hash."""
@@ -145,6 +149,7 @@ def build_record(
         ),
         "metrics.json": rounded(_plain(summarize(simulation))),
         "warnings.json": _plain(simulation.warnings),
+        "coverage.json": _plain(coverage.summarize(simulation)),
         "audit.json": [
             {**_plain(view), "rows": view.rows} for view in simulation.audit
         ],

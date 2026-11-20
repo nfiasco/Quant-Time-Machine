@@ -88,7 +88,7 @@ Both `.env` files are git-ignored. Real environment variables override them, whi
 ### Run the same checks as CI
 
 ```bash
-cd frontend && npm run lint && npm test && npm run build
+cd frontend && npm run lint && npm run format:check && npm test && npm run build
 ```
 
 ```bash

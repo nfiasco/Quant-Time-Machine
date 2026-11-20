@@ -36,7 +36,8 @@ run: each gap becomes a warning that says what was assumed.
   cash, or isn't sold short, and the portfolio goes without it (`no_fill_price`).
 - A holding whose bars end before its period does, because it stopped trading or a bar
   is missing, is valued at its last close and closed at the next fill
-  (`delisted_exit`, `missing_price`).
+  (`delisted_exit`, `missing_price`). One that stopped trading gets the spec's
+  assumed delisting return after that close (S6.7): 0 by default, and -1 writes it off.
 - A portfolio with nothing left at a period's end, or worth less than a fill's trades
   would cost, ends the run there (`wiped_out`). Only shorts, or holdings that lose
   everything, can do that.
@@ -150,7 +151,8 @@ class Holding:
     out."""
     period_return: float
     """The security's total return from the fill to `exit`: a short gains what it
-    loses."""
+    loses. For one that stopped trading, it includes the spec's assumed delisting
+    return after `exit`."""
     exit: PricePoint
     """Where it was valued: the period's end, or its last close if its bars ended
     first."""
@@ -191,6 +193,17 @@ class HoldingPeriod:
 
 
 @dataclass(frozen=True)
+class DecisionMembers:
+    """A decision's universe, as the decision saw it: who could be chosen (S6.7)."""
+
+    decision: date
+    """The New York day of the decision."""
+    members: tuple[UniverseMember, ...]
+    """In security ID order, each with its ticker then: None for one that had stopped
+    trading."""
+
+
+@dataclass(frozen=True)
 class Simulation:
     """A spec's run: its holding periods, in order, and what it did without."""
 
@@ -204,6 +217,24 @@ class Simulation:
     """In decision order."""
     audit: tuple[ViewInputs, ...] = ()
     """What each view the run opened read, in the order they were opened."""
+    members: tuple[DecisionMembers, ...] = ()
+    """Each decision's universe, in order, for the run's coverage report
+    (app/backtest/coverage.py). A decision whose trades wiped the portfolio out has
+    one, though it has no holding period."""
+
+
+def check_runnable(
+    spec: ExperimentSpec, *, signals: Mapping[str, Signal] = SIGNALS
+) -> None:
+    """Raise for a spec `simulate` would refuse before it read any data (S8.4).
+
+    The API calls it before it queues a run, so these answer the request instead of
+    failing the run later. Raises SpecError, naming each field, for what the engine
+    can't run yet and for a period with no decision that fills before its last close,
+    and ScheduleError for a schedule whose fills can't follow their decisions. A
+    benchmark no security used is only found once the run reads the store.
+    """
+    _decisions(spec, signals)
 
 
 def simulate(
@@ -211,26 +242,52 @@ def simulate(
     views: ViewFactory,
     *,
     signals: Mapping[str, Signal] = SIGNALS,
+    on_decision: Callable[[int, int], None] | None = None,
 ) -> Simulation:
     """Run `spec`, reading data only through the views `views` opens.
 
     `signals` are the kinds of signal the run can evaluate, by `type`: the library's,
-    unless a test passes its own. A portfolio with nothing left ends the run early,
-    with a `wiped_out` warning. Raises SpecError, naming each field, for what the
-    engine can't run yet, such as value weights or a signal it doesn't have; for a
-    period with no decision that fills before its last close; and for a benchmark no
-    security used at the first decision. Raises ScheduleError for a schedule whose
-    fills can't follow their decisions (app/backtest/schedule.py).
+    unless a test passes its own. `on_decision`, if given, is called after each
+    decision with how many are done and how many the run has, so whoever started the
+    run can show its progress (S8.4). It can't change a result. A portfolio with
+    nothing left ends the run early, with a `wiped_out` warning. Raises SpecError,
+    naming each field, for what the engine can't run yet, such as value weights or a
+    signal it doesn't have; for a period with no decision that fills before its last
+    close; and for a benchmark no security used at the first decision. Raises
+    ScheduleError for a schedule whose fills can't follow their decisions
+    (app/backtest/schedule.py).
+    """
+    schedule, skipped, end = _decisions(spec, signals)
+    run = _Run(spec, views, signals)
+    for rebalance in skipped:
+        run.skip(rebalance, end)
+    for done, rebalance in enumerate(schedule, start=1):
+        run.step(rebalance)
+        if on_decision is not None:
+            on_decision(done, len(schedule))
+        if run.ended:
+            break
+    else:
+        run.finish(end)
+    return run.result()
+
+
+def _decisions(
+    spec: ExperimentSpec, signals: Mapping[str, Signal]
+) -> tuple[list[Rebalance], list[Rebalance], PricePoint]:
+    """The decisions a run makes, the ones it skips because their trades would fill
+    after the period's last close, and that close. It reads no data.
+
+    Raises SpecError and ScheduleError as `simulate` does.
     """
     _check_supported(spec, signals)
     end = _last_close(spec.period.end)
-    run = _Run(spec, views, signals)
-    schedule = []
+    schedule, skipped = [], []
     for rebalance in rebalances(spec):
         if _fill(rebalance).time < end.time:
             schedule.append(rebalance)
         else:
-            run.skip(rebalance, end)
+            skipped.append(rebalance)
     if not schedule:
         raise SpecError(
             [
@@ -241,13 +298,7 @@ def simulate(
                 )
             ]
         )
-    for rebalance in schedule:
-        run.step(rebalance)
-        if run.ended:
-            break
-    else:
-        run.finish(end)
-    return run.result()
+    return schedule, skipped, end
 
 
 @dataclass
@@ -328,6 +379,7 @@ class _Run:
         self.periods: list[HoldingPeriod] = []
         self.warnings: list[SimulationWarning] = []
         self.audit: list[ViewInputs] = []
+        self.members: list[DecisionMembers] = []
 
     @contextmanager
     def view(
@@ -381,6 +433,7 @@ class _Run:
                 self.benchmark = self.resolve_benchmark(view, day)
             risk_free = view.get_macro_as_of(RISK_FREE_SERIES)
             members = view.universe_as_of(universe)
+            self.members.append(DecisionMembers(day, tuple(members)))
             trading = []
             for member in members:
                 if member.ticker is None:
@@ -577,7 +630,14 @@ class _Run:
                     f"{security_id} was bought at the {period.fill} fill, but its "
                     "price there is gone"
                 )
-            position.value *= 1 + held.value
+            growth, period_return = 1 + held.value, held.value
+            assumed = self.spec.delisting.assumed_return
+            if not held.complete and security.ticker is None and assumed:
+                # It stopped trading: the spec's delisting return follows its last
+                # close. Without one, the last close's value stands, untouched.
+                growth *= 1 + assumed
+                period_return = growth - 1
+            position.value *= growth
             if not held.complete:
                 short = period.weights[security_id] < 0
                 self.warn_exit(position, security, held.exit, end, day, final, short)
@@ -587,7 +647,7 @@ class _Run:
                     ticker=position.ticker,
                     weight=period.weights[security_id],
                     signals=period.decision.chosen[security_id].signals,
-                    period_return=held.value,
+                    period_return=period_return,
                     exit=held.exit,
                 )
             )
@@ -667,7 +727,8 @@ class _Run:
         final: bool,
         short: bool,
     ) -> None:
-        """Warn that a holding was valued at its last close, before the period's end."""
+        """Warn that a holding was valued at its last close, before the period's end:
+        for one that stopped trading, after the spec's assumed delisting return."""
         then = (
             f"until the period ended, on {end.session}"
             if final
@@ -676,9 +737,22 @@ class _Run:
         )
         if security.ticker is None:
             kind: WarningKind = "delisted_exit"
+            assumed = self.spec.delisting.assumed_return
+            if not assumed:
+                valued = f"valued at that day's close, {then}"
+            elif assumed > -1:
+                valued = (
+                    f"valued at that day's close less {_percent(-assumed)}, the "
+                    f"spec's assumed delisting return, {then}"
+                )
+            else:  # nothing is left to sell or buy back at the next fill
+                valued = (
+                    "written off after that day's close: the spec assumes a "
+                    "delisting return of -100%"
+                )
             message = (
                 f"{position.ticker} stopped trading after {last.session}, so it was "
-                f"valued at that day's close, {then}."
+                f"{valued}."
             )
         else:
             kind = "missing_price"
@@ -725,6 +799,7 @@ class _Run:
             periods=tuple(self.periods),
             warnings=tuple(sorted(self.warnings, key=lambda w: w.decision)),
             audit=tuple(self.audit),
+            members=tuple(self.members),
         )
 
 
@@ -775,3 +850,9 @@ def _last_close(end: date) -> PricePoint:
     """The close of the last session on or before `end`."""
     session = end if calendar.is_session(end) else calendar.previous_session(end)
     return PricePoint(session, "close")
+
+
+def _percent(fraction: float) -> str:
+    """A fraction as a percentage for a warning, to four significant digits: 0.3 is
+    "30%", 0.125 is "12.5%", and 0.00001 is "0.001%"."""
+    return f"{fraction * 100:.4g}%"

@@ -10,11 +10,12 @@ from pydantic import BeforeValidator, Field
 from pydantic_core import PydanticCustomError
 
 from app.api import examples
+from app.api.cache import AsOfRoute
 from app.api.conventions import DataResponse, Provenance, View
 from app.data.timeutil import describe_time
 from app.data.view import PointInTimeView
 
-router = APIRouter(prefix="/macro", tags=["macro"])
+router = APIRouter(prefix="/macro", tags=["macro"], route_class=AsOfRoute)
 
 
 class MacroObservation(Provenance):

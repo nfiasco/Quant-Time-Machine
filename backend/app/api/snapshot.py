@@ -20,6 +20,7 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api import examples
+from app.api.cache import AsOfRoute
 from app.api.conventions import (
     AppSettings,
     DataResponse,
@@ -39,7 +40,7 @@ from app.data.sources.edgar import FORM_FAMILIES
 from app.data.sources.universes import UNIVERSES
 from app.data.store import store_dir
 
-router = APIRouter(tags=["snapshot"])
+router = APIRouter(tags=["snapshot"], route_class=AsOfRoute)
 
 MAX_ENTRIES = 10
 """The most tickers, and the most series, one snapshot takes."""
