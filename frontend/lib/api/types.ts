@@ -23,6 +23,34 @@ export type GetResponse<Path extends GetPath> = paths[Path]["get"] extends {
   ? Body
   : never;
 
+/** Every route the API answers a POST on. For now that's `"/v1/backtests"`. */
+export type PostPath = {
+  [Path in keyof paths]: paths[Path] extends { post: object } ? Path : never;
+}[keyof paths];
+
+/** The JSON body a POST route takes, such as the experiment spec for `"/v1/backtests"`. */
+export type PostBody<Path extends PostPath> = paths[Path]["post"] extends {
+  requestBody: { content: { "application/json": infer Body } };
+}
+  ? Body
+  : never;
+
+type JsonBody<Response> = Response extends { content: { "application/json": infer Body } }
+  ? Body
+  : never;
+
+/**
+ * The JSON body of a POST route's success (a 200, 201, or 202), such as
+ * `PostResponse<"/v1/backtests">`, which answers 202 for a run it queued and 200 for one
+ * already saved, with the same body. Declared like `GetResponse`, so a renamed route or a
+ * changed model fails `next build`.
+ */
+export type PostResponse<Path extends PostPath> = paths[Path]["post"] extends {
+  responses: infer Responses;
+}
+  ? JsonBody<Responses[Extract<keyof Responses, 200 | 201 | 202>]>
+  : never;
+
 // The envelope. Use V1Response<Filing | null> for a single item and V1Response<Filing[]> for
 // a list, where [] means nothing was known yet. Each endpoint's own response type, such as
 // GetResponse<"/v1/snapshot">, is one of these.
