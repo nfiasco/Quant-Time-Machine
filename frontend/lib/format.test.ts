@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { formatMacroValue, formatNumber, formatUsd, formatUsdMillions } from "@/lib/format";
+import {
+  formatMacroValue,
+  formatNumber,
+  formatPercent,
+  formatRatio,
+  formatUsd,
+  formatUsdMillions,
+} from "@/lib/format";
 
 describe("formatUsd", () => {
   it("prints a price with cents", () => {
@@ -44,5 +51,33 @@ describe("formatMacroValue", () => {
 
   it("says when a value was published as missing", () => {
     expect(formatMacroValue(null, "Percent")).toBe("no value");
+  });
+});
+
+// Values from the API's documented run (api-v1.md, GET /v1/backtests/{run_id}).
+describe("formatPercent", () => {
+  it("prints a fraction as a percentage with one decimal", () => {
+    expect(formatPercent(0.171920938402)).toBe("17.2%");
+    expect(formatPercent(0.0732280633733)).toBe("7.3%");
+    expect(formatPercent(12.345)).toBe("1,234.5%");
+  });
+
+  it("keeps a loss's minus sign, and adds a plus to a gain when asked", () => {
+    expect(formatPercent(-0.219983829601)).toBe("−22.0%");
+    expect(formatPercent(0.607593345045, { signed: true })).toBe("+60.8%");
+    expect(formatPercent(-0.219983829601, { signed: true })).toBe("−22.0%");
+  });
+
+  it("gives no sign to a value that rounds to zero", () => {
+    expect(formatPercent(-0.0004, { signed: true })).toBe("0.0%");
+    expect(formatPercent(0, { signed: true })).toBe("0.0%");
+  });
+});
+
+describe("formatRatio", () => {
+  it("prints two decimals with a minus sign for a negative", () => {
+    expect(formatRatio(0.76931736638)).toBe("0.77");
+    expect(formatRatio(-0.25)).toBe("−0.25");
+    expect(formatRatio(-0.001)).toBe("0.00");
   });
 });
