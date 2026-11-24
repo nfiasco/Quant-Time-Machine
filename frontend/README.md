@@ -34,6 +34,16 @@ The explorer (`/time-machine`, code in [`features/time-machine/`](features/time-
 - **No future record on the known side.** [`snapshot-events.ts`](features/time-machine/snapshot-events.ts) decides each record's side from its own `available_at`, and leaves out (and counts) any record the API put on the wrong side. Its tests run on the API's own §2.3 example.
 - **States.** A link with no moment shows how to start; a moment alone offers a starter selection; a problem in the link or an API error shows next to the field it concerns; an unreachable API shows a retry. While a new view loads, the old one dims.
 
+## Backtest builder
+
+The builder (`/backtests/new`, code in [`features/backtests/`](features/backtests)) builds an experiment spec with a form and runs it (S9.5). A run's page, `/backtests/<run_id>`, shows its progress and then its headline results; the results page (S9.6) adds the charts, holdings, and audit there.
+
+- **Fields from the catalogs.** Each signal's parameters come from its kind's JSON Schema in `GET /v1/catalog/signals`, and a macro signal's series from `/v1/catalog/series`, both loaded on the server. The form edits a draft ([`draft.ts`](features/backtests/draft.ts)), so a signal can be renamed without losing the filters on it.
+- **Errors where they belong.** The form checks what it can as you type ([`validation.ts`](features/backtests/validation.ts)), and the API's 422 paths, such as `signals.mom_12_1.skip_months`, land beside the same fields ([`field-errors.ts`](features/backtests/field-errors.ts)).
+- **Running.** Run sends the spec through a Server Action ([`actions.ts`](features/backtests/actions.ts)), which opens the run's page: at once for a spec that already ran on the newest data, and otherwise to watch it go. That page reads the run on the server and refreshes itself every 2 seconds until it has finished ([`run-refresher.tsx`](features/backtests/run-refresher.tsx)).
+- **Starting points.** `?preset=canonical` opens the canonical example, and `?from=<run_id>` an earlier run's spec, which is where "Edit and run again" goes. "Reset to the example" returns to the example.
+- **Locally,** runs need the backend (`cd backend && uv run fastapi dev`) and its store. A new run of the canonical spec for 2020 to 2022 takes about 40 seconds. The deployed API can't take runs until its run folder is writable (S8.4).
+
 ## Configuration
 
 Copy [`.env.example`](.env.example) to `.env.local` (git-ignored):
@@ -84,7 +94,7 @@ app/                      # Routing only: layouts, pages, loading/error/not-foun
 │   ├── loading.tsx       # Shared loading skeleton
 │   ├── error.tsx         # Shared error boundary
 │   ├── dashboard/       # Dashboard (/dashboard)
-│   └── time-machine/, backtests/, backtests/new/, revisions/, filings/,
+│   └── time-machine/, backtests/, backtests/new/, backtests/[runId]/, revisions/, filings/,
 │       experiments/, methodology/, privacy/, assistant/, compare/
 └── (auth)/               # Sign-in, sign-up, and password recovery, without the app shell
 components/
