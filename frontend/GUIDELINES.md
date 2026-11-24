@@ -77,7 +77,7 @@ Primitives live in `components/ui/` and come from [shadcn/ui](https://ui.shadcn.
 
 - **Add a component:** from `frontend/`, run `npx shadcn@latest add <name>`, for example `select`, `tabs`, `table`, `dialog`, `popover`, `calendar`. Review the generated file, run lint, and say in the pull request that it's generated.
 - **Customize** through tokens and `cva` variants (see `badge.tsx` and `alert.tsx`), not by restyling a component on one page.
-- **Edits to generated files** are deliberate and minimal, with a comment explaining why. So far: project variants in `badge.tsx` and `alert.tsx` (`info` is neutral with a brand icon; `warning` wears the amber accent), the `xl` size in `button.tsx` (the landing page's calls to action), `brand-ink` for the `link` variants of `button.tsx` and `badge.tsx` and for link hovers in `field.tsx` and `empty.tsx`, and `hooks/use-mobile.ts` rewritten with `useSyncExternalStore` to pass the React hooks lint rules. Re-running `add --overwrite` would undo them.
+- **Edits to generated files** are deliberate and minimal, with a comment explaining why. So far: project variants in `badge.tsx` and `alert.tsx` (`info` is neutral with a brand icon; `warning` wears the amber accent), the `xl` size in `button.tsx` (the landing page's calls to action), `brand-ink` for the `link` variants of `button.tsx` and `badge.tsx` and for link hovers in `field.tsx` and `empty.tsx`, `text-base` below `md` in `native-select.tsx` (as `Input` has, so iOS doesn't zoom in on focus), and `hooks/use-mobile.ts` rewritten with `useSyncExternalStore` to pass the React hooks lint rules. Re-running `add --overwrite` would undo them.
 - `cn()` merges class names (the `cn` package, shadcn's replacement for `clsx` + `tailwind-merge`). Import it from `@/lib/utils` in our code.
 
 | Component | Use it for |
@@ -90,6 +90,8 @@ Primitives live in `components/ui/` and come from [shadcn/ui](https://ui.shadcn.
 | `Empty` | Empty states, always with a next action. |
 | `Skeleton`, `Spinner` | Loading placeholders shaped like the content; pending buttons. |
 | `Tooltip` | Supplementary labels only (for example, icon-only buttons). Never the only place information lives. |
+| `NativeSelect` | One choice from a fixed list, in the browser's own select (the backtest builder). It sizes its wrapper, so pass `className="w-full"` in a form. |
+| `Progress` | Progress through a known number of steps, such as a run's decisions. Give it an `aria-label` and an `aria-valuetext` ("13 of 36 decisions"). |
 | `Checkbox` | Multiple choice from a short list, in a `FieldSet` with `FieldGroup data-slot="checkbox-group"` (the Time Machine's series). |
 | `Popover` + `Command` | A searchable picker: shadcn's combobox recipe for Radix (see `features/time-machine/ticker-picker.tsx`). shadcn's own `combobox` is built on Base UI, a second headless library, so don't add it. `command` brought `dialog`, `input-group`, and `textarea` with it. |
 | `Sheet`, `Separator`, `Sidebar` | Used by the app shell. |
@@ -105,6 +107,7 @@ Primitives live in `components/ui/` and come from [shadcn/ui](https://ui.shadcn.
 | `ThemeToggle`, `Brand`, `AccountNav` | `components/layout/` | Shell pieces |
 | `KnowledgeHorizon` | `features/time-machine/` | Known vs. not-yet-known split at a moment. Splits side by side when its container is 36rem wide (`@xl`); `headingLevel`, `emptyKnown`, `emptyNotYetKnown`, and `collapseAfter` fit it inside a card. Events can carry a source `link` and a `caveat`. |
 | `SpecSummary` | `features/backtests/` | An experiment spec in plain language, with its JSON |
+| `RunRefresher` | `features/backtests/` | Renders a Server Component page again every couple of seconds while what it shows can still change, such as a backtest that's running. It pauses while the tab is hidden. |
 
 **Icons:** [Lucide](https://lucide.dev) via `lucide-react`, using the `…Icon` names (`CalendarClockIcon`). Default size is `size-4`; decorative icons get `aria-hidden`. Lucide 1.x has no brand logos.
 
@@ -117,7 +120,7 @@ Every view that loads data designs all of these:
 - **Empty.** `Empty` with a title, one sentence on why it's empty, and the next action.
 - **Error.** `error.tsx` boundaries render `ErrorState` with `retry`. Say what failed and what to do; never show a stack trace.
 - **Planned.** Pages that don't exist yet render `PlannedPage`, which shows the story and milestone from the roadmap.
-- **Validation.** Errors appear next to their field via `FieldError`, with `aria-invalid` and `aria-describedby` on the control. The server is the source of truth: the API's 422 field paths (S9.5) map onto fields.
+- **Validation.** Errors appear next to their field via `FieldError`, with `aria-invalid` and `aria-describedby` on the control. The server is the source of truth: the API's 422 field paths map onto fields. In the backtest builder (`features/backtests/field-errors.ts`), each path shows at its field, or else at its nearest section, and what the form has no place for goes in its alert. An edit clears its section's messages from the server, and a failed submit moves focus to the first problem.
 
 ## 7. Accessibility
 
@@ -178,8 +181,9 @@ lib/            Framework-agnostic helpers: api/, time, format, theme, utils
 
 - Call the backend only through `lib/api/` (`apiFetch` plus one typed function per endpoint). The backend accepts browser (CORS) requests only from the origins in its `CORS_ORIGINS` setting (S8.1), which defaults to `http://localhost:3000`. Before fetching from the browser on a deployed site, add that site's origin there.
 - Call the API from Server Components. Wrap a call in `settle` (`lib/api/errors.ts`) to render its failure in place: a 4xx comes back with the API's sentence and field names, so it can sit next to the right field.
+- To watch something that changes on the server, such as a running backtest, render its page again with `router.refresh()` (`RunRefresher`) instead of polling a Server Action: Next runs a client's actions one at a time, and they're meant for changes. A Server Action is for the change itself, such as submitting the run.
 - API types are generated from the API's OpenAPI schema (S8.6): `npm run api:types` turns `doc/reference/openapi.json` into `lib/api/schema.ts`. Never edit that file; regenerate it when the schema changes (CI's `npm run api:types:check` fails until you do). Import names from `lib/api/types.ts`, and add one there when a page needs it. A function in `lib/api/` declares its return type as its route's, `GetResponse<"/v1/snapshot">`, so a renamed route or a changed model fails the build.
-- Shareable state lives in the URL, using the API's parameter names: `as_of`, `tickers`, `series`, `preset`. Parse and validate on read (see `parseAsOf` and `features/time-machine/params.ts`). Lists are one comma-separated value, and links keep commas and colons readable.
+- Shareable state lives in the URL, using the API's parameter names where it has one: `as_of`, `tickers`, `series`, `preset`. The builder's `from` names the run whose spec it starts from, and a run's own page is `/backtests/<run_id>`. Parse and validate on read (see `parseAsOf` and `features/time-machine/params.ts`). Lists are one comma-separated value, and links keep commas and colons readable.
 
 ### Styling
 

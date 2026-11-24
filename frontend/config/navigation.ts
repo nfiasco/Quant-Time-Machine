@@ -103,7 +103,7 @@ export const routes = {
     href: "/backtests/new",
     icon: FlaskConicalIcon,
     description: "Build a backtest with a form, no code or AI required.",
-    status: "planned",
+    status: "live",
     story: { id: "S9.5", title: "Backtest builder", milestone: "M5" },
     highlights: [
       "Choose the universe, period, rebalance frequency, signals and their parameters, filters, weighting, benchmark, and costs.",
@@ -111,6 +111,16 @@ export const routes = {
       "Validation errors from the API next to the right fields.",
       "Submitting starts a run and shows its progress.",
     ],
+  },
+  // A run's page is /backtests/<run_id>. A dynamic route has no one address, so `href` is
+  // the section it belongs to; the entry gives the page its title and description.
+  backtestRun: {
+    title: "Backtest run",
+    href: "/backtests",
+    icon: ChartLineIcon,
+    description: "A backtest's progress while it runs, and its results once it has finished.",
+    status: "live",
+    story: { id: "S9.6", title: "Backtest results page", milestone: "M5" },
   },
   revisions: {
     title: "Revisions",

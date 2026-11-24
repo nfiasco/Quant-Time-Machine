@@ -1,10 +1,15 @@
 import { describe, expectTypeOf, it } from "vitest";
 
+import type { components } from "@/lib/api/schema";
 import type {
+  BacktestSubmitted,
   CatalogCompany,
   CatalogSeries,
   GetPath,
   GetResponse,
+  PostBody,
+  PostPath,
+  PostResponse,
   Snapshot,
   V1Response,
 } from "@/lib/api/types";
@@ -29,5 +34,22 @@ describe("GetResponse", () => {
     expectTypeOf<"/v1/backtests/{run_id}">().toExtend<GetPath>();
     // Submitting a backtest is the one POST.
     expectTypeOf<"/v1/backtests">().not.toExtend<GetPath>();
+  });
+});
+
+describe("PostResponse and PostBody", () => {
+  it("are the bodies of a POST route's success and request", () => {
+    expectTypeOf<PostResponse<"/v1/backtests">>().not.toBeAny();
+    // 200 (already saved) and 202 (queued) answer with the same body.
+    expectTypeOf<PostResponse<"/v1/backtests">>().toEqualTypeOf<BacktestSubmitted>();
+    expectTypeOf<PostBody<"/v1/backtests">>().toEqualTypeOf<
+      components["schemas"]["ExperimentSpec"]
+    >();
+  });
+
+  it("names only routes with a POST", () => {
+    expectTypeOf<"/v1/backtests">().toExtend<PostPath>();
+    expectTypeOf<"/v1/backtests/{run_id}">().not.toExtend<PostPath>();
+    expectTypeOf<"/v1/snapshot">().not.toExtend<PostPath>();
   });
 });

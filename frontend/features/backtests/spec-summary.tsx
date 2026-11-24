@@ -2,11 +2,8 @@ import { describeDelisting } from "@/features/backtests/describe-delisting";
 import { describePortfolio } from "@/features/backtests/describe-portfolio";
 import { describeSignal } from "@/features/backtests/describe-signal";
 import type { ExperimentSpec } from "@/features/backtests/types";
+import { universeLabel } from "@/features/backtests/universes";
 import { cn } from "@/lib/utils";
-
-const UNIVERSE_LABELS: Record<string, string> = {
-  starter_large_caps: "Starter large caps",
-};
 
 const FILL_LABELS: Record<ExperimentSpec["schedule"]["fill"], string> = {
   same_day_close: "Same-day close",
@@ -16,6 +13,11 @@ const FILL_LABELS: Record<ExperimentSpec["schedule"]["fill"], string> = {
 function describeDecision(decision: string): string {
   const match = /^first_trading_day (\d{2}:\d{2}) America\/New_York$/.exec(decision);
   return match ? `first trading day at ${match[1]} ET` : decision;
+}
+
+/** "rev_accel > 0". What the builder's form can't read yet, such as a blank value, is "?". */
+function describeFilter({ signal, op, value }: ExperimentSpec["filters"][number]): string {
+  return `${signal || "?"} ${op} ${Number.isFinite(value) ? value : "?"}`;
 }
 
 /**
@@ -34,7 +36,7 @@ export function SpecSummary({
   const rows: { term: string; detail: React.ReactNode }[] = [
     {
       term: "Universe",
-      detail: `${UNIVERSE_LABELS[spec.universe.id] ?? spec.universe.id} (point-in-time membership)`,
+      detail: `${universeLabel(spec.universe.id)} (point-in-time membership)`,
     },
     {
       term: "Period",
@@ -51,23 +53,29 @@ export function SpecSummary({
     { term: "Fill", detail: FILL_LABELS[spec.schedule.fill] },
     {
       term: "Signals",
-      detail: (
-        <ul className="flex flex-col gap-1">
-          {Object.entries(spec.signals).map(([id, signal]) => (
-            <li key={id}>
-              <code className="font-mono text-xs">{id}</code>: {describeSignal(signal)}
-            </li>
-          ))}
-        </ul>
-      ),
+      detail:
+        Object.keys(spec.signals).length > 0 ? (
+          <ul className="flex flex-col gap-1">
+            {Object.entries(spec.signals).map(([id, signal]) => (
+              <li key={id}>
+                <code className="font-mono text-xs">{id}</code>: {describeSignal(signal)}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          "None"
+        ),
     },
     {
       term: "Filters",
-      detail: (
-        <span className="font-mono text-xs">
-          {spec.filters.map((f) => `${f.signal} ${f.op} ${f.value}`).join(" and ")}
-        </span>
-      ),
+      detail:
+        spec.filters.length > 0 ? (
+          <span className="font-mono text-xs">
+            {spec.filters.map(describeFilter).join(" and ")}
+          </span>
+        ) : (
+          "None: every member passes"
+        ),
     },
     { term: "Portfolio", detail: describePortfolio(spec.portfolio) },
     { term: "Benchmark", detail: <span className="font-mono">{spec.benchmark}</span> },
