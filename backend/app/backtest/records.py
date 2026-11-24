@@ -14,6 +14,8 @@ run's ID:
 - `metrics.json`: the run's metrics (app/backtest/metrics.py).
 - `coverage.json`: what data its decisions lacked, by security and year, and its exits
   at a last close (app/backtest/coverage.py, S6.7).
+- `members.json`: every member of the universe at each decision, with its signals'
+  values and whether the run held it, or why not (app/backtest/members.py, S9.6).
 - `audit.json`: what each view the run opened read (app/backtest/audit.py).
 
 The same spec, data version, and engine version always give the same bytes:
@@ -33,6 +35,7 @@ prices (D2).
 
 import dataclasses
 import hashlib
+import json
 import shutil
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -40,7 +43,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-from app.backtest import ENGINE_VERSION, coverage
+from app.backtest import ENGINE_VERSION, coverage, members
 from app.backtest.audit import timestamp
 from app.backtest.canonical import canonical_json, rounded, sha256_hex
 from app.backtest.metrics import equity_curve, summarize
@@ -49,10 +52,10 @@ from app.backtest.simulation import HoldingPeriod, Simulation
 from app.backtest.spec import ExperimentSpec
 from app.data.timeutil import ET
 
-RECORD_VERSION = 2
+RECORD_VERSION = 3
 """The version of the files' layout, in `run.json`. It isn't part of the run ID: a new
 layout says the same things about the same run. Version 2 added `coverage.json`
-(S6.7)."""
+(S6.7), and version 3 `members.json` (S9.6)."""
 
 MANIFEST = "run.json"
 
@@ -63,6 +66,7 @@ RESULT_FILES = (
     "metrics.json",
     "warnings.json",
     "coverage.json",
+    "members.json",
     "audit.json",
 )
 """What a run produced. `run.json` lists each one's size and hash."""
@@ -150,6 +154,7 @@ def build_record(
         "metrics.json": rounded(_plain(summarize(simulation))),
         "warnings.json": _plain(simulation.warnings),
         "coverage.json": _plain(coverage.summarize(simulation)),
+        "members.json": rounded(_plain(members.summarize(simulation))),
         "audit.json": [
             {**_plain(view), "rows": view.rows} for view in simulation.audit
         ],
@@ -185,16 +190,22 @@ def write_run(record: RunRecord, runs_dir: Path, *, overwrite: bool = False) -> 
 
     The folder appears whole or not at all: the files are written beside it, then
     moved into place. A run that's already saved with the same results is left as it
-    is, with the git SHA that first wrote it. If the results differ, the same inputs
-    gave two answers, which means the engine changed without a new ENGINE_VERSION:
-    that raises RunConflictError, unless `overwrite` says to replace the saved run.
+    is, with the git SHA that first wrote it. One saved with an older layout, whose
+    `run.json` doesn't list a file this one has, such as `members.json` before record
+    version 3, is written again whole, with the new layout, if every file it kept is the
+    same. If the results differ, the same inputs gave two answers, which means the
+    engine changed without a new ENGINE_VERSION: that raises RunConflictError, unless
+    `overwrite` says to replace the saved run.
     """
     folder = runs_dir / record.run_id
     if folder.exists():
+        kept = _kept(folder)
         changed = [
-            name for name in RESULT_FILES if _read(folder / name) != record.files[name]
+            name
+            for name in RESULT_FILES
+            if name in kept and _read(folder / name) != record.files[name]
         ]
-        if not changed and (folder / MANIFEST).is_file():
+        if not changed and kept.issuperset(RESULT_FILES):
             return folder
         if changed and not overwrite:
             raise RunConflictError(
@@ -287,3 +298,15 @@ def _read(path: Path) -> bytes | None:
         return path.read_bytes()
     except OSError:
         return None
+
+
+def _kept(folder: Path) -> set[str]:
+    """The files a saved run's `run.json` lists: none for a folder without a readable
+    one, which isn't a saved run."""
+    manifest = _read(folder / MANIFEST)
+    if manifest is None:
+        return set()
+    try:
+        return set(json.loads(manifest)["files"])
+    except ValueError, KeyError, TypeError:
+        return set()
