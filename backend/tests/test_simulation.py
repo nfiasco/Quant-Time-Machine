@@ -578,6 +578,36 @@ def test_writing_off_all_a_portfolio_held_ends_the_run(store_dir: Path) -> None:
     ]
 
 
+def test_each_decision_keeps_its_members_signals_and_targets(store_dir: Path) -> None:
+    stops_trading(store_dir)
+    script: Script = {
+        JAN_4: {"alpha": 0.2, "beta": "No bar was known then."},  # gamma gets -1
+        FEB_1: {"alpha": 0.1, "beta": 0.3, "gamma": 0.4},
+        APR_1: {"alpha": 0.5},
+    }
+
+    result = run(store_dir, script)
+    jan, feb, _, apr = result.members
+
+    # Every trading member's value, or why it had none, the ones that failed included,
+    # so the members record can say why a decision passed one over (S9.6).
+    assert jan.signals == {
+        "mom": {
+            "alpha": SignalValue(0.2),
+            "beta": SignalValue(None, "No bar was known then."),
+            "gamma": SignalValue(-1.0),
+        }
+    }
+    assert jan.targets == {"alpha": 1.0}
+    assert feb.targets == {"alpha": 1 / 3, "beta": 1 / 3, "gamma": 1 / 3}
+    assert {h.security_id: h.weight for h in result.periods[1].holdings} == feb.targets
+    # Gamma had stopped trading by April, so no signal was evaluated for it.
+    assert apr.signals == {
+        "mom": {"alpha": SignalValue(0.5), "beta": SignalValue(-1.0)}
+    }
+    assert apr.targets == {"alpha": 1.0}
+
+
 def test_a_missing_exit_price_values_a_holding_at_its_last_close(
     store_dir: Path,
 ) -> None:

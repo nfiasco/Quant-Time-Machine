@@ -194,13 +194,22 @@ class HoldingPeriod:
 
 @dataclass(frozen=True)
 class DecisionMembers:
-    """A decision's universe, as the decision saw it: who could be chosen (S6.7)."""
+    """A decision's universe, as the decision saw it: who could be chosen (S6.7), what
+    each member's signals were, and whom it chose (S9.6)."""
 
     decision: date
     """The New York day of the decision."""
     members: tuple[UniverseMember, ...]
     """In security ID order, each with its ticker then: None for one that had stopped
     trading."""
+    signals: Mapping[str, Mapping[str, SignalValue]]
+    """Every signal in the spec, by its ID, with its value for each member that was
+    trading, by security ID: a value, or why it had none. A member that had stopped
+    trading has none, since no signal was evaluated for it."""
+    targets: Mapping[str, float]
+    """The members the decision chose, by security ID, with their target weights:
+    negative for a short. A chosen member without a price at the fill keeps its target
+    here, though it wasn't traded (`no_fill_price`)."""
 
 
 @dataclass(frozen=True)
@@ -218,9 +227,20 @@ class Simulation:
     audit: tuple[ViewInputs, ...] = ()
     """What each view the run opened read, in the order they were opened."""
     members: tuple[DecisionMembers, ...] = ()
-    """Each decision's universe, in order, for the run's coverage report
-    (app/backtest/coverage.py). A decision whose trades wiped the portfolio out has
-    one, though it has no holding period."""
+    """Each decision's universe, in order, with its members' signals and the targets it
+    chose, for the run's coverage report and members record (app/backtest/coverage.py
+    and members.py). A decision whose trades wiped the portfolio out has one, though it
+    has no holding period."""
+
+
+def needed_signals(spec: ExperimentSpec) -> list[str]:
+    """The signals a member needs a value for to be chosen, as the loop checks them:
+    the filters', then the ranking's, each once. One without a value leaves the member
+    out (`missing_signal`)."""
+    needed = [condition.signal for condition in spec.filters]
+    if spec.portfolio.rank is not None:
+        needed.append(spec.portfolio.rank.signal)
+    return list(dict.fromkeys(needed))
 
 
 def check_runnable(
@@ -364,11 +384,7 @@ class _Run:
         self.spec = spec
         self.views = views
         self.signals = signals
-        # The signals a member needs a value for: the filters', then the ranking's.
-        required = [condition.signal for condition in spec.filters]
-        if spec.portfolio.rank is not None:
-            required.append(spec.portfolio.rank.signal)
-        self.required_signals = list(dict.fromkeys(required))
+        self.required_signals = needed_signals(spec)
         self.data_version: str | None = None
         self.viewed = False
         self.benchmark: Security | None = None
@@ -433,7 +449,6 @@ class _Run:
                 self.benchmark = self.resolve_benchmark(view, day)
             risk_free = view.get_macro_as_of(RISK_FREE_SERIES)
             members = view.universe_as_of(universe)
-            self.members.append(DecisionMembers(day, tuple(members)))
             trading = []
             for member in members:
                 if member.ticker is None:
@@ -478,6 +493,11 @@ class _Run:
             passed[member.security_id] = _Choice(ticker, known)
         targets = self.target_weights(passed, day, universe_size=len(members))
         chosen = {security_id: passed[security_id] for security_id in targets}
+        # What the decision saw of each member, for the coverage report and the members
+        # record (app/backtest/coverage.py and members.py).
+        self.members.append(
+            DecisionMembers(day, tuple(members), signals=values, targets=dict(targets))
+        )
         rate = None if risk_free is None else risk_free.value
         return _Decision(rebalance, day, len(members), chosen, targets, rate)
 

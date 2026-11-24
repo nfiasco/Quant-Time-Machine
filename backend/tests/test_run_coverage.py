@@ -107,7 +107,9 @@ def a_run(
         periods=tuple(periods),
         warnings=tuple(sorted(warnings, key=lambda w: w.decision)),
         members=tuple(
-            DecisionMembers(day, tuple(members.get(day, MEMBERS)))
+            DecisionMembers(
+                day, tuple(members.get(day, MEMBERS)), signals={}, targets={}
+            )
             for day in (r.decision_time.date() for r in SCHEDULE)
         ),
     )
