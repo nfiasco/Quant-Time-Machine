@@ -11,7 +11,7 @@
 - **CISC 499 (Spring 2027):** MCP tools and an AI research assistant that turns questions into structured experiments, plus look-ahead-bias detection, experiment tracking, strategy comparison, and robustness testing.
 - **Ground rule:** the AI translates; deterministic code calculates. Every number comes from tested code, and every input carries the time it became public.
 - **Size:** 16 epics and 104 stories; 69 are P0 for their semester demo. S2.1 (interviews) was removed from scope on November 16. Sprints are two weeks long; Sprint 1 began Monday, September 28, 2026.
-- **Progress:** 43 Done, 4 In progress, 9 In review, and 48 Backlog. The nine In review stories (S6.7, S7.3–S7.8, S8.4, and S8.6) are merged; they move to Done at their milestone's reconciliation, M4's, or M5's for S8.6.
+- **Progress:** 43 Done, 4 In progress, 10 In review, and 47 Backlog. The ten In review stories (S6.7, S7.3–S7.8, S8.4, S8.6, and S9.5) are merged; they move to Done at their milestone's reconciliation, M4's, or M5's for S8.6 and S9.5.
 - **Next delivery work:** the revision viewer (S9.3), then the builder's run button, the results page, the methodology page, the performance baseline, the first usability test, and the demo (M5). Accounts (E16) wait for the team's decision ([planning record](project/planning.md)).
 - **Public demo constraint:** raw Tiingo prices remain disabled on the deployed API pending display rights. The [landing-page example](#s98-public-landing-page) is static; it is not the live explorer.
 
@@ -90,7 +90,7 @@ Set on November 16, 2026 (S2.4). The [evaluation plan](research/evaluation-plan.
 | Data | Six macro series with vintages and release times; filing histories and identities; XBRL metrics, quarter derivation/restatements; raw-price ingestion, corporate actions, total returns, and 50-company universe v1 | Optional catalog, bulk-data, and universe expansion later. *Nov 17:* the configurable delisting rule and the coverage reports (S6.7) are in review |
 | API | `/v1` prices, macro/revisions, filings/latest, fundamentals, snapshot, and catalog routes, with OpenAPI examples and tests | None. *Nov 16:* run submission, background runs, and the results and audit endpoints (S8.4) are in review. *Nov 19:* generated TypeScript types and the cache of as-of answers (S8.6) are in review |
 | Backtester | Experiment spec v1, JSON Schema, decision/fill schedule, and total-return utilities | Simulation loop, signal calculations, portfolios/costs, performance metrics, run records, audit, and canonical end-to-end run (S7.3–S7.8) |
-| Web | [Public landing page](#s98-public-landing-page), app shell, dashboard health check, initial builder form/preset/validation, and sign-in/sign-up UI | Catalog-backed builder controls and submission, results, charts, methodology, and real accounts. Most planned routes still render placeholders. *Nov 10:* the live Time Machine explorer (S9.2) is merged. |
+| Web | [Public landing page](#s98-public-landing-page), app shell, dashboard health check, initial builder form/preset/validation, and sign-in/sign-up UI | Results, charts, methodology, and real accounts. Most planned routes still render placeholders. *Nov 10:* the live Time Machine explorer (S9.2) is merged. *Nov 19:* the catalog-backed builder, which runs what it builds and shows the run's progress on its own page (S9.5), is in review. |
 | Accounts | Supabase CLI configuration and auth forms exist | Hosted setup record, migrations, RLS, token verification, real sessions, saved experiments, privacy/account deletion (E16) |
 | Deployment | Railway API and persisted universe-v1 store; Vercel production points to it; upload script and post-deploy smoke workflow are committed | Background-run recovery and resource sizing wait for S8.4; raw-price display remains restricted |
 | Validation | 713 backend tests pass in an isolated export of the audited commit; 52 network/local-data cases are excluded. Committed CI and deployment smoke runs are green. | This does not establish a completed backtester, frontend automated test suite, usability evidence, or account security. |
@@ -697,8 +697,8 @@ Every story in one table. Verified contributors are listed for completed stories
 | [S9.2](#s92-time-machine-explorer) | Time Machine explorer | E9 | P0 | L | 3 | M3 | ✅ Done | [#35](https://github.com/nfiasco/Quant-Time-Machine/issues/35) | [nfiasco](https://github.com/nfiasco) |
 | [S9.3](#s93-macro-revision-viewer) | Macro revision viewer | E9 | P1 | M | 4 | M4 | Backlog | [#149](https://github.com/nfiasco/Quant-Time-Machine/issues/149) | See issue |
 | [S9.4](#s94-company-filing-timeline) | Company filing timeline | E9 | P2 | M | 5 | M5 | Backlog | [#150](https://github.com/nfiasco/Quant-Time-Machine/issues/150) | See issue |
-| [S9.5](#s95-backtest-builder) | Backtest builder | E9 | P0 | L | 5 | M5 | In progress | [#33](https://github.com/nfiasco/Quant-Time-Machine/issues/33) | See issue |
-| [S9.6](#s96-backtest-results-page) | Backtest results page | E9 | P0 | L | 5 | M5 | Backlog | [#34](https://github.com/nfiasco/Quant-Time-Machine/issues/34) | See issue |
+| [S9.5](#s95-backtest-builder) | Backtest builder | E9 | P0 | L | 5 | M5 | In review | [#33](https://github.com/nfiasco/Quant-Time-Machine/issues/33) | See issue |
+| [S9.6](#s96-backtest-results-page) | Backtest results page | E9 | P0 | L | 5 | M5 | In progress | [#34](https://github.com/nfiasco/Quant-Time-Machine/issues/34) | See issue |
 | [S9.7](#s97-methodology-page) | Methodology page | E9 | P1 | S | 5 | M5 | Backlog | [#151](https://github.com/nfiasco/Quant-Time-Machine/issues/151) | See issue |
 | [S9.8](#s98-public-landing-page) | Public landing page | E9 | P1 | M | 3 | M2 | ✅ Done | [#203](https://github.com/nfiasco/Quant-Time-Machine/issues/203) | [iguy1](https://github.com/iguy1), [nfiasco](https://github.com/nfiasco) |
 | [S10.1](#s101-spike-mcp-server-setup) | Spike: MCP server setup | E10 | P0 | S | 7 | M6 | Backlog | [#152](https://github.com/nfiasco/Quant-Time-Machine/issues/152) | See issue |
@@ -2347,7 +2347,7 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 
 #### S9.5 Backtest builder
 
-**Priority:** P0 · **Size:** L · **Sprint:** 5 · **Milestone:** M5 · **Area:** web · **Depends on:** S8.4, S8.5 · **Reqs:** FR-W4 · **Status:** In progress
+**Priority:** P0 · **Size:** L · **Sprint:** 5 · **Milestone:** M5 · **Area:** web · **Depends on:** S8.4, S8.5 · **Reqs:** FR-W4 · **Status:** In review
 
 **Story:** As a researcher, I want to build a backtest with a form, so that I can test ideas without code, before the AI assistant exists.
 
@@ -2363,17 +2363,35 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 - [x] Build initial period, schedule, weighting, benchmark, and cost controls with a spec preview
 - [x] Add the canonical preset
 - [x] Display client-side field validation errors
-- [ ] Load catalogs and add editable universe, signal parameters, and filters
-- [ ] Display API validation errors beside the affected fields
-- [ ] Submit runs and poll for status after S8.4
+- [x] Load catalogs and add editable universe, signal parameters, and filters: the page loads `GET /v1/catalog/signals` and `/v1/catalog/series` on the server, and each signal's fields come from its kind's JSON Schema in the catalog ([`signal-kinds.ts`](../frontend/features/backtests/signal-kinds.ts)), so a signal added to the engine shows up with no change to the frontend.
+  - The form edits a draft rather than a spec ([`draft.ts`](../frontend/features/backtests/draft.ts)). Rows keep their place while a signal's ID changes, so filters and the ranking follow a renamed signal, and a removed one leaves them for the user to fix. A signal's ID follows its parameters (`mom_12_1`, `unrate_chg_3`) until it's typed.
+  - The portfolio holds everything that passes or one end of a ranking, long only or long-short. Value weights are listed but disabled, since the engine refuses them, and the universe is universe v1, the only one (D3).
+  - The form checks signal IDs, each parameter against its schema, the filters, the ranking, and long-short without a ranking ([`validation.ts`](../frontend/features/backtests/validation.ts)). Rules between parameters, such as momentum's skip below its lookback, are left to the API.
+- [x] Display API validation errors beside the affected fields: a 422's `details` land at the field or section their path names, or else its nearest enclosing section, and anything with no place in the form, such as `spec`, in its alert ([`field-errors.ts`](../frontend/features/backtests/field-errors.ts)). An edit clears its section's old messages, and focus moves to the first problem.
+- [x] Submit runs and poll for status after S8.4: a Server Action posts the spec and opens the run's page, `/backtests/<run_id>` ([`actions.ts`](../frontend/features/backtests/actions.ts)).
+  - The page reads the run on the server and refreshes itself every 2 seconds while it's queued or running, with the decisions done on a progress bar ([`run-view.tsx`](../frontend/features/backtests/run-view.tsx)). It refreshes with `router.refresh()` rather than polling the action, as Next 16's docs advise, and pauses while the tab is hidden.
+  - A failed run shows the API's sentence, with "Run it again" and "Edit and run again", which opens the builder on the run's spec (`/backtests/new?from=<run_id>`). A finished one shows its headline metrics, its spec, and what it ran on.
 
 **Progress evidence (2026-11-08):** The initial form, canonical preset, client validation, and spec preview are merged. Universe/signals/filters come from the preset; the Run button is disabled. Catalog controls, API errors, submission, and polling remain open. Evidence: [PR #94](https://github.com/nfiasco/Quant-Time-Machine/pull/94), `frontend/features/backtests/backtest-builder.tsx`, `frontend/features/backtests/presets.ts`, `frontend/features/backtests/validation.ts`.
+
+**Progress evidence (2026-11-19):** The builder edits every part of the spec, shows the API's errors beside their fields, and runs what it builds. Checked in the browser against a local API on the real store (data version 20261111T030742Z, engine 1.1.0):
+
+- **The canonical preset opens its saved run at once.** Run answered 200, and the page showed run `40365a9a819b…`: a CAGR of 18.5% against SPY's 13.9%, a Sharpe ratio of 1.06, and 340 warnings, as in S6.7's rerun.
+- **The evaluation plan's T6.** "Edit and run again" with 2020 to 2022 at 25 bps answered 202 with run `e739396c55d7…`. The page moved from 2 to 16 to 25 of 36 decisions by itself, and after 36 seconds showed a CAGR of 15.9% against SPY's 7.3%, down from 17.2% at 10 bps ([api-v1.md's run](reference/api-v1.md#get-v1backtestsrun_id)). It read the run 19 times and stopped once the run had finished.
+- **The API's errors beside their fields.** A momentum skip of 12 months, as long as its lookback, came back at `signals.mom_12_12.skip_months`; costs of 6,000 bps at `costs.bps_per_trade`; and January 15 to 20, 2020, which has no decision, at `period`. Focus moved to each, and editing the field cleared its message.
+- **The form's own checks.** A blank name, a filter whose signal was removed, and long-short without a ranking each showed beside its field, nothing was sent, and focus moved to the first. Choosing long-short turns the ranking on, and a macro change can't be chosen to rank by.
+- **Failures.** A benchmark of `NOPE` was queued and failed with the API's sentence, and "Run it again" queued it again. With the API stopped, Run said nothing answered, the builder showed its signals read-only with a retry, and a run's page kept trying until the API was back, then showed the run.
+- **Layout.** 375, 768, 1024, and 1280 px wide, in dark and light, with no sideways scrolling. The preview sits beside the form from 1280 px.
+- **Tests.** 151 Vitest tests, 53 of them new: the canonical preset round-trips through the draft, IDs follow their parameters, filters follow a renamed signal, the API's documented 422 lands on `benchmark` and `costs`, and run states come from api-v1.md's examples. `npm run lint`, `format:check`, `api:types:check`, and `build` pass.
+- **Not done.** Nobody else has reviewed it yet, and it was checked only against a local API: the deployed API can't take a run until `/data/runs` is writable there (S8.4). Runs aren't listed or saved to an account (S13.1, S16.5), and the run page's charts, holdings, warnings, and audit are S9.6's. The canonical example is still the only preset.
+
+Evidence: `frontend/features/backtests/` (`backtest-builder.tsx`, `signal-fields.tsx`, `filter-fields.tsx`, `portfolio-fields.tsx`, `draft.ts`, `signal-kinds.ts`, `validation.ts`, `field-errors.ts`, `actions.ts`, `run-view.tsx`, `run-status.ts`, `run-refresher.tsx`, and their tests), `frontend/app/(app)/backtests/new/page.tsx`, `frontend/app/(app)/backtests/[runId]/page.tsx`, `frontend/lib/api/backtests.ts`, `frontend/lib/api/catalog.ts`, `frontend/lib/api/types.ts`.
 
 **GitHub:** [#33](https://github.com/nfiasco/Quant-Time-Machine/issues/33) · **Parent epic:** [#15](https://github.com/nfiasco/Quant-Time-Machine/issues/15)
 
 #### S9.6 Backtest results page
 
-**Priority:** P0 · **Size:** L · **Sprint:** 5 · **Milestone:** M5 · **Area:** web · **Depends on:** S8.4 · **Reqs:** FR-W5, NFR-3 · **Status:** Backlog
+**Priority:** P0 · **Size:** L · **Sprint:** 5 · **Milestone:** M5 · **Area:** web · **Depends on:** S8.4 · **Reqs:** FR-W5, NFR-3 · **Status:** In progress
 
 **Story:** As a researcher, I want clear results with the evidence behind them, so that I can trust, or question, the outcome.
 
@@ -2390,9 +2408,11 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 - [ ] Build the metrics and holdings tables
 - [ ] Build the assumptions and warnings panel
 - [ ] Build the audit drill-down
-- [ ] Add the permalink
+- [x] Add the permalink: `/backtests/<run_id>`, which the builder opens when a run is submitted (S9.5)
 
 **Progress evidence (2026-11-08):** No implementation or completion evidence for these acceptance criteria is present in the audited commit. This remains planned work.
+
+**Progress evidence (2026-11-19):** S9.5 built the page this story fills out. `/backtests/<run_id>` reads the run on the server and refreshes until it has finished; then it shows the headline metrics (CAGR and total return beside the benchmark's, the Sharpe ratio, and the max drawdown), the warnings' count, the spec, and what the run ran on: its ID, data version, engine version, code, and times in ET. The run ID in the path is the permanent link. The charts, the metrics table, the holdings, the assumptions and warnings panel, and the audit drill-down remain. Evidence: `frontend/app/(app)/backtests/[runId]/page.tsx`, `frontend/features/backtests/run-view.tsx`, `frontend/features/backtests/run-status.ts`.
 
 **GitHub:** [#34](https://github.com/nfiasco/Quant-Time-Machine/issues/34) · **Parent epic:** [#15](https://github.com/nfiasco/Quant-Time-Machine/issues/15)
 
