@@ -1,6 +1,6 @@
 """POST /v1/backtests, and GET /v1/backtests/{run_id} with its /audit, /holdings,
-/trades, and /coverage: submit an experiment spec, and read the run it names (S8.4,
-S6.7).
+/trades, /coverage, and /members: submit an experiment spec, and read the run it names
+(S8.4, S6.7, S9.6).
 
 - **Submitting** validates the spec the way `parse_spec` does, so a 422 names each
   field as the spec's own errors do ("signals.mom_12_1.lookback_months"), and adds
@@ -12,11 +12,14 @@ S6.7).
   the same data answers 200 with the saved run, and runs nothing.
 - **Reading** serves a saved run's files (doc/reference/runs.md) as they are, with
   two changes every /v1 response makes: times are written in New York time (D12), and
-  internal security IDs are left out of holdings, trades, warnings, and coverage. As in
-  the files, there are weights, returns, and dates, and never a price (D2).
+  internal security IDs are left out of holdings, trades, warnings, coverage, and
+  members. As in the files, there are weights, returns, and dates, and never a price
+  (D2).
 - **A run saved before engine 1.1.0** (record version 1) has no coverage report, so
   its `coverage` is null. Its spec reads back with the `delisting` section it didn't
   have, at the default it ran with, so its `spec_hash` comes from its run.json.
+- **A run saved before record version 3** has no members record, so its `members` is
+  null, until the command saves it again (app/backtest/records.py).
 
 These responses have no `knowledge_time`: a run isn't an answer as of one moment. Its
 `data_version` is the one the run is pinned to, not the newest now.
@@ -36,6 +39,7 @@ from app.api.conventions import AppSettings, NewYorkTime
 from app.api.errors import ApiError, ErrorResponse
 from app.backtest.audit import Purpose
 from app.backtest.coverage import ExitKind
+from app.backtest.members import Outcome
 from app.backtest.records import MANIFEST, spec_hash
 from app.backtest.schedule import ScheduleError
 from app.backtest.signals import DataKind
@@ -434,6 +438,81 @@ class BacktestCoverage(_Model):
     )
 
 
+class BacktestMember(_Model):
+    """A member of the universe at a decision, its signals' values, and whether the run
+    held it, or why not."""
+
+    decision: date = Field(description="The New York day of the decision.")
+    ticker: str | None = Field(
+        description="Its ticker at the decision: null if it had stopped trading."
+    )
+    name: str = Field(description="Its name at the decision.")
+    cik: int | None = Field(
+        description=(
+            "Its SEC Central Index Key, the key of its group of XBRL facts in the "
+            "audit. Null for a security without one."
+        )
+    )
+    outcome: Outcome = Field(
+        description=(
+            '"held" at `weight` until the next fill; chosen but "no_fill_price", or '
+            '"wiped_out" because the run ended at this decision; "outside_ranking" if '
+            "it passed every filter but wasn't in an end of the ranking the portfolio "
+            'holds; "failed_filter" (see `failed`); "missing_signal" if a signal a '
+            "filter or the ranking needs had no value (see `missing`); or "
+            '"stopped_trading", with no signals.'
+        )
+    )
+    weight: float | None = Field(
+        description=(
+            "Its target weight if the decision chose it, negative for a short, whether "
+            "or not it was held. Null for one the decision didn't choose."
+        )
+    )
+    signals: dict[str, float | None] = Field(
+        description=(
+            "Its value for every signal in the spec, by ID: null for one it had no "
+            "value for, and for every signal of a member that had stopped trading."
+        )
+    )
+    reasons: dict[str, str] = Field(
+        description=(
+            "Why each signal it had no value for had none, by ID, as a sentence the "
+            "page can show as is."
+        )
+    )
+    missing: list[str] = Field(
+        description=(
+            "The signals a filter or the ranking needs that it had no value for: the "
+            "filters', then the ranking's."
+        )
+    )
+    failed: list[int] = Field(
+        description=(
+            "The filters it failed, by their place in the spec's `filters`, from 0: "
+            "the same places as a 422's `filters.0.value`."
+        )
+    )
+    rank: int | None = Field(
+        description=(
+            "Its place in the ranking of the members that passed every filter, from 1 "
+            "for the highest value. Null without a ranking, and for a member that "
+            "didn't pass."
+        )
+    )
+
+
+class BacktestMembers(_Model):
+    run_id: str
+    status: RunStatus
+    members: list[BacktestMember] | None = Field(
+        description=(
+            "In decision order. Null until the run has succeeded, and for a run saved "
+            "before record version 3, which kept no members record."
+        )
+    )
+
+
 def run_queue(request: Request) -> RunQueue:
     """The app's runs (see `create_app`)."""
     return request.app.state.run_queue
@@ -621,14 +700,24 @@ def get_backtest_coverage(job: KnownJob, settings: AppSettings) -> BacktestCover
     return BacktestCoverage(run_id=job.run_id, status=job.status, coverage=coverage)
 
 
+@router.get("/{run_id}/members", responses=examples.BACKTEST_MEMBERS)
+def get_backtest_members(
+    job: KnownJob, settings: AppSettings, decision: Decision = None
+) -> BacktestMembers:
+    """Every member of the universe at each decision: its signals' values, and whether
+    the decision chose it, or why not, such as a filter it failed (S9.6)."""
+    members = _entries(job, settings, "members.json", decision)
+    return BacktestMembers(run_id=job.run_id, status=job.status, members=members)
+
+
 def _entries(
     job: Job, settings: Settings, name: str, decision: date | None
 ) -> list[Any] | None:
     """One of a saved run's files that lists an entry for each decision's views,
-    holdings, or trades: all of it, or one decision's. None for a run with no files
-    yet."""
+    holdings, trades, or members: all of it, or one decision's. None for a run with no
+    files yet, or saved with a layout that didn't keep this one."""
     folder = saved_run(job.run_id, settings) if job.status == "succeeded" else None
-    if folder is None:
+    if folder is None or not (folder / name).is_file():
         return None
     entries = read_document(folder, name)
     if decision is None:

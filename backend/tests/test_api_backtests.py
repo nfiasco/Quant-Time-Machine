@@ -1,5 +1,5 @@
-"""POST /v1/backtests and GET /v1/backtests/{run_id}, with /audit, /holdings, and
-/trades (S8.4; app/api/backtests.py).
+"""POST /v1/backtests and GET /v1/backtests/{run_id}, with /audit, /holdings,
+/trades, /coverage, and /members (S8.4, S6.7, S9.6; app/api/backtests.py).
 
 Every run is the canonical spec's own signals on the toy market, frozen as one data
 version (`canonical_market` in tests/toy_market.py). tests/test_run_queue.py checks
@@ -25,6 +25,7 @@ from app.backtest import (
     ENGINE_VERSION,
     audit,
     coverage,
+    members,
     metrics,
     portfolio,
     returns,
@@ -298,6 +299,7 @@ def test_a_run_in_progress_says_how_far_it_is(client: TestClient, held: Held) ->
         ("holdings", "holdings"),
         ("trades", "trades"),
         ("coverage", "coverage"),
+        ("members", "members"),
     ],
 )
 def test_a_run_in_progress_has_no_files_to_serve_yet(
@@ -613,6 +615,77 @@ def test_a_runs_coverage_is_served_without_internal_ids(
     assert "security_id" not in json.dumps(found)
 
 
+def test_a_runs_members_are_served_without_internal_ids(
+    client: TestClient, settings: Settings
+) -> None:
+    submit(client)
+    finished(client)
+
+    found = client.get(f"/v1/backtests/{RUN_ID}/members").json()
+
+    assert (found["run_id"], found["status"]) == (RUN_ID, "succeeded")
+    assert found["members"] == [
+        without_security_id(member) for member in saved(settings, "members.json")
+    ]
+    # At each decision AAA was held, BBB failed rev_accel > 0, and CCC had no
+    # rev_accel: why the run held what it did.
+    assert [
+        (m["decision"], m["ticker"], m["outcome"], m["weight"])
+        for m in found["members"][:3]
+    ] == [
+        ("2021-01-04", "AAA", "held", 1.0),
+        ("2021-01-04", "BBB", "failed_filter", None),
+        ("2021-01-04", "CCC", "missing_signal", None),
+    ]
+    bbb, ccc = found["members"][1:3]
+    assert bbb["signals"] == {"mom_12_1": 0.21, "rev_accel": -0.03}
+    assert bbb["failed"] == [0]  # the spec's filters[0]: rev_accel > 0
+    assert (ccc["missing"], ccc["reasons"]) == (
+        ["rev_accel"],
+        {"rev_accel": "No quarterly revenue was known then."},
+    )
+    assert "security_id" not in json.dumps(found)
+
+
+def test_one_decisions_members(client: TestClient) -> None:
+    submit(client)
+    finished(client)
+    path = f"/v1/backtests/{RUN_ID}/members"
+
+    one = client.get(path, params={"decision": "2021-03-01"}).json()["members"]
+    none = client.get(path, params={"decision": "2021-03-02"}).json()["members"]
+
+    assert [(m["decision"], m["ticker"]) for m in one] == [
+        ("2021-03-01", "AAA"),
+        ("2021-03-01", "BBB"),
+        ("2021-03-01", "CCC"),
+    ]
+    assert none == []  # no decision that day
+
+
+def test_a_run_saved_before_record_version_3_has_no_members(
+    client: TestClient, settings: Settings
+) -> None:
+    # Record version 2's runs kept no members.json (S9.6).
+    run_backtest(parse_spec(canonical_spec_data()), settings)
+    folder = settings.data_dir / "runs" / RUN_ID
+    (folder / "members.json").unlink()
+    manifest = json.loads((folder / MANIFEST).read_bytes())
+    del manifest["files"]["members.json"]
+    manifest["record_version"] = 2
+    (folder / MANIFEST).write_text(json.dumps(manifest), encoding="utf-8")
+
+    found = client.get(f"/v1/backtests/{RUN_ID}/members")
+    one = client.get(
+        f"/v1/backtests/{RUN_ID}/members", params={"decision": "2021-03-01"}
+    )
+
+    assert found.json() == {"run_id": RUN_ID, "status": "succeeded", "members": None}
+    assert one.json()["members"] is None
+    # The rest of the run is served as before.
+    assert client.get(f"/v1/backtests/{RUN_ID}/holdings").json()["holdings"]
+
+
 def test_a_run_saved_before_engine_1_1_is_still_served(
     client: TestClient, settings: Settings
 ) -> None:
@@ -677,7 +750,7 @@ def test_no_response_holds_a_price(client: TestClient) -> None:
     submit(client)
     answers = [finished(client)] + [
         client.get(f"/v1/backtests/{RUN_ID}/{part}").json()
-        for part in ("audit", "holdings", "trades", "coverage")
+        for part in ("audit", "holdings", "trades", "coverage", "members")
     ]
 
     assert not TOY_PRICES & set(floats(answers))
@@ -729,6 +802,7 @@ def test_the_docs_describe_the_body_as_an_experiment_spec(client: TestClient) ->
         (backtests.CoverageCounts, coverage.CoverageCounts, set()),
         (backtests.CoverageRow, coverage.CoverageRow, set()),
         (backtests.CoverageExit, coverage.CoverageExit, set()),
+        (backtests.BacktestMember, members.DecisionMember, set()),
     ],
 )
 def test_response_models_carry_every_engine_field_but_internal_ids(
