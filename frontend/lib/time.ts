@@ -136,6 +136,11 @@ export function formatEtShortDate(t: EtDate): string {
   return `${MONTHS[t.month - 1].slice(0, 3)} ${t.day}, ${t.year}`;
 }
 
+/** A month for tight spaces, such as a chart's axis: "Jun 2020". */
+export function formatEtMonth(t: EtDate): string {
+  return `${MONTHS[t.month - 1].slice(0, 3)} ${t.year}`;
+}
+
 const ET_PARTS = new Intl.DateTimeFormat("en-US", {
   timeZone: MARKET_TIME_ZONE,
   year: "numeric",
