@@ -1,6 +1,6 @@
 # Research API v1: response contract
 
-> **Stories S8.1, S8.2, S4.5, S8.5, S8.3, S8.4, S8.6, and S16.4.** Drafted 2026-10-19 as the contract for S9.1's M2 demo page, and implemented in Sprint 2. Sprint 3 added [`GET /v1/fundamentals/{ticker}`](#get-v1fundamentalsticker) (S5.7, 2026-11-01), then [revision history](#get-v1macroseries_idrevisions) (S4.5), [the catalogs](#get-v1catalogseries) (S8.5), and [the snapshot](#get-v1snapshot) (S8.3) on 2026-11-02. Sprint 4 added [the backtest endpoints](#backtests) (S8.4, 2026-11-15), then [caching](#caching) and the generated [TypeScript types](#typescript-types) (S8.6, 2026-11-19). The API's own docs at `/docs` show the as-of examples below, each labeled with the request that produces it. A test replays every one against the test fixtures, so they can't drift. The backtest examples are from a real run, and its tests check the same shapes on a toy market. To change the contract, update this file and the backend in the same pull request, and tell the frontend.
+> **Stories S8.1, S8.2, S4.5, S8.5, S8.3, S8.4, S8.6, S16.4, and S9.6.** Drafted 2026-10-19 as the contract for S9.1's M2 demo page, and implemented in Sprint 2. Sprint 3 added [`GET /v1/fundamentals/{ticker}`](#get-v1fundamentalsticker) (S5.7, 2026-11-01), then [revision history](#get-v1macroseries_idrevisions) (S4.5), [the catalogs](#get-v1catalogseries) (S8.5), and [the snapshot](#get-v1snapshot) (S8.3) on 2026-11-02. Sprint 4 added [the backtest endpoints](#backtests) (S8.4, 2026-11-15), then [caching](#caching) and the generated [TypeScript types](#typescript-types) (S8.6, 2026-11-19). Sprint 5 added [each decision's members](#get-v1backtestsrun_idmembers) (S9.6, 2026-11-23). The API's own docs at `/docs` show the as-of examples below, each labeled with the request that produces it. A test replays every one against the test fixtures, so they can't drift. The backtest examples are from a real run, and its tests check the same shapes on a toy market. To change the contract, update this file and the backend in the same pull request, and tell the frontend.
 
 ## Conventions
 
@@ -774,6 +774,7 @@ Submit an experiment spec, poll its run, and read what the run produced (S8.4), 
 | [`GET /v1/backtests/{run_id}/audit`](#get-v1backtestsrun_idaudit) | What each view the run opened read, and when the newest of it became known |
 | [`GET /v1/backtests/{run_id}/holdings` and `/trades`](#get-v1backtestsrun_idholdings-and-trades) | Each holding of each period, and each trade at each fill |
 | [`GET /v1/backtests/{run_id}/coverage`](#get-v1backtestsrun_idcoverage) | What data the run's decisions lacked, by security and year, and the holdings it valued at their last close (S6.7) |
+| [`GET /v1/backtests/{run_id}/members`](#get-v1backtestsrun_idmembers) | Every member of the universe at each decision, its signals' values, and whether the run held it, or why not (S9.6) |
 
 - **A run's ID names its inputs:** the SHA-256 of its spec, its data version, and the engine version, as 64 hex digits ([run records](runs.md#the-run-id-and-the-spec-hash)). The same spec on the same data is the same run, for everybody. Runs aren't tied to a user yet (S13.1).
 - **Runs take time.** The canonical spec takes about 35 seconds for 2020 to 2022, and over three minutes for 2010 to 2025. So no request waits for one: submit, then poll `GET /v1/backtests/{run_id}` every few seconds.
@@ -939,7 +940,7 @@ What each view the run opened read, and when the newest of it became known: the 
           "rows": 1,
           "earliest_available_at": "2020-05-01T16:15:00-04:00",
           "latest_available_at": "2020-05-01T16:15:00-04:00",
-          "sha256": "…",
+          "sha256": "086c65a3ca738ea073278cbd517f83509c3265004537b628a1524fdc503bd8b0",
           "groups": [
             {
               "key": "TB3MS",
@@ -952,9 +953,9 @@ What each view the run opened read, and when the newest of it became known: the 
         {
           "table": "xbrl_facts",
           "rows": 8249,
-          "earliest_available_at": "…",
+          "earliest_available_at": "2009-07-22T12:32:52-04:00",
           "latest_available_at": "2020-05-26T19:59:23-04:00",
-          "sha256": "…",
+          "sha256": "0f793c68e90373a69ca5db2244484d4ec1130244d5633f8aab15f8bf223cbb48",
           "groups": [
             {
               "key": 320193,
@@ -972,7 +973,8 @@ What each view the run opened read, and when the newest of it became known: the 
 
 - **`purpose`** says what the view was for: `decision` (bound to the decision's time: the universe, the signals' inputs, and the risk-free rate), `fill` (bound to the close of its fill session: the bars that value the period ending there), or `end` (the run's last close).
 - **What to check:** each table's `latest_available_at` is at or before its view's `knowledge_time`. A fill's view is bound after its decision, because a fill's price isn't known until then.
-- **`groups`** are a table's rows by its first key column, each with its newest row's `available_at` and `source_ref`. `key` is a CIK in `xbrl_facts`, a series ID in `macro_observations`, and a universe's name in `universe_members`. In `price_bars`, `corporate_actions`, and `securities` it's our own ID for a security, the one place an internal ID shows.
+- **`groups`** are a table's rows by its first key column, each with its newest row's `available_at` and `source_ref`. `key` is a CIK in `xbrl_facts`, a series ID in `macro_observations`, and a universe's name in `universe_members`. In `price_bars`, `corporate_actions`, and `securities` it's our own ID for a security, the one place an internal ID shows. A member's `cik` at [`/members`](#get-v1backtestsrun_idmembers) names its group of XBRL facts.
+- **`latest_source_ref` is the newest source the group read,** not every one behind a value: Apple's group above names the 10-Q accepted at 18:03 on April 30, 2020, the newest of the 248 facts its signals could read, though a derived fourth quarter reads the 10-K too.
 - **`views` is `null`** until the run has succeeded. Its `status` says why.
 - **It's large without `decision`:** about 1 MB for 2020 to 2022, and 6 MB for 2010 to 2025. A drill-down by rebalance date should pass `decision`, which answers with about 30 KB.
 
@@ -1076,6 +1078,69 @@ What data the run's decisions lacked, by security and year, and which holdings i
 - **`no_fill_price`** counts chosen members whose trade had no price at the fill, and **`exits`** the holdings valued at their last close before their period ended.
 - **`rows`** has one entry for each security and New York calendar year in which it was a member at a decision, with its last ticker and name that year. `totals` adds them up.
 - **Each exit** has the decision that chose it, `kind` (`delisted_exit` if it stopped trading, after the spec's assumed delisting return, or `missing_price`), `valued_at`, its last close, and `end`, where its period ended.
+
+### `GET /v1/backtests/{run_id}/members`
+
+Every member of the universe at each decision, its signals' values, and whether the run held it, or why not: what a holding alone can't say, such as why a decision passed over a company it knew about ([the members record](runs.md#the-members-record), S9.6). It's the run's `members.json` without internal security IDs. It takes the same optional `decision` as the audit, and `members` is `null` until the run has succeeded. A run saved before record version 3 kept no members record, so its `members` stays `null` until the command saves it again.
+
+`GET /v1/backtests/4036…fed2/members?decision=2020-06-01`, the canonical spec, with three of the 40 members: one of the ten it held, one of the 29 that failed a filter, and the one it left out for lack of data:
+
+```json
+{
+  "run_id": "40365a9a819b04a02bfb31d1e915ff4127fa1ac830959b4b62eaf6f45a0afed2",
+  "status": "succeeded",
+  "members": [
+    {
+      "decision": "2020-06-01",
+      "ticker": "ABBV",
+      "name": "AbbVie Inc.",
+      "cik": 1551152,
+      "outcome": "held",
+      "weight": 0.1,
+      "signals": { "mom_12_1": 0.134527265701, "rev_accel": 0.0530041743358 },
+      "reasons": {},
+      "missing": [],
+      "failed": [],
+      "rank": null
+    },
+    {
+      "decision": "2020-06-01",
+      "ticker": "AAPL",
+      "name": "Apple Inc.",
+      "cik": 320193,
+      "outcome": "failed_filter",
+      "weight": null,
+      "signals": { "mom_12_1": 0.693680328621, "rev_accel": -0.0839275653488 },
+      "reasons": {},
+      "missing": [],
+      "failed": [0],
+      "rank": null
+    },
+    {
+      "decision": "2020-06-01",
+      "ticker": "KSS",
+      "name": "Kohl's Corporation",
+      "cik": 885639,
+      "outcome": "missing_signal",
+      "weight": null,
+      "signals": { "mom_12_1": -0.593996435012, "rev_accel": null },
+      "reasons": {
+        "rev_accel": "Revenue for the quarter a year before the one that ended on 2019-11-02 wasn't known."
+      },
+      "missing": ["rev_accel"],
+      "failed": [],
+      "rank": null
+    }
+  ]
+}
+```
+
+- **`outcome`** says what the decision made of the member, checked in the order the loop decides: `stopped_trading` (no signal was evaluated for it), `missing_signal` (a signal a filter or the ranking needs had no value: see `missing` and `reasons`), `failed_filter` (see `failed`), then, for a member the decision chose, `held`, `no_fill_price` (no price at the fill, so it was neither bought nor sold short), or `wiped_out` (the run ended at this decision, before its trades). `outside_ranking` passed every filter but wasn't in an end of the ranking the portfolio holds.
+- **Apple, above,** had a revenue acceleration of −0.0839: its growth slowed by 8.39 points ([signals](signals.md#3-revenue-growth-acceleration)). So its `failed` is `[0]`: it failed the spec's first filter, `rev_accel > 0`. The audit's group for its CIK, 320193, names the newest filing that decision read: `0000320193-20-000052`, accepted at 18:03 ET on April 30.
+- **`signals`** has every signal in the spec, by its ID, with `null` for one the member had no value for; a holding's leaves those out. `reasons` says why each `null` had none, as a sentence the page can show.
+- **`weight`** is the member's target weight if the decision chose it, negative for a short, whether or not it was held. `failed` lists the filters it failed by their place in the spec's `filters`, from 0, the places a 422's field paths use. `rank` is its place in the ranking of the members that passed every filter, from 1 for the highest value, and `null` without a ranking.
+- **`cik`** is the key of the member's group in the audit's `xbrl_facts`, so a page can say which filing a decision read for it.
+- **The members are in decision order,** then in the order of our security IDs, which the response leaves out. A day with no decision answers with `[]`.
 
 ## Errors
 
