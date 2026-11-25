@@ -1,9 +1,10 @@
 import { apiFetch } from "@/lib/api/client";
 import type { GetResponse, PostBody, PostResponse } from "@/lib/api/types";
 
-// The backtest endpoints (S8.4). Call them from the server, like every v1 endpoint: from a
-// Server Component, or the builder's Server Action. Nothing here goes in Next's data cache,
-// since a run changes while it goes (api-v1.md, "Backtests").
+// The backtest endpoints (S8.4, S9.6). Call them from the server, like every v1 endpoint:
+// from a Server Component, or the builder's Server Action. Nothing here goes in Next's data
+// cache, since a run changes while it goes (api-v1.md, "Backtests"), and a saved run can
+// gain a file its layout didn't keep, such as members.json, at the same address.
 
 /** A run ID: all 64 hex digits of a SHA-256, as the API writes them (backend `RUN_ID`). */
 const RUN_ID = /^[0-9a-f]{64}$/;
@@ -45,4 +46,86 @@ export function getBacktestRun(runId: string): Promise<GetResponse<"/v1/backtest
   return apiFetch<GetResponse<"/v1/backtests/{run_id}">>(backtestPath(runId), {
     cache: "no-store",
   });
+}
+
+/** The parts of a run that list an entry for each decision, which `decision` narrows. */
+export type RunPart = "audit" | "holdings" | "trades" | "members";
+
+/**
+ * The API path of one part of a run, all of it or one decision's, such as
+ * `/v1/backtests/9dfe…b30f/holdings?decision=2020-06-01`.
+ */
+export function backtestPartPath(
+  runId: string,
+  part: RunPart | "coverage",
+  decision?: string,
+): `/v1/backtests/${string}` {
+  const path = `${backtestPath(runId)}/${part}` as const;
+  return decision ? `${path}?${new URLSearchParams({ decision })}` : path;
+}
+
+/**
+ * What each view the run opened at one decision read, and when the newest of it became
+ * known (`GET /v1/backtests/{run_id}/audit?decision=`): two views, or three at the run's
+ * last decision. `views` is null until the run has succeeded.
+ */
+export function getBacktestAudit(
+  runId: string,
+  decision: string,
+): Promise<GetResponse<"/v1/backtests/{run_id}/audit">> {
+  return apiFetch<GetResponse<"/v1/backtests/{run_id}/audit">>(
+    backtestPartPath(runId, "audit", decision),
+    { cache: "no-store" },
+  );
+}
+
+/** What one decision held from its fill (`GET /v1/backtests/{run_id}/holdings?decision=`). */
+export function getBacktestHoldings(
+  runId: string,
+  decision: string,
+): Promise<GetResponse<"/v1/backtests/{run_id}/holdings">> {
+  return apiFetch<GetResponse<"/v1/backtests/{run_id}/holdings">>(
+    backtestPartPath(runId, "holdings", decision),
+    { cache: "no-store" },
+  );
+}
+
+/** One decision's trades at its fill (`GET /v1/backtests/{run_id}/trades?decision=`). */
+export function getBacktestTrades(
+  runId: string,
+  decision: string,
+): Promise<GetResponse<"/v1/backtests/{run_id}/trades">> {
+  return apiFetch<GetResponse<"/v1/backtests/{run_id}/trades">>(
+    backtestPartPath(runId, "trades", decision),
+    { cache: "no-store" },
+  );
+}
+
+/**
+ * Every member of the universe at one decision, its signals, and whether the run held it,
+ * or why not (`GET /v1/backtests/{run_id}/members?decision=`, S9.6). `members` is null
+ * for a run saved before record version 3.
+ */
+export function getBacktestMembers(
+  runId: string,
+  decision: string,
+): Promise<GetResponse<"/v1/backtests/{run_id}/members">> {
+  return apiFetch<GetResponse<"/v1/backtests/{run_id}/members">>(
+    backtestPartPath(runId, "members", decision),
+    { cache: "no-store" },
+  );
+}
+
+/**
+ * What data the run's decisions lacked, by security and year, and the holdings it valued
+ * at their last close (`GET /v1/backtests/{run_id}/coverage`, S6.7). `coverage` is null for
+ * a run saved before engine 1.1.0.
+ */
+export function getBacktestCoverage(
+  runId: string,
+): Promise<GetResponse<"/v1/backtests/{run_id}/coverage">> {
+  return apiFetch<GetResponse<"/v1/backtests/{run_id}/coverage">>(
+    backtestPartPath(runId, "coverage"),
+    { cache: "no-store" },
+  );
 }

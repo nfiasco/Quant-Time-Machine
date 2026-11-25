@@ -92,6 +92,7 @@ export type EquityPoint = Schemas["EquityPoint"];
 export type BacktestAudit = Schemas["BacktestAudit"];
 export type AuditView = Schemas["AuditView"];
 export type AuditTable = Schemas["AuditTable"];
+export type AuditGroup = Schemas["AuditGroup"];
 export type BacktestHoldings = Schemas["BacktestHoldings"];
 export type BacktestHolding = Schemas["BacktestHolding"];
 export type BacktestTrades = Schemas["BacktestTrades"];
@@ -101,6 +102,9 @@ export type CoverageReport = Schemas["CoverageReport"];
 export type CoverageCounts = Schemas["CoverageCounts"];
 export type CoverageRow = Schemas["CoverageRow"];
 export type CoverageExit = Schemas["CoverageExit"];
+export type BacktestMembers = Schemas["BacktestMembers"];
+export type BacktestMember = Schemas["BacktestMember"];
+export type MemberOutcome = BacktestMember["outcome"];
 
 // The body of every error the API itself answers with, which `isV1Error` (lib/api/errors.ts)
 // tells apart from a proxy's.
