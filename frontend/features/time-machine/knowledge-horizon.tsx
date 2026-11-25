@@ -1,14 +1,9 @@
 import { CheckIcon, CircleDashedIcon, ExternalLinkIcon, TriangleAlertIcon } from "lucide-react";
 
+import { KnowledgeTimeLabel } from "@/components/knowledge/knowledge-time-label";
 import { Badge } from "@/components/ui/badge";
 import type { MomentEvent } from "@/features/time-machine/moment-event";
-import {
-  formatEtDate,
-  formatEtShortDate,
-  formatEtTime,
-  toAsOfParam,
-  type EtDateTime,
-} from "@/lib/time";
+import { formatEtShortDate, formatEtTime, toAsOfParam, type EtDateTime } from "@/lib/time";
 import { cn } from "@/lib/utils";
 
 type KnowledgeHorizonProps = {
@@ -72,17 +67,7 @@ export function KnowledgeHorizon({
             aria-hidden
             className="absolute inset-x-0 top-1/2 border-t-2 border-primary @xl:inset-x-auto @xl:inset-y-0 @xl:top-0 @xl:left-1/2 @xl:-ml-px @xl:border-t-0 @xl:border-l-2"
           />
-          <p className="relative flex flex-col items-center rounded-lg border border-primary/50 bg-background px-3 py-1.5 text-center shadow-xs">
-            <span className="font-mono text-sm font-semibold text-brand-ink">
-              T<span className="sr-only">, the knowledge time:</span>
-            </span>
-            <span className="text-xs whitespace-nowrap text-muted-foreground">
-              {formatEtDate(moment)}
-            </span>
-            <span className="font-mono text-xs whitespace-nowrap tabular-nums">
-              {formatEtTime(moment)}
-            </span>
-          </p>
+          <KnowledgeTimeLabel moment={moment} className="relative" />
         </div>
 
         <section
