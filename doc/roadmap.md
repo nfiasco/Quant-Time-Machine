@@ -11,8 +11,8 @@
 - **CISC 499 (Spring 2027):** MCP tools and an AI research assistant that turns questions into structured experiments, plus look-ahead-bias detection, experiment tracking, strategy comparison, and robustness testing.
 - **Ground rule:** the AI translates; deterministic code calculates. Every number comes from tested code, and every input carries the time it became public.
 - **Size:** 16 epics and 104 stories; 69 are P0 for their semester demo. S2.1 (interviews) was removed from scope on November 16. Sprints are two weeks long; Sprint 1 began Monday, September 28, 2026.
-- **Progress:** 43 Done, 4 In progress, 10 In review, and 47 Backlog. The ten In review stories (S6.7, S7.3–S7.8, S8.4, S8.6, and S9.5) are merged; they move to Done at their milestone's reconciliation, M4's, or M5's for S8.6 and S9.5.
-- **Next delivery work:** the revision viewer (S9.3), then the builder's run button, the results page, the methodology page, the performance baseline, the first usability test, and the demo (M5). Accounts (E16) wait for the team's decision ([planning record](project/planning.md)).
+- **Progress:** 43 Done, 3 In progress, 11 In review, and 47 Backlog. The eleven In review stories (S6.7, S7.3–S7.8, S8.4, S8.6, S9.5, and S9.6) are merged; they move to Done at their milestone's reconciliation, M4's, or M5's for S8.6, S9.5, and S9.6.
+- **Next delivery work:** the revision viewer (S9.3), whose chart library D8 has settled, the methodology page (S9.7), the performance baseline, the first usability test, and the demo (M5). Accounts (E16) wait for the team's decision ([planning record](project/planning.md)).
 - **Public demo constraint:** raw Tiingo prices remain disabled on the deployed API pending display rights. The [landing-page example](#s98-public-landing-page) is static; it is not the live explorer.
 
 ## Contents
@@ -90,7 +90,7 @@ Set on November 16, 2026 (S2.4). The [evaluation plan](research/evaluation-plan.
 | Data | Six macro series with vintages and release times; filing histories and identities; XBRL metrics, quarter derivation/restatements; raw-price ingestion, corporate actions, total returns, and 50-company universe v1 | Optional catalog, bulk-data, and universe expansion later. *Nov 17:* the configurable delisting rule and the coverage reports (S6.7) are in review |
 | API | `/v1` prices, macro/revisions, filings/latest, fundamentals, snapshot, and catalog routes, with OpenAPI examples and tests | None. *Nov 16:* run submission, background runs, and the results and audit endpoints (S8.4) are in review. *Nov 19:* generated TypeScript types and the cache of as-of answers (S8.6) are in review |
 | Backtester | Experiment spec v1, JSON Schema, decision/fill schedule, and total-return utilities | Simulation loop, signal calculations, portfolios/costs, performance metrics, run records, audit, and canonical end-to-end run (S7.3–S7.8) |
-| Web | [Public landing page](#s98-public-landing-page), app shell, dashboard health check, initial builder form/preset/validation, and sign-in/sign-up UI | Results, charts, methodology, and real accounts. Most planned routes still render placeholders. *Nov 10:* the live Time Machine explorer (S9.2) is merged. *Nov 19:* the catalog-backed builder, which runs what it builds and shows the run's progress on its own page (S9.5), is in review. |
+| Web | [Public landing page](#s98-public-landing-page), app shell, dashboard health check, initial builder form/preset/validation, and sign-in/sign-up UI | Methodology and real accounts. Most planned routes still render placeholders. *Nov 10:* the live Time Machine explorer (S9.2) is merged. *Nov 19:* the catalog-backed builder, which runs what it builds and shows the run's progress on its own page (S9.5), is in review. *Nov 24:* the results page (S9.6), with the equity curve, metrics, assumptions, warnings, and a drill-down into each rebalance's members and audit, is in review. |
 | Accounts | Supabase CLI configuration and auth forms exist | Hosted setup record, migrations, RLS, token verification, real sessions, saved experiments, privacy/account deletion (E16) |
 | Deployment | Railway API and persisted universe-v1 store; Vercel production points to it; upload script and post-deploy smoke workflow are committed | Background-run recovery and resource sizing wait for S8.4; raw-price display remains restricted |
 | Validation | 713 backend tests pass in an isolated export of the audited commit; 52 network/local-data cases are excluded. Committed CI and deployment smoke runs are green. | This does not establish a completed backtester, frontend automated test suite, usability evidence, or account security. |
@@ -698,7 +698,7 @@ Every story in one table. Verified contributors are listed for completed stories
 | [S9.3](#s93-macro-revision-viewer) | Macro revision viewer | E9 | P1 | M | 4 | M4 | Backlog | [#149](https://github.com/nfiasco/Quant-Time-Machine/issues/149) | See issue |
 | [S9.4](#s94-company-filing-timeline) | Company filing timeline | E9 | P2 | M | 5 | M5 | Backlog | [#150](https://github.com/nfiasco/Quant-Time-Machine/issues/150) | See issue |
 | [S9.5](#s95-backtest-builder) | Backtest builder | E9 | P0 | L | 5 | M5 | In review | [#33](https://github.com/nfiasco/Quant-Time-Machine/issues/33) | See issue |
-| [S9.6](#s96-backtest-results-page) | Backtest results page | E9 | P0 | L | 5 | M5 | In progress | [#34](https://github.com/nfiasco/Quant-Time-Machine/issues/34) | See issue |
+| [S9.6](#s96-backtest-results-page) | Backtest results page | E9 | P0 | L | 5 | M5 | In review | [#34](https://github.com/nfiasco/Quant-Time-Machine/issues/34) | See issue |
 | [S9.7](#s97-methodology-page) | Methodology page | E9 | P1 | S | 5 | M5 | Backlog | [#151](https://github.com/nfiasco/Quant-Time-Machine/issues/151) | See issue |
 | [S9.8](#s98-public-landing-page) | Public landing page | E9 | P1 | M | 3 | M2 | ✅ Done | [#203](https://github.com/nfiasco/Quant-Time-Machine/issues/203) | [iguy1](https://github.com/iguy1), [nfiasco](https://github.com/nfiasco) |
 | [S10.1](#s101-spike-mcp-server-setup) | Spike: MCP server setup | E10 | P0 | S | 7 | M6 | Backlog | [#152](https://github.com/nfiasco/Quant-Time-Machine/issues/152) | See issue |
@@ -2317,7 +2317,7 @@ Next.js 16 has breaking changes from older versions. Check the docs bundled in `
 
 **Tasks**
 
-- [ ] Use the charting library chosen in D8
+- [ ] Use the charting library chosen in D8: Recharts through shadcn's `chart`, as the results page does (S9.6)
 - [ ] Build the chart and table component
 - [ ] Link to it from the Time Machine
 
@@ -2391,7 +2391,7 @@ Evidence: `frontend/features/backtests/` (`backtest-builder.tsx`, `signal-fields
 
 #### S9.6 Backtest results page
 
-**Priority:** P0 · **Size:** L · **Sprint:** 5 · **Milestone:** M5 · **Area:** web · **Depends on:** S8.4 · **Reqs:** FR-W5, NFR-3 · **Status:** In progress
+**Priority:** P0 · **Size:** L · **Sprint:** 5 · **Milestone:** M5 · **Area:** web · **Depends on:** S8.4 · **Reqs:** FR-W5, NFR-3 · **Status:** In review
 
 **Story:** As a researcher, I want clear results with the evidence behind them, so that I can trust, or question, the outcome.
 
@@ -2404,15 +2404,33 @@ Evidence: `frontend/features/backtests/` (`backtest-builder.tsx`, `signal-fields
 
 **Tasks**
 
-- [ ] Build the charts with the library chosen in D8
-- [ ] Build the metrics and holdings tables
-- [ ] Build the assumptions and warnings panel
-- [ ] Build the audit drill-down
+- [x] Build the charts with the library chosen in D8: Recharts, through shadcn's `chart` ([`result-charts.tsx`](../frontend/features/backtests/result-charts.tsx)). D8 is decided below.
+  - The growth of $1 beside the benchmark, and both drawdowns, drawn from the API's equity curve ([`equity.ts`](../frontend/features/backtests/equity.ts)). The benchmark's drawdown comes from its curve too, as api-v1.md says.
+  - The strategy is a solid line and the benchmark a dashed one, so they differ by more than color, and the rebalance shown below is marked T. The same numbers are in a sentence and in a table of all 193 closes, each date linking to its rebalance.
+- [x] Build the metrics and holdings tables: every metric, after costs, beside the benchmark's where there is one, with what it measures ([`metric-rows.ts`](../frontend/features/backtests/metric-rows.ts)).
+  - Each rebalance lists every member of the universe, held or not and why: its weight, every signal's value, its return over the period, and the newest filing its decision read ([`members.ts`](../frontend/features/backtests/members.ts)). Its trades are beside them.
+- [x] Build the assumptions and warnings panel: the spec's decision time, fill rule, costs, delisting return, benchmark, and universe, the data version, and what every run assumes ([`assumptions.ts`](../frontend/features/backtests/assumptions.ts)). Then the warnings by kind, each linking to its rebalance, and the coverage report from S6.7 ([`warnings.ts`](../frontend/features/backtests/warnings.ts)).
+- [x] Build the audit drill-down: `?decision=2020-06-01`, the API's own name, picks the rebalance ([`decisions.ts`](../frontend/features/backtests/decisions.ts)). Each view it opened shows its knowledge time T in the Time Machine's label and every table it read, with when its earliest and newest rows became public and each company's or series' newest source one step away ([`audit.ts`](../frontend/features/backtests/audit.ts)). A row dated after T would show as a leak, which a test checks.
+- [x] Save every member's signals at each decision, for eval task T5 (why June 1, 2020's decision didn't buy Apple): only held members carried their signals. Every run now saves [`members.json`](reference/runs.md#the-members-record) (record version 3), and `GET /v1/backtests/{run_id}/members?decision=` serves it ([api-v1.md](reference/api-v1.md#get-v1backtestsrun_idmembers)).
+  - Each member's outcome is checked in the loop's order: held, a filter it failed, a signal it lacked and why, outside the ranking, or chosen but not traded ([`members.py`](../backend/app/backtest/members.py)).
+  - The engine version and every run ID stay the same: no result changed. Saving a run again on its data version adds the file to an older folder, and the API serves `null` for one without it.
 - [x] Add the permalink: `/backtests/<run_id>`, which the builder opens when a run is submitted (S9.5)
 
 **Progress evidence (2026-11-08):** No implementation or completion evidence for these acceptance criteria is present in the audited commit. This remains planned work.
 
 **Progress evidence (2026-11-19):** S9.5 built the page this story fills out. `/backtests/<run_id>` reads the run on the server and refreshes until it has finished; then it shows the headline metrics (CAGR and total return beside the benchmark's, the Sharpe ratio, and the max drawdown), the warnings' count, the spec, and what the run ran on: its ID, data version, engine version, code, and times in ET. The run ID in the path is the permanent link. The charts, the metrics table, the holdings, the assumptions and warnings panel, and the audit drill-down remain. Evidence: `frontend/app/(app)/backtests/[runId]/page.tsx`, `frontend/features/backtests/run-view.tsx`, `frontend/features/backtests/run-status.ts`.
+
+**Progress evidence (2026-11-24):** A succeeded run's page is its results. Checked in the browser against a local API on the real store (data version 20261111T030742Z, engine 1.1.0):
+
+- **The canonical run.** Run `40365a9a…` shows a CAGR of 18.5% against SPY's 13.9%, $1 grown to $15.04 against $8.03, and maximum drawdowns of −22.0% and −23.8%, both at the April 1, 2020 close. The hit rate is 55.7%, 107 of 192 months, and the t-statistic 2.32. It noted 340 warnings, 337 `missing_signal` and 3 `delisted_exit` (Celgene, Xilinx, Pioneer), and its coverage report left out 326 of 7,529 member-decisions: 312 without fundamentals and 25 without prices. These are S7.8's numbers.
+- **Eval task T5, on one row.** At `?decision=2020-06-01`, 40 members: 10 held, 29 failed a filter, and Kohl's left out without `rev_accel`. Apple's row says "Not held: Failed rev_accel > 0", with an acceleration of −8.39 points, and names the newest filing the decision read for it, `0000320193-20-000052`, public at 6:03 PM ET on April 30, 2020, linked to EDGAR. The audit's decision view has all 17,732 rows public at or before 9:30 AM ET.
+- **The members record.** Saving the canonical run and the 2020–2022 run at 25 bps again added `members.json` in place: the same run IDs, record version 3, and their seven older files byte for byte the same. Of the canonical run's 7,529 member-decisions, 2,868 were held, the holdings' count; 4,335 failed a filter; and 326 were left out, the coverage report's count. The API serves `members: null` for runs saved before it (`9dfedcfa…`, `ffe49fd6…`), and their pages list the holdings with a note.
+- **Picking a rebalance.** The select, previous and next, the warnings' dates, and the dates in the curve's table change `?decision=` and keep the scroll. A day without a decision shows the one before it, with a notice. While a six-month run was going, its page read only the run; once it had succeeded, the five parts, once.
+- **Layout.** 375, 768, and 1280 px wide, in dark and light, with no sideways scrolling: a wide table scrolls in its own container. No console errors. The Time Machine's T label, now shared from `components/knowledge/`, looks as it did.
+- **Tests.** 252 Vitest tests, 74 of them new, on the API's documented examples and metrics.md's worked example: the drawdown metrics.md works by hand, Apple's outcome and filing, and a record dated after T showing as a leak. 1,316 backend tests, 15 of them new: each outcome on hand-made runs, the pinned toy run's `members.json` beside its seven unchanged hashes, an older folder gaining the file, and the endpoint's `null` for one without it. `npm run lint`, `format:check`, `api:types:check`, and `build` pass, as do ruff's checks.
+- **Not done.** Nobody else has reviewed it, and it was checked only against a local API. The deployed API has no saved runs and can't take one until `/data/runs` is writable (S8.4); T5 is run on the deployed site, so its runs must be saved there with record version 3. The unfiltered universe beside a run (S7.8's finding) is left to S14.4. The methodology link opens S9.7's placeholder until that page exists.
+
+Evidence: `frontend/features/backtests/` (`run-results.tsx`, `results-data.ts`, `assumptions-panel.tsx`, `warnings-panel.tsx`, `charts-card.tsx`, `result-charts.tsx`, `metrics-table.tsx`, `rebalance-section.tsx`, `rebalance-picker.tsx`, `members-table.tsx`, `trades-table.tsx`, `audit-panel.tsx`, and their pure modules and tests), `frontend/components/knowledge/knowledge-time-label.tsx`, `frontend/components/ui/chart.tsx`, `frontend/components/ui/table.tsx`, `frontend/lib/api/backtests.ts`, `backend/app/backtest/members.py`, `backend/app/backtest/records.py`, `backend/app/api/backtests.py`, `backend/tests/test_run_members.py`, `doc/reference/runs.md`, `doc/reference/api-v1.md`.
 
 **GitHub:** [#34](https://github.com/nfiasco/Quant-Time-Machine/issues/34) · **Parent epic:** [#15](https://github.com/nfiasco/Quant-Time-Machine/issues/15)
 
@@ -3073,6 +3091,7 @@ Evidence: `frontend/features/backtests/` (`backtest-builder.tsx`, `signal-fields
 - [ ] Implement the bootstrap
 - [ ] Implement the placebo test
 - [ ] Implement the deflated Sharpe ratio
+- [ ] Compare a run with its universe at equal weights, unfiltered, as well as with SPY: S7.8 found that universe v1 alone explains most of the canonical result. The results page (S9.6) compares with the benchmark only.
 
 **Progress evidence (2026-11-08):** No implementation or completion evidence for these acceptance criteria is present in the audited commit. This remains planned work.
 
@@ -3512,7 +3531,7 @@ Open decisions, each owned by a story. When one is made, record the outcome and 
 | D5 | Default decision and fill timing | 09:30 ET decision with same-day close fill, or next-day open fill | **09:30 ET decision, same-day close fill**, configurable per spec; next-day open is a robustness check (S14.3). See [`doc/reference/time-model.md`](reference/time-model.md#10-fills-strictly-after-the-decision-by-default-the-decision-days-close-d5). | Sprint 1 | S3.1 | Decided 2026-10-11; ratified by the team 2026-11-16 |
 | D6 | Model, API, and where the agent loop runs | Claude through the Anthropic API (default candidate) or alternatives; backend or frontend | Claude through the Anthropic API, with the loop in the Python backend | Sprint 7 | S11.1 | Open |
 | D7 | How the assistant reaches the tools | Same-process calls, MCP over Streamable HTTP, or both | The same functions behind both; decide in the spike | Sprint 7 | S10.1 | Open |
-| D8 | Charting library | Recharts, Chart.js, lightweight-charts, others | One library for every chart | Sprint 4 | S9.3, S9.6 | Open |
+| D8 | Charting library | Recharts, Chart.js, lightweight-charts, others | **Recharts, through shadcn's `chart` component** (`frontend/components/ui/chart.tsx`), for every chart. It draws SVG with the `--chart-*` tokens, so both themes work as they are, renders on the server at a starting size, and has tooltips and keyboard support; and it's a shadcn component, as the guidelines ask. lightweight-charts and Chart.js draw on a canvas, so every color would have to be read out of the CSS by hand, and hand-drawn SVG would leave S9.3 to build its own. Recharts 3 needs `react-is` to match React, so it's pinned with React. | Sprint 4 | S9.3, S9.6 | Decided 2026-11-23 (S9.6; pending team review) |
 | D9 | Access control and sign-in | Access code, GitHub sign-in, Supabase Auth accounts, none | **Supabase email/password Auth**, email confirmation and password reset; cookie-backed SSR sessions verified with Auth. Backend S16.4 verifies asymmetric JWTs via project JWKS (issuer/audience/expiry), with explicit opt-in Auth `/user` verification for legacy/local HS256. See [`supabase/README.md`](../supabase/README.md#d9-authentication-and-token-verification). | Sprint 2 (original target passed) | S16.1 | Decided 2026-11-16 (pending team review) |
 | D10 | Run registry storage | Files, SQLite, PostgreSQL | Supabase PostgreSQL with row-level security, alongside accounts (D9), in the tables from S16.2; files until accounts exist. Runs point to market data by `data_version` and never copy it ([`doc/reference/storage.md`](reference/storage.md#two-stores-point-in-time-data-and-accounts)). | Sprint 3 (not yet implemented) | S16.2 | Open |
 | D11 | License | MIT, Apache-2.0, other | **MIT** ([`LICENSE`](../LICENSE)); the team confirmed it fits the course's code-ownership expectations | Sprint 1 | S1.3 | Decided 2026-10-11; confirmed 2026-11-16 |
