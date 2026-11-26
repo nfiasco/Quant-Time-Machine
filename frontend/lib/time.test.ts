@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   etDateTimeOf,
   formatEtDateTime,
+  formatEtMonth,
   formatPeriod,
   instantOf,
   parseAsOf,
@@ -99,5 +100,12 @@ describe("formatPeriod", () => {
 
   it("returns a malformed period unchanged", () => {
     expect(formatPeriod("2020-05", "Monthly")).toBe("2020-05");
+  });
+});
+
+describe("formatEtMonth", () => {
+  it("names a month in three letters, for an axis", () => {
+    expect(formatEtMonth({ year: 2020, month: 6, day: 1 })).toBe("Jun 2020");
+    expect(formatEtMonth({ year: 2010, month: 1, day: 4 })).toBe("Jan 2010");
   });
 });

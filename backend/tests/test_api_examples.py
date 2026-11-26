@@ -124,6 +124,8 @@ def test_response_models_have_readable_names() -> None:
         "CoverageCounts",
         "CoverageRow",
         "CoverageExit",
+        "BacktestMembers",
+        "BacktestMember",
         "ExperimentSpec",
         "DelistingSpec",
         "ErrorResponse",

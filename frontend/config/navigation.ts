@@ -28,6 +28,7 @@ export const milestones = {
   M4: { name: "Backtester v1", target: "Nov 22, 2026" },
   M5: { name: "Web UI and CISC 498 demo", target: "Dec 2026" },
   M7: { name: "AI research assistant alpha", target: "Mar 2027" },
+  M8: { name: "Bias detection and experiment tracking", target: "Apr 2027" },
   M9: { name: "Comparison and robustness", target: "May 2027" },
 } as const;
 
@@ -90,12 +91,12 @@ export const routes = {
     description:
       "Run strategies on point-in-time data and inspect the evidence behind every result.",
     status: "planned",
-    story: { id: "S9.6", title: "Backtest results page", milestone: "M5" },
+    // Each run's page is live (S9.5, S9.6); listing them waits for the run registry.
+    story: { id: "S13.3", title: "Experiment history", milestone: "M8" },
     highlights: [
-      "Equity curve against the benchmark, drawdown chart, metrics table, and holdings at each rebalance.",
-      "Assumptions (decision time, fill rule, costs, data version) and warnings shown up front.",
-      "Audit drill-down: every input used at a rebalance, with its available_at.",
-      "A permanent link for every run.",
+      "Every run you've made, to list, search, and filter by name, tag, date, and metric.",
+      "Notes on each run, and runs grouped under the question they explored, with how many variants were tried.",
+      "Until then, a run is reached by its permanent link, /backtests/<run_id>, which the builder opens.",
     ],
   },
   backtestBuilder: {
@@ -118,7 +119,8 @@ export const routes = {
     title: "Backtest run",
     href: "/backtests",
     icon: ChartLineIcon,
-    description: "A backtest's progress while it runs, and its results once it has finished.",
+    description:
+      "A backtest's progress while it runs, then its results: the equity curve, metrics, holdings, warnings, and the audit of every input.",
     status: "live",
     story: { id: "S9.6", title: "Backtest results page", milestone: "M5" },
   },

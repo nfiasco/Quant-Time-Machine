@@ -1,6 +1,6 @@
 # Run records, determinism, and the audit
 
-> **Stories S7.7, S8.4, and S6.7.** Version 1, 2026-11-12; [runs from the API](#runs-from-the-api) added 2026-11-15, and [the coverage report](#the-coverage-report) 2026-11-17. To change what a run saves, update [`app/backtest/records.py`](../../backend/app/backtest/records.py), [`app/backtest/audit.py`](../../backend/app/backtest/audit.py), [`app/backtest/coverage.py`](../../backend/app/backtest/coverage.py), [`app/backtest/canonical.py`](../../backend/app/backtest/canonical.py), their tests, and this page together.
+> **Stories S7.7, S8.4, S6.7, and S9.6.** Version 1, 2026-11-12; [runs from the API](#runs-from-the-api) added 2026-11-15, [the coverage report](#the-coverage-report) 2026-11-17, and [the members record](#the-members-record) 2026-11-23. To change what a run saves, update [`app/backtest/records.py`](../../backend/app/backtest/records.py), [`app/backtest/audit.py`](../../backend/app/backtest/audit.py), [`app/backtest/coverage.py`](../../backend/app/backtest/coverage.py), [`app/backtest/members.py`](../../backend/app/backtest/members.py), [`app/backtest/canonical.py`](../../backend/app/backtest/canonical.py), their tests, and this page together.
 
 Every run saves a record: a folder of JSON files that say exactly what it used and what it produced. A reviewer can read them, check them, and run the same thing again.
 
@@ -36,6 +36,7 @@ Runs live in `DATA_DIR/runs/`, one folder for each run ID.
 | `metrics.json` | The run's [metrics](metrics.md) |
 | `warnings.json` | Each gap in the data, and what the run assumed instead |
 | `coverage.json` | [What data its decisions lacked](#the-coverage-report), by security and year, and the holdings it valued at their last close |
+| `members.json` | [Every member of the universe at each decision](#the-members-record): its signals' values, and whether the run held it, or why not |
 | `audit.json` | [What each view the run opened read](#the-audit), and when the newest of it became known |
 
 Every holding, trade, warning, and exit carries `decision`, the New York day of its decision, so the files join on it. The coverage report's rows go by security and year instead. Times are in UTC, as `2020-06-01T13:30:00Z`. The API shows them in New York time, as it does everywhere (D12).
@@ -78,7 +79,7 @@ Every holding, trade, warning, and exit carries `decision`, the New York day of 
   It's all 64 hex digits. The same three always give the same ID, so a run ID names its inputs, not the moment it ran.
 - **The engine version** is `ENGINE_VERSION` in [`app/backtest/__init__.py`](../../backend/app/backtest/__init__.py). Raise it with any change that can change a saved result: to a signal, the portfolio, returns, metrics, or the loop, or to how `app/data` reads the store, such as how a quarter is derived.
 - **The git SHA** is recorded and isn't part of the ID. It's the `GIT_SHA` setting if there is one (Railway sets `RAILWAY_GIT_COMMIT_SHA` on a deploy from GitHub), or else git's HEAD, with `-dirty` after it when tracked files have uncommitted changes. It's `null` where neither is known. The commit also pins every dependency, through `uv.lock`.
-- **The record version**, `record_version`, is the version of the files' layout. It isn't part of the ID either: a new layout says the same things about the same run. Version 2 added `coverage.json`, with engine 1.1.0 (S6.7).
+- **The record version**, `record_version`, is the version of the files' layout. It isn't part of the ID either: a new layout says the same things about the same run. Version 2 added `coverage.json`, with engine 1.1.0 (S6.7), and version 3 `members.json` (S9.6). Version 3 changed no other file, so the engine version and every run ID stayed: the pinned toy run's seven older files kept their hashes.
 
 ## Canonical JSON
 
@@ -91,7 +92,7 @@ Every holding, trade, warning, and exit carries `decision`, the New York day of 
 
 Hashes use the compact form, with no spaces. Files use the same text indented by two spaces, with a newline at the end, so two runs can be compared line by line with `diff`.
 
-**Numbers are rounded before they're saved.** Every computed number in `returns.json`, `holdings.json`, `trades.json`, and `metrics.json` keeps 12 significant digits. `coverage.json` holds counts only. A float has 15 to 17, and the last one or two are where machines differ: CAGR is a power, and a power's last digit depends on the machine's maths library. The spec is never rounded. It's saved exactly as it ran, or the saved spec wouldn't be the one to run again.
+**Numbers are rounded before they're saved.** Every computed number in `returns.json`, `holdings.json`, `trades.json`, `metrics.json`, and `members.json` keeps 12 significant digits. `coverage.json` holds counts only. A float has 15 to 17, and the last one or two are where machines differ: CAGR is a power, and a power's last digit depends on the machine's maths library. The spec is never rounded. It's saved exactly as it ran, or the saved spec wouldn't be the one to run again.
 
 ## The audit
 
@@ -237,6 +238,47 @@ From the canonical spec, 2010 to 2025, on data version 20261111T030742Z (run `40
 
 (The file's keys are in sorted order; they're reordered here to read more easily.) AbbVie, spun off from Abbott in January 2013, had no 12-1 momentum at any decision that year and no revenue acceleration at eight, so all twelve of its member-decisions were left out. Over the run, 326 of 7,529 member-decisions were left out, 4.3%: the counts the [canonical write-up](../research/canonical-backtest.md#what-the-engine-warned-about) took from the warnings by hand. Celgene stopped trading after November 20, 2019, while held, and was sold at the next fill.
 
+## The members record
+
+A run's holdings say what it bought, and its warnings which members it left out for lack of data. Neither says what a member that failed a filter scored, so nobody could see why a decision passed over a company it knew about. `members.json` has every member of the universe at every decision, in decision order, then security ID order. Like the coverage report, it's reduced from what the loop recorded, by [`app/backtest/members.py`](../../backend/app/backtest/members.py): each decision's members, every signal's value or reason for each of them, and the targets the decision chose. It reads no data of its own.
+
+Each member gets one `outcome`, checked in the order the loop decides:
+
+| `outcome` | When |
+| --- | --- |
+| `stopped_trading` | It had stopped trading by the decision, so no signal was evaluated for it |
+| `missing_signal` | A signal a filter or the ranking needs had no value: `missing` lists them, the filters' first, and `reasons` says why |
+| `failed_filter` | It had them all, but failed a filter: `failed` lists every one, by its place in the spec's `filters`, from 0 |
+| `held` | The decision chose it, at `weight`, and the run held it until the next fill |
+| `no_fill_price` | The decision chose it, but it had no price at the fill, so it was neither bought nor sold short |
+| `wiped_out` | The decision chose it, but the run ended there, before its trades were made |
+| `outside_ranking` | It passed every filter, but the ranking didn't put it in an end the portfolio holds, or a long-short portfolio had too few members to rank |
+
+- **`signals`** has every signal in the spec, by its ID, with `null` for one the member had no value for, and `reasons` a sentence for each `null`. `holdings.json` leaves those out instead.
+- **`weight`** is the target weight of a member the decision chose, negative for a short, whether or not it was held. **`rank`** is a member's place in the ranking of those that passed every filter, from 1 for the highest value, as the portfolio ranks them; `null` without a ranking.
+- **`cik`** is the key of the member's group of XBRL facts in [the audit](#the-audit), and its `ticker` and `name` are the ones it had at the decision.
+
+From the canonical spec on data version 20261111T030742Z (run `40365a9a…`), Apple at the June 1, 2020 decision, one of the 29 of 40 members that failed a filter that day:
+
+```json
+{
+  "decision": "2020-06-01",
+  "security_id": "apple",
+  "ticker": "AAPL",
+  "name": "Apple Inc.",
+  "cik": 320193,
+  "outcome": "failed_filter",
+  "weight": null,
+  "signals": { "mom_12_1": 0.693680328621, "rev_accel": -0.0839275653488 },
+  "reasons": {},
+  "missing": [],
+  "failed": [0],
+  "rank": null
+}
+```
+
+(The file's keys are in sorted order; they're reordered here to read more easily.) Apple's revenue growth slowed by 8.39 points, so it failed the spec's first filter, `rev_accel > 0` ([signals](signals.md#3-revenue-growth-acceleration)). Over the run, 2,868 member-decisions were held, the holdings' count, 4,335 failed a filter, and 326 were left out for lack of data, the coverage report's count.
+
 ## Determinism
 
 **The promise.** The same spec, data version, and engine version give the same run ID and byte-identical files (FR-B3, NFR-2).
@@ -259,6 +301,7 @@ From the canonical spec, 2010 to 2025, on data version 20261111T030742Z (run `40
 A run ID names its inputs, so saving the same run again finds its folder there.
 
 - **The same results:** the folder is left as it is, with the git SHA that first wrote it.
+- **An older layout:** a folder whose `run.json` doesn't list a file the new layout has, such as `members.json` before record version 3, is written again whole if every file it kept is the same, with the new layout and the git SHA that saved it again. That's how a saved run gains a new file: run its spec again on its data version, `--data-version` and all. The API never does: it answers with a saved run as it is.
 - **Different results:** the same inputs gave two answers, which means the engine changed without a new `ENGINE_VERSION`. `write_run` raises `RunConflictError`, which names the files that differ. Raise the version, or replace the saved run with `--overwrite`.
 
 A folder is written whole or not at all: the files are written beside it, then moved into place.
@@ -289,6 +332,7 @@ A folder is written whole or not at all: the files are written beside it, then m
 - **Rounding can't cover every case.** If two machines' results straddle a rounding boundary, their 12th digits differ. None has been seen, and the pinned test would show one.
 - **The pinned hashes were produced on macOS.** CI's Linux run is the first check that another machine agrees.
 - **The audit is a summary.** It proves the timing of every row and names each group's newest source, but it doesn't list the rows.
+- **A member that had stopped trading has no signals** in the members record, since the loop evaluates signals only for members that were trading.
 - **The coverage report only knows the universe's members.** It can't count the companies a universe never included because our prices don't cover them, such as Lehman Brothers. Universe v1's [coverage gaps](data-sources.md#universe-v1-starter_large_caps-decision-d3) list those.
 - **The audit covers what views returned.** The catalogs' coverage reads return date ranges, not rows, and aren't logged. The engine doesn't use them.
 - **A `-dirty` git SHA** says the code had uncommitted changes, not what they were.

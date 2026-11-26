@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatBps,
   formatMacroValue,
   formatNumber,
   formatPercent,
+  formatPoints,
   formatRatio,
   formatUsd,
   formatUsdMillions,
@@ -79,5 +81,35 @@ describe("formatRatio", () => {
     expect(formatRatio(0.76931736638)).toBe("0.77");
     expect(formatRatio(-0.25)).toBe("−0.25");
     expect(formatRatio(-0.001)).toBe("0.00");
+  });
+});
+
+describe("formatPoints", () => {
+  it("prints a change in a rate as signed percentage points", () => {
+    expect(formatPoints(-0.0839)).toBe("−8.39 pts");
+    expect(formatPoints(0.053)).toBe("+5.30 pts");
+  });
+
+  it("can leave out the plus sign", () => {
+    expect(formatPoints(0.053, { signed: false })).toBe("5.30 pts");
+  });
+
+  it("gives no sign to a change that rounds to zero", () => {
+    expect(formatPoints(-0.00001)).toBe("0.00 pts");
+  });
+});
+
+describe("formatBps", () => {
+  it("prints basis points with up to two decimals", () => {
+    expect(formatBps(10)).toBe("10 bps");
+    expect(formatBps(0.0000671 * 10_000)).toBe("0.67 bps");
+    expect(formatBps(1)).toBe("1 bp");
+  });
+});
+
+describe("formatPercent with two decimals", () => {
+  it("keeps a small monthly rate apart", () => {
+    expect(formatPercent(0.00339428419321, { signed: true, decimals: 2 })).toBe("+0.34%");
+    expect(formatPercent(-0.00004, { signed: true, decimals: 2 })).toBe("0.00%");
   });
 });

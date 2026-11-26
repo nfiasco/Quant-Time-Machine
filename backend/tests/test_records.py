@@ -130,7 +130,7 @@ def test_a_run_saves_everything_a_reviewer_needs(
     assert run["data_version"] == DATA_VERSION
     assert run["engine_version"] == ENGINE_VERSION
     assert run["git_sha"] == GIT_SHA
-    assert run["record_version"] == 2
+    assert run["record_version"] == 3
 
     # What it produced: returns, holdings, trades, metrics, warnings, and the audit.
     periods = found["returns.json"]["periods"]
@@ -222,6 +222,66 @@ def test_a_run_saves_everything_a_reviewer_needs(
         ("CCC", 2021, 4),
     ]
     assert coverage["exits"] == []
+
+    # Every member at every decision, with its signals and what the decision made of
+    # it: AAA held, BBB failing rev_accel > 0 (the first filter), and CCC left out
+    # without rev_accel, for the reason its warning gives.
+    members = found["members.json"]
+    assert len(members) == 12  # three members at each of four decisions
+    assert members[:3] == [
+        {
+            "decision": "2021-01-04",
+            "security_id": "alpha",
+            "ticker": "AAA",
+            "name": "AAA Corp.",
+            "cik": 1,
+            "outcome": "held",
+            "weight": 1.0,
+            "signals": {"mom_12_1": 0.21, "rev_accel": 0.03},
+            "reasons": {},
+            "missing": [],
+            "failed": [],
+            "rank": None,
+        },
+        {
+            "decision": "2021-01-04",
+            "security_id": "beta",
+            "ticker": "BBB",
+            "name": "BBB Corp.",
+            "cik": 2,
+            "outcome": "failed_filter",
+            "weight": None,
+            "signals": {"mom_12_1": 0.21, "rev_accel": -0.03},
+            "reasons": {},
+            "missing": [],
+            "failed": [0],
+            "rank": None,
+        },
+        {
+            "decision": "2021-01-04",
+            "security_id": "gamma",
+            "ticker": "CCC",
+            "name": "CCC Corp.",
+            "cik": None,
+            "outcome": "missing_signal",
+            "weight": None,
+            "signals": {"mom_12_1": 0.21, "rev_accel": None},
+            "reasons": {"rev_accel": "No quarterly revenue was known then."},
+            "missing": ["rev_accel"],
+            "failed": [],
+            "rank": None,
+        },
+    ]
+    # A holding is a member the run held, with the same weight and signals.
+    held = [
+        (m["decision"], m["security_id"], m["weight"], m["signals"])
+        for m in members
+        if m["outcome"] == "held"
+    ]
+    assert held == [
+        (h["decision"], h["security_id"], h["weight"], h["signals"])
+        for h in found["holdings.json"]
+    ]
 
     # Every input at every decision, with when it became known.
     audit = found["audit.json"]
@@ -361,7 +421,7 @@ def test_the_same_inputs_give_byte_identical_files(
     assert first.record == second.record
     assert first.folder.name == second.folder.name
     assert files(first.folder) == files(second.folder)
-    assert len(files(first.folder)) == 8  # run.json and the seven results
+    assert len(files(first.folder)) == 9  # run.json and the eight results
 
 
 def test_two_processes_give_byte_identical_files(
@@ -407,7 +467,8 @@ def test_a_pinned_runs_files_never_change(simulation: Simulation) -> None:
 
     # Engine 1.1.0 added the delisting return (S6.7). Its default changed no file
     # from 1.0.0's; only the spec hash and the run ID did, since the spec now writes
-    # it out, and coverage.json is new.
+    # it out, and coverage.json is new. Record version 3 added members.json (S9.6)
+    # and changed no other file, so the engine version and the run ID stayed.
     assert ENGINE_VERSION == "1.1.0"
     assert record.spec_hash == (
         "17eaeace5bfe1f9ed18177a1f19527c6d933a363431d58e5397fa37eef2752a7"
@@ -419,6 +480,7 @@ def test_a_pinned_runs_files_never_change(simulation: Simulation) -> None:
         "audit.json": "f31e6e3055ebf1d81c712d6e7b93e51ff075aae7c00f63d8e3d599b73ef7511b",
         "coverage.json": "74a03012b67bb7de02967f5cfe50f55fcc93b31fef49bd24160c571bc691eb28",
         "holdings.json": "b76d777b90a01642945a6d2e5726048be79bbdab2eddd9ac29ab0312105bdca7",
+        "members.json": "e92babace3ca37506836efaca399a7c67691afbb6f264760429d27f73837add0",
         "metrics.json": "e6d44562275b62df033a476c188b592812a7bc6db4fd1f6f2421d89d9465f9b7",
         "returns.json": "c84ad14cd2e91f5fa7a618ec53d60f4be9f2158d8c29a43d3b10e9b06efcaed9",
         "trades.json": "41b4611c30d24a2c00e41695c752f3f40136a184713ddd24ef6a192b2d632851",
@@ -471,6 +533,46 @@ def test_a_run_missing_a_file_is_saved_again(
 
     assert write_run(record, runs) == folder
     assert files(folder) == dict(record.files)
+
+
+def as_saved_before(folder: Path, name: str, record_version: int) -> None:
+    """Make a saved run look as an older layout saved it, without one of its files."""
+    (folder / name).unlink()
+    manifest = json.loads((folder / MANIFEST).read_bytes())
+    del manifest["files"][name]
+    manifest["record_version"] = record_version
+    (folder / MANIFEST).write_text(json.dumps(manifest), encoding="utf-8")
+
+
+def test_a_run_saved_with_an_older_layout_gains_its_new_files(
+    simulation: Simulation, runs: Path
+) -> None:
+    record = build_record(simulation, git_sha=GIT_SHA)
+    folder = write_run(record, runs)
+    as_saved_before(folder, "members.json", record_version=2)  # S9.6 added it
+
+    # Saving the same results again adds it, without overwrite: none of them differs.
+    assert write_run(record, runs) == folder
+
+    assert files(folder) == dict(record.files)
+    assert json.loads((folder / MANIFEST).read_bytes())["record_version"] == 3
+
+
+def test_an_older_layout_with_different_results_is_still_a_conflict(
+    simulation: Simulation, runs: Path
+) -> None:
+    record = build_record(simulation, git_sha=GIT_SHA)
+    folder = write_run(record, runs)
+    as_saved_before(folder, "members.json", record_version=2)
+    changed = dataclasses.replace(
+        record, files=record.files | {"returns.json": b'{"periods": []}\n'}
+    )
+
+    with pytest.raises(RunConflictError) as error:
+        write_run(changed, runs)
+
+    assert "different results: returns.json." in str(error.value)
+    assert not (folder / "members.json").exists()  # the saved run is untouched
 
 
 def test_the_code_version_is_the_setting_or_gits_head() -> None:

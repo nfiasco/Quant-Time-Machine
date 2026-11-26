@@ -1,24 +1,14 @@
 import { describeDelisting } from "@/features/backtests/describe-delisting";
 import { describePortfolio } from "@/features/backtests/describe-portfolio";
+import {
+  FILL_LABELS,
+  describeDecision,
+  describeFilter,
+} from "@/features/backtests/describe-schedule";
 import { describeSignal } from "@/features/backtests/describe-signal";
 import type { ExperimentSpec } from "@/features/backtests/types";
 import { universeLabel } from "@/features/backtests/universes";
 import { cn } from "@/lib/utils";
-
-const FILL_LABELS: Record<ExperimentSpec["schedule"]["fill"], string> = {
-  same_day_close: "Same-day close",
-  next_day_open: "Next-day open",
-};
-
-function describeDecision(decision: string): string {
-  const match = /^first_trading_day (\d{2}:\d{2}) America\/New_York$/.exec(decision);
-  return match ? `first trading day at ${match[1]} ET` : decision;
-}
-
-/** "rev_accel > 0". What the builder's form can't read yet, such as a blank value, is "?". */
-function describeFilter({ signal, op, value }: ExperimentSpec["filters"][number]): string {
-  return `${signal || "?"} ${op} ${Number.isFinite(value) ? value : "?"}`;
-}
 
 /**
  * An experiment spec in plain language, with the exact JSON one click away.

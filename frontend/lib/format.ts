@@ -23,6 +23,7 @@ const TWO_DECIMALS = new Intl.NumberFormat("en-US", {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
+const UP_TO_TWO_DECIMALS = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
 
 const MINUS = "−";
 
@@ -62,12 +63,15 @@ export function formatMacroValue(value: number | null, units: string): string {
  * A fraction as a percentage with one decimal, as the API's returns and rates are
  * fractions: 0.185 is "18.5%". With `signed`, a gain also gets "+", so a return's sign
  * doesn't rest on its color (GUIDELINES.md §7). A loss always gets "−", and a value that
- * rounds to zero gets no sign.
+ * rounds to zero gets no sign. `decimals: 2` keeps a small rate apart: "0.34%".
  */
-export function formatPercent(fraction: number, { signed = false } = {}): string {
+export function formatPercent(
+  fraction: number,
+  { signed = false, decimals = 1 }: { signed?: boolean; decimals?: 1 | 2 } = {},
+): string {
   const percent = fraction * 100;
-  const text = ONE_DECIMAL.format(Math.abs(percent));
-  if (Math.abs(percent) < 0.05) return `${text}%`;
+  const text = (decimals === 2 ? TWO_DECIMALS : ONE_DECIMAL).format(Math.abs(percent));
+  if (Math.abs(percent) < 0.5 / 10 ** decimals) return `${text}%`;
   const sign = percent < 0 ? MINUS : signed ? "+" : "";
   return `${sign}${text}%`;
 }
@@ -76,4 +80,26 @@ export function formatPercent(fraction: number, { signed = false } = {}): string
 export function formatRatio(value: number): string {
   const text = TWO_DECIMALS.format(Math.abs(value));
   return value < 0 && Math.abs(value) >= 0.005 ? `${MINUS}${text}` : text;
+}
+
+/**
+ * A difference between two fractions in percentage points, with two decimals: a revenue
+ * growth rate that fell from 10% to 1.61% changed by −0.0839, "−8.39 pts". With `signed`
+ * (the default), a rise gets "+". A value that rounds to zero gets no sign.
+ */
+export function formatPoints(difference: number, { signed = true } = {}): string {
+  const points = difference * 100;
+  const text = TWO_DECIMALS.format(Math.abs(points));
+  if (Math.abs(points) < 0.005) return `${text} pts`;
+  const sign = points < 0 ? MINUS : signed ? "+" : "";
+  return `${sign}${text} pts`;
+}
+
+/**
+ * Basis points, hundredths of a percent, with up to two decimals: "10 bps" for a spec's
+ * `bps_per_trade` of 10, and "0.67 bps" for a trade that cost 0.0000671 of the portfolio
+ * (pass `fraction * 10_000`).
+ */
+export function formatBps(bps: number): string {
+  return `${UP_TO_TWO_DECIMALS.format(bps)} ${bps === 1 ? "bp" : "bps"}`;
 }

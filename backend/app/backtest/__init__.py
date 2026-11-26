@@ -22,6 +22,8 @@ itself. So far it has:
   the risk-free rate each decision knew (S7.6; doc/reference/metrics.md)
 - `coverage`: what data a run's decisions lacked, by security and year, and the
   holdings it valued at their last close (S6.7; doc/reference/runs.md)
+- `members`: every member of the universe at each decision, with its signals' values
+  and whether the run held it, or why not (S9.6; doc/reference/runs.md)
 - `canonical`: canonical JSON, so equal values give equal bytes and hashes (S7.7)
 - `audit`: what each view a run opened read, summarized from its access log, with
   each row's `available_at` (S7.7)

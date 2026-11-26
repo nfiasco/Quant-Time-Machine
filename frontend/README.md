@@ -36,13 +36,22 @@ The explorer (`/time-machine`, code in [`features/time-machine/`](features/time-
 
 ## Backtest builder
 
-The builder (`/backtests/new`, code in [`features/backtests/`](features/backtests)) builds an experiment spec with a form and runs it (S9.5). A run's page, `/backtests/<run_id>`, shows its progress and then its headline results; the results page (S9.6) adds the charts, holdings, and audit there.
+The builder (`/backtests/new`, code in [`features/backtests/`](features/backtests)) builds an experiment spec with a form and runs it (S9.5). A run's page, `/backtests/<run_id>`, shows its progress, and then [its results](#backtest-results).
 
 - **Fields from the catalogs.** Each signal's parameters come from its kind's JSON Schema in `GET /v1/catalog/signals`, and a macro signal's series from `/v1/catalog/series`, both loaded on the server. The form edits a draft ([`draft.ts`](features/backtests/draft.ts)), so a signal can be renamed without losing the filters on it.
 - **Errors where they belong.** The form checks what it can as you type ([`validation.ts`](features/backtests/validation.ts)), and the API's 422 paths, such as `signals.mom_12_1.skip_months`, land beside the same fields ([`field-errors.ts`](features/backtests/field-errors.ts)).
 - **Running.** Run sends the spec through a Server Action ([`actions.ts`](features/backtests/actions.ts)), which opens the run's page: at once for a spec that already ran on the newest data, and otherwise to watch it go. That page reads the run on the server and refreshes itself every 2 seconds until it has finished ([`run-refresher.tsx`](features/backtests/run-refresher.tsx)).
 - **Starting points.** `?preset=canonical` opens the canonical example, and `?from=<run_id>` an earlier run's spec, which is where "Edit and run again" goes. "Reset to the example" returns to the example.
 - **Locally,** runs need the backend (`cd backend && uv run fastapi dev`) and its store. A new run of the canonical spec for 2020 to 2022 takes about 40 seconds. The deployed API can't take runs until its run folder is writable (S8.4).
+
+## Backtest results
+
+Once a run has succeeded, its page, `/backtests/<run_id>`, is its results (S9.6): the evidence behind the numbers as well as the numbers. [`run-results.tsx`](features/backtests/run-results.tsx) puts it together from the run and what [`results-data.ts`](features/backtests/results-data.ts) reads beside it, all on the server.
+
+- **Assumptions and warnings first.** The decision time, fill rule, costs, delisting return, benchmark, universe, and data version, and what every run assumes ([`assumptions.ts`](features/backtests/assumptions.ts)); then the run's warnings by kind, each linking to its rebalance, and its coverage report ([`warnings.ts`](features/backtests/warnings.ts)).
+- **The curve and the metrics.** The growth of $1 beside the benchmark, and both drawdowns, drawn from the API's equity curve ([`equity.ts`](features/backtests/equity.ts)) with Recharts through shadcn's `chart` (decision D8). The strategy is a solid line and the benchmark a dashed one, and the same numbers are in words and in a table. Every metric is in [`metric-rows.ts`](features/backtests/metric-rows.ts), with what it measures.
+- **One rebalance at a time.** `?decision=2020-06-01`, the API's own name, picks the rebalance; without it, the last one ([`decisions.ts`](features/backtests/decisions.ts)). Its period, every member of the universe, held or not and why, from `GET /v1/backtests/{run_id}/members` ([`members.ts`](features/backtests/members.ts)), its trades, and its audit: each view's knowledge time T and every table it read, with when its rows became public, one step from their source ([`audit.ts`](features/backtests/audit.ts)). The newest filing each company's facts came from sits on its row, so "why didn't June 1, 2020 buy Apple, and which filing told it so?" is answered in one place.
+- **States.** A run saved before engine 1.1.0 has no coverage report, and one saved before record version 3 no members record: the page says so and lists the holdings. A part the API couldn't give shows its own error with a retry, and while another rebalance loads, the old one dims.
 
 ## Configuration
 

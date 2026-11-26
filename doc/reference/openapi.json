@@ -2931,6 +2931,104 @@
           }
         }
       }
+    },
+    "/v1/backtests/{run_id}/members": {
+      "get": {
+        "tags": [
+          "backtests"
+        ],
+        "summary": "Get Backtest Members",
+        "description": "Every member of the universe at each decision: its signals' values, and whether\nthe decision chose it, or why not, such as a filter it failed (S9.6).",
+        "operationId": "get_backtest_members_v1_backtests__run_id__members_get",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Run Id"
+            }
+          },
+          {
+            "name": "decision",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only this decision's entries: the New York day of a decision, as in `result.periods`. Left out, every decision's.",
+              "examples": [
+                "2020-06-01"
+              ],
+              "title": "Decision"
+            },
+            "description": "Only this decision's entries: the New York day of a decision, as in `result.periods`. Left out, every decision's."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BacktestMembers"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "A parameter is missing or invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "A bug. The message is generic.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No run with this ID was saved or submitted",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "unknown_run": {
+                    "summary": "A run we don't have",
+                    "description": "GET /v1/backtests/0000000000000000000000000000000000000000000000000000000000000000/members",
+                    "value": {
+                      "error": {
+                        "code": "not_found",
+                        "message": "We have no run 0000000000000000000000000000000000000000000000000000000000000000.",
+                        "details": []
+                      }
+                    }
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3267,6 +3365,178 @@
           "holdings"
         ],
         "title": "BacktestHoldings"
+      },
+      "BacktestMember": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "format": "date",
+            "title": "Decision",
+            "description": "The New York day of the decision."
+          },
+          "ticker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticker",
+            "description": "Its ticker at the decision: null if it had stopped trading."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Its name at the decision."
+          },
+          "cik": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cik",
+            "description": "Its SEC Central Index Key, the key of its group of XBRL facts in the audit. Null for a security without one."
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "held",
+              "no_fill_price",
+              "wiped_out",
+              "outside_ranking",
+              "failed_filter",
+              "missing_signal",
+              "stopped_trading"
+            ],
+            "title": "Outcome",
+            "description": "\"held\" at `weight` until the next fill; chosen but \"no_fill_price\", or \"wiped_out\" because the run ended at this decision; \"outside_ranking\" if it passed every filter but wasn't in an end of the ranking the portfolio holds; \"failed_filter\" (see `failed`); \"missing_signal\" if a signal a filter or the ranking needs had no value (see `missing`); or \"stopped_trading\", with no signals."
+          },
+          "weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight",
+            "description": "Its target weight if the decision chose it, negative for a short, whether or not it was held. Null for one the decision didn't choose."
+          },
+          "signals": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Signals",
+            "description": "Its value for every signal in the spec, by ID: null for one it had no value for, and for every signal of a member that had stopped trading."
+          },
+          "reasons": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Reasons",
+            "description": "Why each signal it had no value for had none, by ID, as a sentence the page can show as is."
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing",
+            "description": "The signals a filter or the ranking needs that it had no value for: the filters', then the ranking's."
+          },
+          "failed": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Failed",
+            "description": "The filters it failed, by their place in the spec's `filters`, from 0: the same places as a 422's `filters.0.value`."
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank",
+            "description": "Its place in the ranking of the members that passed every filter, from 1 for the highest value. Null without a ranking, and for a member that didn't pass."
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision",
+          "ticker",
+          "name",
+          "cik",
+          "outcome",
+          "weight",
+          "signals",
+          "reasons",
+          "missing",
+          "failed",
+          "rank"
+        ],
+        "title": "BacktestMember",
+        "description": "A member of the universe at a decision, its signals' values, and whether the run\nheld it, or why not."
+      },
+      "BacktestMembers": {
+        "properties": {
+          "run_id": {
+            "type": "string",
+            "title": "Run Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "succeeded",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "members": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/BacktestMember"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Members",
+            "description": "In decision order. Null until the run has succeeded, and for a run saved before record version 3, which kept no members record."
+          }
+        },
+        "type": "object",
+        "required": [
+          "run_id",
+          "status",
+          "members"
+        ],
+        "title": "BacktestMembers"
       },
       "BacktestMetrics": {
         "properties": {

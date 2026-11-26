@@ -409,6 +409,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/backtests/{run_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Backtest Members
+         * @description Every member of the universe at each decision: its signals' values, and whether
+         *     the decision chose it, or why not, such as a filter it failed (S9.6).
+         */
+        get: operations["get_backtest_members_v1_backtests__run_id__members_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -583,6 +604,89 @@ export interface components {
              * @description In decision order. Null until the run has succeeded.
              */
             holdings: components["schemas"]["BacktestHolding"][] | null;
+        };
+        /**
+         * BacktestMember
+         * @description A member of the universe at a decision, its signals' values, and whether the run
+         *     held it, or why not.
+         */
+        BacktestMember: {
+            /**
+             * Decision
+             * Format: date
+             * @description The New York day of the decision.
+             */
+            decision: string;
+            /**
+             * Ticker
+             * @description Its ticker at the decision: null if it had stopped trading.
+             */
+            ticker: string | null;
+            /**
+             * Name
+             * @description Its name at the decision.
+             */
+            name: string;
+            /**
+             * Cik
+             * @description Its SEC Central Index Key, the key of its group of XBRL facts in the audit. Null for a security without one.
+             */
+            cik: number | null;
+            /**
+             * Outcome
+             * @description "held" at `weight` until the next fill; chosen but "no_fill_price", or "wiped_out" because the run ended at this decision; "outside_ranking" if it passed every filter but wasn't in an end of the ranking the portfolio holds; "failed_filter" (see `failed`); "missing_signal" if a signal a filter or the ranking needs had no value (see `missing`); or "stopped_trading", with no signals.
+             * @enum {string}
+             */
+            outcome: "held" | "no_fill_price" | "wiped_out" | "outside_ranking" | "failed_filter" | "missing_signal" | "stopped_trading";
+            /**
+             * Weight
+             * @description Its target weight if the decision chose it, negative for a short, whether or not it was held. Null for one the decision didn't choose.
+             */
+            weight: number | null;
+            /**
+             * Signals
+             * @description Its value for every signal in the spec, by ID: null for one it had no value for, and for every signal of a member that had stopped trading.
+             */
+            signals: {
+                [key: string]: number | null;
+            };
+            /**
+             * Reasons
+             * @description Why each signal it had no value for had none, by ID, as a sentence the page can show as is.
+             */
+            reasons: {
+                [key: string]: string;
+            };
+            /**
+             * Missing
+             * @description The signals a filter or the ranking needs that it had no value for: the filters', then the ranking's.
+             */
+            missing: string[];
+            /**
+             * Failed
+             * @description The filters it failed, by their place in the spec's `filters`, from 0: the same places as a 422's `filters.0.value`.
+             */
+            failed: number[];
+            /**
+             * Rank
+             * @description Its place in the ranking of the members that passed every filter, from 1 for the highest value. Null without a ranking, and for a member that didn't pass.
+             */
+            rank: number | null;
+        };
+        /** BacktestMembers */
+        BacktestMembers: {
+            /** Run Id */
+            run_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "succeeded" | "failed";
+            /**
+             * Members
+             * @description In decision order. Null until the run has succeeded, and for a run saved before record version 3, which kept no members record.
+             */
+            members: components["schemas"]["BacktestMember"][] | null;
         };
         /**
          * BacktestMetrics
@@ -3192,6 +3296,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BacktestCoverage"];
+                };
+            };
+            /** @description No run with this ID was saved or submitted */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A parameter is missing or invalid */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A bug. The message is generic. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_backtest_members_v1_backtests__run_id__members_get: {
+        parameters: {
+            query?: {
+                /** @description Only this decision's entries: the New York day of a decision, as in `result.periods`. Left out, every decision's. */
+                decision?: string | null;
+            };
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BacktestMembers"];
                 };
             };
             /** @description No run with this ID was saved or submitted */

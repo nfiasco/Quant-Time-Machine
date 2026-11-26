@@ -32,7 +32,7 @@ from typing import Literal
 
 from app.backtest.returns import PricePoint
 from app.backtest.signals import DATA
-from app.backtest.simulation import Simulation
+from app.backtest.simulation import Simulation, needed_signals
 from app.data.timeutil import ET
 
 ExitKind = Literal["delisted_exit", "missing_price"]
@@ -125,12 +125,7 @@ def summarize(simulation: Simulation) -> RunCoverage:
     ones left out for lack of data and what they lacked, and its exits at a last
     close."""
     spec = simulation.spec
-    # The signals a member needs a value for, as the loop takes them: the filters',
-    # then the ranking's.
-    needed = [condition.signal for condition in spec.filters]
-    if spec.portfolio.rank is not None:
-        needed.append(spec.portfolio.rank.signal)
-    needed = list(dict.fromkeys(needed))
+    needed = needed_signals(spec)
     reads = {signal: DATA[spec.signals[signal].type] for signal in needed}
     kinds = sorted(set(reads.values()))
 

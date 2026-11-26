@@ -107,7 +107,7 @@ backend/
 │   │   ├── fundamentals.py   # GET /v1/fundamentals/{ticker}
 │   │   ├── catalog.py        # GET /v1/catalog/series, /companies, and /signals
 │   │   ├── snapshot.py       # GET /v1/snapshot
-│   │   └── backtests.py      # POST /v1/backtests, and GET /v1/backtests/{run_id} with /audit, /holdings, /trades, /coverage
+│   │   └── backtests.py      # POST /v1/backtests, and GET /v1/backtests/{run_id} with /audit, /holdings, /trades, /coverage, /members
 │   ├── data/           # Point-in-time data layer (see below)
 │   └── backtest/       # The backtest engine (see below)
 ├── spikes/             # Experiments behind the data, storage, and hosting decisions (not app code)
@@ -187,6 +187,7 @@ npm run api:types                                                 # from fronten
 | `GET /v1/backtests/{run_id}/audit?decision` | What each view the run opened read, for every decision or one | `audit.json` |
 | `GET /v1/backtests/{run_id}/holdings?decision` and `/trades?decision` | Each holding of each period, and each trade at each fill | `holdings.json`, `trades.json` |
 | `GET /v1/backtests/{run_id}/coverage` | What data the run's decisions lacked, by security and year, and the holdings it valued at their last close (S6.7) | `coverage.json` |
+| `GET /v1/backtests/{run_id}/members?decision` | Every member of the universe at each decision, its signals' values, and whether the run held it, or why not (S9.6) | `members.json` |
 
 ## Point-in-time data layer
 
@@ -287,6 +288,7 @@ The engine in [`app/backtest/`](app/backtest/) reads data only through `PointInT
 | [`canonical.py`](app/backtest/canonical.py) | Canonical JSON (S7.7): sorted keys, one way to write each number, and `rounded`, which keeps 12 significant digits of a computed result. Equal values give equal bytes, so equal hashes |
 | [`audit.py`](app/backtest/audit.py) | A run's audit (S7.7). As each view closes, the loop summarizes its access log: for each table, the distinct rows, the earliest and latest `available_at`, a SHA-256 of them all, and each company's or series' newest source |
 | [`coverage.py`](app/backtest/coverage.py) | A run's coverage report (S6.7). `summarize(result)` counts its member-decisions by security and year, those left out for lack of data and what they lacked (prices, fundamentals, or macro data), and its exits at a last close. Like the metrics, it only does arithmetic on what the run recorded |
+| [`members.py`](app/backtest/members.py) | A run's members record (S9.6). `summarize(result)` gives every member of the universe at each decision, every signal's value or why it had none, and what the decision made of it: held, a filter it failed, a signal it lacked, outside the ranking's ends, and so on. It too only reduces what the run recorded |
 | [`records.py`](app/backtest/records.py) | A run's record (S7.7). `build_record` turns a finished run into its files, and `write_run` saves them under its run ID, the SHA-256 of the spec, the data version, and `ENGINE_VERSION`. Saving different results for a saved run raises `RunConflictError`. [`doc/reference/runs.md`](../doc/reference/runs.md) has the files and the rules |
 
 ```python
@@ -343,7 +345,7 @@ uv run python -m app.runs tests/fixtures/specs/canonical.json
 
 It prints the run ID, the headline metrics, the member-decisions left out for lack of data and the holdings exited at a last close, and the folder. `--data-version` reads an older data version, `--out` saves somewhere else, and `--overwrite` replaces a saved run whose results differ.
 
-- **A record is eight JSON files:** `run.json` (the spec as it ran, its hash, the data version, the engine version, the git SHA, and each other file's hash), `returns.json`, `holdings.json`, `trades.json`, `metrics.json`, `warnings.json`, `coverage.json` (S6.7), and `audit.json`.
+- **A record is nine JSON files:** `run.json` (the spec as it ran, its hash, the data version, the engine version, the git SHA, and each other file's hash), `returns.json`, `holdings.json`, `trades.json`, `metrics.json`, `warnings.json`, `coverage.json` (S6.7), `members.json` (S9.6), and `audit.json`. Running a spec that's saved with an older layout again adds the files it lacks.
 - **The run ID** is the SHA-256 of the spec, the data version, and the engine version, so the same inputs always have the same ID.
 - **The same inputs give the same bytes.** The files are canonical JSON, computed numbers keep 12 significant digits, and no file has a time of day in it. CI runs a spec twice, in one process and in two, and compares every byte.
 - **The audit** has an entry for each view the run opened: what it read from each table, when the newest row became known, and a hash of every row. A decision of the canonical spec reads about 17,700 rows, so the rows themselves aren't kept.
