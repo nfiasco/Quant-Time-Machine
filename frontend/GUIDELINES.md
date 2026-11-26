@@ -54,7 +54,7 @@ Tokens are CSS variables in `app/globals.css`, defined for light (`:root`) and d
 | `known` | Facts public at the knowledge time |
 | `future` | Facts not yet public at the knowledge time (muted, with dashed borders and hollow dots) |
 | `positive` / `negative` | Gains and losses, healthy and unhealthy status |
-| `chart-1` … `chart-5` | Chart series: `chart-1` for the strategy, `chart-2` (gray) for the benchmark |
+| `chart-1` … `chart-5` | Chart series: `chart-1` for the strategy, `chart-2` (gray) for the benchmark. Draw the benchmark dashed, so the two differ by more than color, and mark a knowledge time T in `primary`, dashed and labeled "T" |
 | `sidebar-*` | The app sidebar only |
 
 - Opacity modifiers are fine and expected: `bg-known/10`, `border-future/40`.
@@ -93,6 +93,8 @@ Primitives live in `components/ui/` and come from [shadcn/ui](https://ui.shadcn.
 | `NativeSelect` | One choice from a fixed list, in the browser's own select (the backtest builder). It sizes its wrapper, so pass `className="w-full"` in a form. |
 | `Progress` | Progress through a known number of steps, such as a run's decisions. Give it an `aria-label` and an `aria-valuetext` ("13 of 36 decisions"). |
 | `Checkbox` | Multiple choice from a short list, in a `FieldSet` with `FieldGroup data-slot="checkbox-group"` (the Time Machine's series). |
+| `Table` | Two-dimensional data: a run's metrics, members, trades, and audit. It scrolls sideways in its own container, so give a wide one a `min-w-*`, and a row its header with `<TableHead scope="row">`. Numbers are `font-mono tabular-nums` with units in the column's header. |
+| `Chart` | Every chart (decision D8): `ChartContainer` around a Recharts chart, with an `initialDimension` so it renders on the server. Format the tooltip's values with `lib/format.ts` through its `formatter`, since its default uses `toLocaleString()`. A chart needs a text summary and its numbers in a table beside it (`.github/ACCESSIBILITY.md`). |
 | `Popover` + `Command` | A searchable picker: shadcn's combobox recipe for Radix (see `features/time-machine/ticker-picker.tsx`). shadcn's own `combobox` is built on Base UI, a second headless library, so don't add it. `command` brought `dialog`, `input-group`, and `textarea` with it. |
 | `Sheet`, `Separator`, `Sidebar` | Used by the app shell. |
 
@@ -105,9 +107,11 @@ Primitives live in `components/ui/` and come from [shadcn/ui](https://ui.shadcn.
 | `ErrorState` | `components/feedback/` | Failure message with retry; used by `error.tsx`. A Server Component passes `actions={<RetryButton />}` instead of `onRetry`. |
 | `RetryButton` | `components/feedback/` | "Try again" for an inline error a Server Component renders: refreshes the page on the server |
 | `ThemeToggle`, `Brand`, `AccountNav` | `components/layout/` | Shell pieces |
+| `KnowledgeTimeLabel` | `components/knowledge/` | The knowledge time T as a label: "T" in the brand ink over its date and time in ET, boxed in amber. The knowledge horizon and a backtest's audit both use it. |
 | `KnowledgeHorizon` | `features/time-machine/` | Known vs. not-yet-known split at a moment. Splits side by side when its container is 36rem wide (`@xl`); `headingLevel`, `emptyKnown`, `emptyNotYetKnown`, and `collapseAfter` fit it inside a card. Events can carry a source `link` and a `caveat`. |
 | `SpecSummary` | `features/backtests/` | An experiment spec in plain language, with its JSON |
 | `RunRefresher` | `features/backtests/` | Renders a Server Component page again every couple of seconds while what it shows can still change, such as a backtest that's running. It pauses while the tab is hidden. |
+| `RunResults` | `features/backtests/` | A succeeded run's results: assumptions and warnings, the equity curve and drawdown (`ResultCharts`, a small client leaf), metrics, and the drill-down into one rebalance (`RebalancePicker`, `MembersTable`, `TradesTable`, `AuditPanel`) |
 
 **Icons:** [Lucide](https://lucide.dev) via `lucide-react`, using the `…Icon` names (`CalendarClockIcon`). Default size is `size-4`; decorative icons get `aria-hidden`. Lucide 1.x has no brand logos.
 
@@ -183,7 +187,7 @@ lib/            Framework-agnostic helpers: api/, time, format, theme, utils
 - Call the API from Server Components. Wrap a call in `settle` (`lib/api/errors.ts`) to render its failure in place: a 4xx comes back with the API's sentence and field names, so it can sit next to the right field.
 - To watch something that changes on the server, such as a running backtest, render its page again with `router.refresh()` (`RunRefresher`) instead of polling a Server Action: Next runs a client's actions one at a time, and they're meant for changes. A Server Action is for the change itself, such as submitting the run.
 - API types are generated from the API's OpenAPI schema (S8.6): `npm run api:types` turns `doc/reference/openapi.json` into `lib/api/schema.ts`. Never edit that file; regenerate it when the schema changes (CI's `npm run api:types:check` fails until you do). Import names from `lib/api/types.ts`, and add one there when a page needs it. A function in `lib/api/` declares its return type as its route's, `GetResponse<"/v1/snapshot">`, so a renamed route or a changed model fails the build.
-- Shareable state lives in the URL, using the API's parameter names where it has one: `as_of`, `tickers`, `series`, `preset`. The builder's `from` names the run whose spec it starts from, and a run's own page is `/backtests/<run_id>`. Parse and validate on read (see `parseAsOf` and `features/time-machine/params.ts`). Lists are one comma-separated value, and links keep commas and colons readable.
+- Shareable state lives in the URL, using the API's parameter names where it has one: `as_of`, `tickers`, `series`, `preset`, and a run's `decision`. The builder's `from` names the run whose spec it starts from, and a run's own page is `/backtests/<run_id>`, with `?decision=2020-06-01` for one of its rebalances. Parse and validate on read (see `parseAsOf` and `features/time-machine/params.ts`). Lists are one comma-separated value, and links keep commas and colons readable.
 
 ### Styling
 
