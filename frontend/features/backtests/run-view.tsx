@@ -31,6 +31,8 @@ import { routes } from "@/config/navigation";
 import { describeFailure } from "@/features/backtests/api-failure";
 import { RerunButton } from "@/features/backtests/rerun-button";
 import { RunRefresher } from "@/features/backtests/run-refresher";
+import { RunResults } from "@/features/backtests/run-results";
+import type { RunResultsData } from "@/features/backtests/results-data";
 import {
   describeProgress,
   describeRun,
@@ -53,12 +55,18 @@ const STATUS_ICONS: Record<BacktestRun["status"], LucideIcon> = {
 };
 
 /**
- * A run's page (S9.5): its status while it's queued or running, why it failed, or its
- * headline numbers once it has succeeded, with the spec it ran and what it ran on. It
- * refreshes itself until the run has finished. The results page (S9.6) adds the charts,
- * holdings, warnings, and audit here.
+ * A run's page (S9.5): its status while it's queued or running, or why it failed, with
+ * the spec it ran and what it ran on. It refreshes itself until the run has finished.
+ * Once the run has succeeded it's the results page (S9.6): the headline numbers, then
+ * `RunResults` with `results`, what the page read beyond the run.
  */
-export function RunView({ run }: { run: BacktestRun }) {
+export function RunView({
+  run,
+  results = null,
+}: {
+  run: BacktestRun;
+  results?: RunResultsData | null;
+}) {
   const state = describeRun(run);
   const StatusIcon = STATUS_ICONS[run.status];
 
@@ -93,6 +101,10 @@ export function RunView({ run }: { run: BacktestRun }) {
       <RunRefresher active={state.pending} />
 
       <RunStatusCard run={run} state={state} />
+
+      {run.status === "succeeded" && run.result && results ? (
+        <RunResults run={run} result={run.result} data={results} />
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
         <Card>
@@ -199,9 +211,18 @@ function RunHeadline({ run }: { run: BacktestRun }) {
         {start && end
           ? ` from the close on ${formatEtDate(start)} to the close on ${formatEtDate(end)}`
           : ""}
-        . The run noted {warnings.length} {warnings.length === 1 ? "warning" : "warnings"} about
-        missing data. The equity curve, holdings, warnings, and audit drill-down arrive here with
-        the results page (S9.6).
+        .{" "}
+        {warnings.length === 0 ? (
+          "The run noted no gap in its data."
+        ) : (
+          <>
+            The run noted{" "}
+            <a href="#warnings" className="underline underline-offset-4 hover:text-brand-ink">
+              {warnings.length} {warnings.length === 1 ? "warning" : "warnings"}
+            </a>{" "}
+            about missing data, and what it assumed instead.
+          </>
+        )}
       </p>
     </div>
   );
